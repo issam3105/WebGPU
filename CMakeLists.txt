@@ -22,9 +22,9 @@ else()
 endif()
 
 
-add_subdirectory(glfw)
-add_subdirectory(webgpu)
-add_subdirectory(glfw3webgpu)
+add_subdirectory(ext/glfw)
+add_subdirectory(ext/webgpu)
+add_subdirectory(ext/glfw3webgpu)
 
 target_link_libraries(App PRIVATE webgpu glfw glfw3webgpu)
 
