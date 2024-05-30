@@ -179,10 +179,33 @@ public:
 		return fragmentState;
 	}
 	 
-	//ShaderModule getShaderModule() { return m_shaderModule; }
+	void addVertexAttrib(const std::string& attribName, int location, VertexFormat format, int offset)
+	{
+		VertexAttribute vertexAttribute;
+		vertexAttribute.shaderLocation = location;
+		vertexAttribute.format = format;
+		vertexAttribute.offset = offset;
+		m_vertexAttribs.push_back(vertexAttribute);
+	}
+
+	const VertexBufferLayout getVertexBufferLayout() const{
+		VertexBufferLayout vertexBufferLayout;
+		// [...] Build vertex buffer layout
+		vertexBufferLayout.attributeCount = (uint32_t)m_vertexAttribs.size();
+		vertexBufferLayout.attributes = m_vertexAttribs.data();
+		// == Common to attributes from the same buffer ==
+		vertexBufferLayout.arrayStride = m_attribsStride;
+		vertexBufferLayout.stepMode = VertexStepMode::Vertex;
+		return vertexBufferLayout;
+	}
+
+	void setAttribsStride(uint64_t attribsStride) { m_attribsStride = attribsStride; }
+	//const std::vector<VertexAttribute>& getVertexAttribs() const { return m_vertexAttribs; }
 	
 private:
 	ShaderModule m_shaderModule{ nullptr };
+	std::vector<VertexAttribute> m_vertexAttribs;
+	uint64_t m_attribsStride = 0;
 };
 
 //https://eliemichel.github.io/LearnWebGPU/basic-3d-rendering/hello-triangle.html#render-pipeline
@@ -194,12 +217,15 @@ public:
 		RenderPipelineDescriptor pipelineDesc;
 
 		// Vertex fetch
-		// (We don't use any input buffer so far)
-		pipelineDesc.vertex.bufferCount = 0;
-		pipelineDesc.vertex.buffers = nullptr;
-
-		// Vertex shader
 		pipelineDesc.vertex = shader.getVertexState();
+
+
+		VertexBufferLayout vertexBufferLayout = shader.getVertexBufferLayout();
+		
+
+		pipelineDesc.vertex.bufferCount = 1;
+		pipelineDesc.vertex.buffers = &vertexBufferLayout;
+
 
 
 		// Primitive assembly and rasterization
@@ -277,6 +303,80 @@ private:
 	Pipeline* m_pipeline { nullptr };
 };
 
+class VertexBuffer
+{
+public:
+	VertexBuffer(std::vector<float> vertexData, int vertexCount):
+		m_data (vertexData.data()),
+		m_count(vertexCount)
+	{
+		// Create vertex buffer
+		m_size = vertexData.size() * sizeof(float);
+		BufferDescriptor bufferDesc;
+		bufferDesc.size = m_size;
+		bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Vertex;
+		bufferDesc.mappedAtCreation = false;
+		m_buffer = Context::getInstance().getDevice().createBuffer(bufferDesc);
+
+		// Upload geometry data to the buffer
+		Context::getInstance().getDevice().getQueue().writeBuffer(m_buffer, 0, m_data, bufferDesc.size);
+	};
+	
+	~VertexBuffer() {};
+
+	const Buffer& getBuffer()const { return m_buffer; }
+	const uint64_t getSize() const { return m_size; }
+	const int getCount() const { return m_count; }
+
+private:
+	Buffer m_buffer{ nullptr };
+	float* m_data;
+	uint64_t  m_size;
+	int m_count{ 0 };
+};
+
+class IndexBuffer
+{
+public:
+	IndexBuffer() {};
+	~IndexBuffer() {};
+
+private:
+
+};
+
+
+class Mesh
+{
+public:
+	Mesh(VertexBuffer* vertexBuffer, IndexBuffer* indexBuffer = nullptr):
+		m_vertexBuffer(vertexBuffer),
+		m_indexBuffer(indexBuffer)
+	{};
+	~Mesh() {};
+
+	VertexBuffer* getVertexBuffer() { return  m_vertexBuffer; }
+	IndexBuffer* getIndexBuffer() { return m_indexBuffer; };
+private:
+	VertexBuffer* m_vertexBuffer{nullptr};
+	IndexBuffer* m_indexBuffer{nullptr};
+};
+
+class MeshManager
+{
+public:
+	///
+	static MeshManager& getInstance() {
+		static MeshManager meshManager;
+		return meshManager;
+	};
+
+	bool add(const std::string& id, Mesh* mesh) { m_meshes[id] = mesh; return true; }
+	Mesh* get(const std::string& id) { return  m_meshes[id]; }
+private:
+	std::unordered_map<std::string, Mesh*> m_meshes;
+};
+
 
 class Renderer
 {
@@ -319,8 +419,11 @@ public:
 			// In its overall outline, drawing a triangle is as simple as this:
 			// Select which render pipeline to use
 			renderPass.setPipeline(pass.getPipeline()->getRenderPipeline());
+
+			Mesh* mesh = MeshManager::getInstance().get("twoTriangles");
+			renderPass.setVertexBuffer(0, mesh->getVertexBuffer()->getBuffer(), 0, mesh->getVertexBuffer()->getSize());
 			// Draw 1 instance of a 3-vertices shape
-			renderPass.draw(3, 1, 0, 0);
+			renderPass.draw(mesh->getVertexBuffer()->getCount(), 1, 0, 0); 
 
 			renderPass.end();
 			renderPass.release();
@@ -354,8 +457,6 @@ int m_winHeight = 480;
 
 
 int main(int, char**) {
-	
-
 	if (!glfwInit()) {
 		std::cerr << "Could not initialize GLFW!" << std::endl;
 		return 1;
@@ -371,8 +472,31 @@ int main(int, char**) {
 
 	Context::getInstance().initGraphics(window, m_winWidth, m_winHeight);
 
-	Shader shader_1("C:/Dev/WebGPU/build/Debug/data/sahder_1.wgsl");
 	
+	std::vector<float> vertexData = {
+		// x0,  y0,  r0,  g0,  b0
+		-0.5, -0.5, 1.0, 0.0, 0.0,
+
+		// x1,  y1,  r1,  g1,  b1
+		+0.5, -0.5, 0.0, 1.0, 0.0,
+
+		// ...
+		+0.0,   +0.5, 0.0, 0.0, 1.0,
+		-0.55f, -0.5, 1.0, 1.0, 0.0,
+		-0.05f, +0.5, 1.0, 0.0, 1.0,
+		-0.55f, +0.5, 0.0, 1.0, 1.0
+	};
+	int vertexCount = static_cast<int>(vertexData.size() / 5);
+
+	VertexBuffer* vertexBuffer = new VertexBuffer(vertexData, vertexCount);
+	Mesh* mesh = new Mesh(vertexBuffer);
+	MeshManager::getInstance().add("twoTriangles", mesh);
+    
+	Shader shader_1("C:/Dev/WebGPU/build/Debug/data/sahder_1.wgsl");
+	shader_1.addVertexAttrib("Position", 0, VertexFormat::Float32x2, 0);
+	shader_1.addVertexAttrib("Color", 1, VertexFormat::Float32x3, 2 * sizeof(float)); // offset = sizeof(Position)
+	shader_1.setAttribsStride(5 * sizeof(float)); 
+
 	Pipeline* pipeline = new Pipeline(shader_1);
 
 	Pass pass1(pipeline);
@@ -386,9 +510,6 @@ int main(int, char**) {
 		renderer.draw();
 
 	}
-
-	
-	
 
 	Context::getInstance().shutdownGraphics();
 	
