@@ -179,53 +179,31 @@ public:
 		return fragmentState;
 	}
 	 
-	void addVertexAttrib(const std::string& attribName, int location, VertexFormat format, int offset)
-	{
-		VertexAttribute vertexAttribute;
-		vertexAttribute.shaderLocation = location;
-		vertexAttribute.format = format;
-		vertexAttribute.offset = offset;
-		m_vertexAttribs.push_back(vertexAttribute);
-	}
+	
 
-	const VertexBufferLayout getVertexBufferLayout() const{
-		VertexBufferLayout vertexBufferLayout;
-		// [...] Build vertex buffer layout
-		vertexBufferLayout.attributeCount = (uint32_t)m_vertexAttribs.size();
-		vertexBufferLayout.attributes = m_vertexAttribs.data();
-		// == Common to attributes from the same buffer ==
-		vertexBufferLayout.arrayStride = m_attribsStride;
-		vertexBufferLayout.stepMode = VertexStepMode::Vertex;
-		return vertexBufferLayout;
-	}
-
-	void setAttribsStride(uint64_t attribsStride) { m_attribsStride = attribsStride; }
+	
 	//const std::vector<VertexAttribute>& getVertexAttribs() const { return m_vertexAttribs; }
 	
 private:
 	ShaderModule m_shaderModule{ nullptr };
-	std::vector<VertexAttribute> m_vertexAttribs;
-	uint64_t m_attribsStride = 0;
+	
 };
 
 //https://eliemichel.github.io/LearnWebGPU/basic-3d-rendering/hello-triangle.html#render-pipeline
 class Pipeline
 {
 public:
-	Pipeline(const Shader shader) {
+	Pipeline(Shader* shader, std::vector<VertexBufferLayout> vertexBufferLayouts) {
 		//Creating render pipeline
 		RenderPipelineDescriptor pipelineDesc;
 
 		// Vertex fetch
-		pipelineDesc.vertex = shader.getVertexState();
-
-
-		VertexBufferLayout vertexBufferLayout = shader.getVertexBufferLayout();
-		
-
-		pipelineDesc.vertex.bufferCount = 1;
-		pipelineDesc.vertex.buffers = &vertexBufferLayout;
-
+		pipelineDesc.vertex = shader->getVertexState();
+	//	VertexBufferLayout vertexBufferLayout = shader->getVertexBufferLayout();
+	//	pipelineDesc.vertex.bufferCount = 1;
+	//	pipelineDesc.vertex.buffers = &vertexBufferLayout;
+		pipelineDesc.vertex.bufferCount = static_cast<uint32_t>(vertexBufferLayouts.size());
+		pipelineDesc.vertex.buffers = vertexBufferLayouts.data();
 
 
 		// Primitive assembly and rasterization
@@ -235,7 +213,7 @@ public:
 		pipelineDesc.primitive.cullMode = CullMode::None;
 
 		// Fragment shader
-		FragmentState fragmentState = shader.getFragmentState();
+		FragmentState fragmentState = shader->getFragmentState();
 		pipelineDesc.fragment = &fragmentState;
 
 
@@ -275,7 +253,6 @@ public:
 		pipelineDesc.layout = nullptr;
 
 		m_pipeline = Context::getInstance().getDevice().createRenderPipeline(pipelineDesc);
-		std::cout << "Render pipeline: " << m_pipeline << std::endl;
 	};
 	~Pipeline() {
 		m_pipeline.release();
@@ -289,18 +266,18 @@ private:
 class Pass
 {
 public:
-	Pass(Pipeline* pipeline): 
-		m_pipeline(pipeline)
+	Pass(Shader* shader):
+		m_shader(shader)
 	{
 	};
 	~Pass() = default;
 
 //	RenderPassDescriptor getRenderPassDescriptor() const { return m_renderPassDesc; }
-	const Pipeline* getPipeline() const { return m_pipeline; }
+	Shader* getShader() const { return m_shader; }
 private:
 //	RenderPassDescriptor m_renderPassDesc;
 //	RenderPassColorAttachment m_renderPassColorAttachment;
-	Pipeline* m_pipeline { nullptr };
+	Shader* m_shader { nullptr };
 };
 
 class VertexBuffer
@@ -324,6 +301,18 @@ public:
 	
 	~VertexBuffer() {};
 
+	void addVertexAttrib(const std::string& attribName, int location, VertexFormat format, int offset)
+	{
+		m_location = location;
+		VertexAttribute vertexAttribute;
+		vertexAttribute.shaderLocation = location;
+		vertexAttribute.format = format;
+		vertexAttribute.offset = offset;
+		m_vertexAttribs.push_back(vertexAttribute);
+	}
+	void setAttribsStride(uint64_t attribsStride) { m_attribsStride = attribsStride; }
+
+
 	const Buffer& getBuffer()const { return m_buffer; }
 	const uint64_t getSize() const { return m_size; }
 	const int getCount() const { return m_count; }
@@ -333,6 +322,10 @@ private:
 	float* m_data;
 	uint64_t  m_size;
 	int m_count{ 0 };
+public: //TODO
+	std::vector<VertexAttribute> m_vertexAttribs;
+	uint64_t m_attribsStride = 0;
+	int m_location{ 0 };
 };
 
 class IndexBuffer
@@ -349,16 +342,35 @@ private:
 class Mesh
 {
 public:
-	Mesh(VertexBuffer* vertexBuffer, IndexBuffer* indexBuffer = nullptr):
-		m_vertexBuffer(vertexBuffer),
-		m_indexBuffer(indexBuffer)
-	{};
+	Mesh(){};
 	~Mesh() {};
+	void addVertexBuffer(VertexBuffer* vertexBuffer) { m_vertexBuffers.push_back(vertexBuffer); }
+	void addIndexBuffer(IndexBuffer* indexBuffer) { m_indexBuffer = indexBuffer; }
 
-	VertexBuffer* getVertexBuffer() { return  m_vertexBuffer; }
+	std::vector<VertexBuffer*> getVertexBuffers() { return  m_vertexBuffers; }
 	IndexBuffer* getIndexBuffer() { return m_indexBuffer; };
+
+	int getVertexCount() { return m_vertexBuffers[0]->getCount(); } //il faut que tout les vertexBuffer aillent le meme count !!
+
+	const std::vector<VertexBufferLayout> getVertexBufferLayout() {
+		std::vector<VertexBufferLayout> m_vertexBufferLayouts;
+		for (auto vb : m_vertexBuffers)
+		{
+			VertexBufferLayout vertexBufferLayout;
+			// [...] Build vertex buffer layout
+			vertexBufferLayout.attributeCount = (uint32_t)vb->m_vertexAttribs.size();
+			vertexBufferLayout.attributes = vb->m_vertexAttribs.data();
+			// == Common to attributes from the same buffer ==
+			vertexBufferLayout.arrayStride = vb->m_attribsStride;
+			vertexBufferLayout.stepMode = VertexStepMode::Vertex;
+			m_vertexBufferLayouts.push_back(vertexBufferLayout);
+		}
+		return m_vertexBufferLayouts;
+	}
 private:
-	VertexBuffer* m_vertexBuffer{nullptr};
+
+	std::vector<VertexBuffer*> m_vertexBuffers;
+	//std::vector<VertexBufferLayout> m_vertexBufferLayouts;
 	IndexBuffer* m_indexBuffer{nullptr};
 };
 
@@ -416,17 +428,25 @@ public:
 			
 			RenderPassEncoder renderPass = encoder.beginRenderPass(m_renderPassDesc);
 
-			// In its overall outline, drawing a triangle is as simple as this:
-			// Select which render pipeline to use
-			renderPass.setPipeline(pass.getPipeline()->getRenderPipeline());
+
+			
 
 			Mesh* mesh = MeshManager::getInstance().get("twoTriangles");
-			renderPass.setVertexBuffer(0, mesh->getVertexBuffer()->getBuffer(), 0, mesh->getVertexBuffer()->getSize());
+			Pipeline* pipeline = new Pipeline(pass.getShader(), mesh->getVertexBufferLayout());
+			renderPass.setPipeline(pipeline->getRenderPipeline());
+			int slot = 0; //The first argument(slot) corresponds to the index of the buffer layout in the pipelineDesc.vertex.buffers array.
+			for (const auto& vb : mesh->getVertexBuffers())
+			{
+				renderPass.setVertexBuffer(slot, vb->getBuffer(), 0, vb->getSize());
+				slot++;
+			}
+			renderPass.draw(mesh->getVertexCount(), 1, 0, 0);
 			// Draw 1 instance of a 3-vertices shape
-			renderPass.draw(mesh->getVertexBuffer()->getCount(), 1, 0, 0); 
-
+			
 			renderPass.end();
 			renderPass.release();
+			delete pipeline;
+
 		}
 
 		CommandBufferDescriptor cmdBufferDescriptor;
@@ -472,34 +492,68 @@ int main(int, char**) {
 
 	Context::getInstance().initGraphics(window, m_winWidth, m_winHeight);
 
-	
-	std::vector<float> vertexData = {
-		// x0,  y0,  r0,  g0,  b0
-		-0.5, -0.5, 1.0, 0.0, 0.0,
 
-		// x1,  y1,  r1,  g1,  b1
-		+0.5, -0.5, 0.0, 1.0, 0.0,
-
-		// ...
-		+0.0,   +0.5, 0.0, 0.0, 1.0,
-		-0.55f, -0.5, 1.0, 1.0, 0.0,
-		-0.05f, +0.5, 1.0, 0.0, 1.0,
-		-0.55f, +0.5, 0.0, 1.0, 1.0
+	std::vector<float> positionData = {
+	-0.5, -0.5,
+	+0.5, -0.5,
+	+0.0, +0.5,
+	-0.55f, -0.5,
+	-0.05f, +0.5,
+	-0.55f, +0.5
 	};
-	int vertexCount = static_cast<int>(vertexData.size() / 5);
 
-	VertexBuffer* vertexBuffer = new VertexBuffer(vertexData, vertexCount);
-	Mesh* mesh = new Mesh(vertexBuffer);
+	// r0,  g0,  b0, r1,  g1,  b1, ...
+	std::vector<float> colorData = {
+		1.0, 0.0, 0.0,
+		0.0, 1.0, 0.0,
+		0.0, 0.0, 1.0,
+		1.0, 1.0, 0.0,
+		1.0, 0.0, 1.0,
+		0.0, 1.0, 1.0
+	};
+	
+	int vertexCount = static_cast<int>(positionData.size() / 2);
+	VertexBuffer* vertexBufferPos = new VertexBuffer(positionData, vertexCount);
+	vertexBufferPos->addVertexAttrib("Position", 0, VertexFormat::Float32x2, 0);
+	vertexBufferPos->setAttribsStride(2 * sizeof(float));
+
+	VertexBuffer* vertexBufferColor = new VertexBuffer(colorData, vertexCount);
+	vertexBufferColor->addVertexAttrib("Color", 1, VertexFormat::Float32x3, 0); // offset = sizeof(Position)
+	vertexBufferColor->setAttribsStride(3 * sizeof(float));
+
+	Mesh* mesh = new Mesh();
+    mesh->addVertexBuffer(vertexBufferPos);
+	mesh->addVertexBuffer(vertexBufferColor);
+	
+	//Mesh intrelace
+	//std::vector<float> vertexData = {
+	//	// x0,  y0,  r0,  g0,  b0
+	//	-0.5, -0.5, 1.0, 0.0, 0.0,
+
+	//	// x1,  y1,  r1,  g1,  b1
+	//	+0.5, -0.5, 0.0, 1.0, 0.0,
+
+	//	// ...
+	//	+0.0,   +0.5, 0.0, 0.0, 1.0,
+	//	-0.55f, -0.5, 1.0, 1.0, 0.0,
+	//	-0.05f, +0.5, 1.0, 0.0, 1.0,
+	//	-0.55f, +0.5, 0.0, 1.0, 1.0
+	//};
+	//int vertexCount = static_cast<int>(vertexData.size() / 5);
+
+	//VertexBuffer* vertexBuffer = new VertexBuffer(vertexData, vertexCount);
+	//vertexBuffer->addVertexAttrib("Position", 0, VertexFormat::Float32x2, 0);
+	//vertexBuffer->addVertexAttrib("Color", 1, VertexFormat::Float32x3, 2 * sizeof(float)); // offset = sizeof(Position)
+	//vertexBuffer->setAttribsStride(5 * sizeof(float));
+	//Mesh* mesh = new Mesh();
+	//mesh->addVertexBuffer(vertexBuffer);
+	
+	
 	MeshManager::getInstance().add("twoTriangles", mesh);
     
-	Shader shader_1("C:/Dev/WebGPU/build/Debug/data/sahder_1.wgsl");
-	shader_1.addVertexAttrib("Position", 0, VertexFormat::Float32x2, 0);
-	shader_1.addVertexAttrib("Color", 1, VertexFormat::Float32x3, 2 * sizeof(float)); // offset = sizeof(Position)
-	shader_1.setAttribsStride(5 * sizeof(float)); 
+	Shader* shader_1 = new Shader("C:/Dev/WebGPU/build/Debug/data/sahder_1.wgsl");
 
-	Pipeline* pipeline = new Pipeline(shader_1);
-
-	Pass pass1(pipeline);
+	Pass pass1(shader_1);
 
 	Renderer renderer;
 	renderer.addPass(pass1);
