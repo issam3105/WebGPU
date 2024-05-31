@@ -30,8 +30,12 @@ target_link_libraries(App PRIVATE webgpu glfw glfw3webgpu)
 
 target_copy_webgpu_binaries(App)
 
-add_custom_command(TARGET App POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_SOURCE_DIR}/data
-        $<TARGET_FILE_DIR:App>/data
+target_compile_definitions(App PRIVATE
+    DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data"
 )
+
+# add_custom_command(TARGET App POST_BUILD
+    # COMMAND ${CMAKE_COMMAND} -E copy_directory
+        # ${CMAKE_SOURCE_DIR}/data
+        # $<TARGET_FILE_DIR:App>/data
+# )

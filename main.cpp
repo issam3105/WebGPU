@@ -178,11 +178,6 @@ public:
 		fragmentState.constants = nullptr;
 		return fragmentState;
 	}
-	 
-	
-
-	
-	//const std::vector<VertexAttribute>& getVertexAttribs() const { return m_vertexAttribs; }
 	
 private:
 	ShaderModule m_shaderModule{ nullptr };
@@ -199,12 +194,8 @@ public:
 
 		// Vertex fetch
 		pipelineDesc.vertex = shader->getVertexState();
-	//	VertexBufferLayout vertexBufferLayout = shader->getVertexBufferLayout();
-	//	pipelineDesc.vertex.bufferCount = 1;
-	//	pipelineDesc.vertex.buffers = &vertexBufferLayout;
 		pipelineDesc.vertex.bufferCount = static_cast<uint32_t>(vertexBufferLayouts.size());
 		pipelineDesc.vertex.buffers = vertexBufferLayouts.data();
-
 
 		// Primitive assembly and rasterization
 		pipelineDesc.primitive.topology = PrimitiveTopology::TriangleList;
@@ -272,11 +263,9 @@ public:
 	};
 	~Pass() = default;
 
-//	RenderPassDescriptor getRenderPassDescriptor() const { return m_renderPassDesc; }
 	Shader* getShader() const { return m_shader; }
 private:
-//	RenderPassDescriptor m_renderPassDesc;
-//	RenderPassColorAttachment m_renderPassColorAttachment;
+
 	Shader* m_shader { nullptr };
 };
 
@@ -303,7 +292,6 @@ public:
 
 	void addVertexAttrib(const std::string& attribName, int location, VertexFormat format, int offset)
 	{
-		m_location = location;
 		VertexAttribute vertexAttribute;
 		vertexAttribute.shaderLocation = location;
 		vertexAttribute.format = format;
@@ -322,20 +310,42 @@ private:
 	float* m_data;
 	uint64_t  m_size;
 	int m_count{ 0 };
-public: //TODO
 	std::vector<VertexAttribute> m_vertexAttribs;
 	uint64_t m_attribsStride = 0;
-	int m_location{ 0 };
+
+	friend class Mesh;
 };
 
 class IndexBuffer
 {
 public:
-	IndexBuffer() {};
+	IndexBuffer(std::vector<uint16_t> indexData, int indexCount) :
+		m_data(indexData.data()),
+		m_count(indexCount)
+	{
+		m_size = indexData.size() * sizeof(uint16_t);
+		BufferDescriptor bufferDesc;
+		bufferDesc.size = m_size;
+		bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Index;
+
+		bufferDesc.size = (bufferDesc.size + 3) & ~3; // round up to the next multiple of 4
+		m_buffer = Context::getInstance().getDevice().createBuffer(bufferDesc);
+
+
+		// Upload geometry data to the buffer
+		Context::getInstance().getDevice().getQueue().writeBuffer(m_buffer, 0, m_data, bufferDesc.size);
+	};
 	~IndexBuffer() {};
 
-private:
+	const Buffer& getBuffer()const { return m_buffer; }
+	const uint64_t getSize() const { return m_size; }
+	const int getCount() const { return m_count; }
 
+private:
+	Buffer m_buffer{ nullptr };
+	uint16_t* m_data;
+	uint64_t  m_size;
+	int m_count{ 0 };
 };
 
 
@@ -352,8 +362,8 @@ public:
 
 	int getVertexCount() { return m_vertexBuffers[0]->getCount(); } //il faut que tout les vertexBuffer aillent le meme count !!
 
-	const std::vector<VertexBufferLayout> getVertexBufferLayout() {
-		std::vector<VertexBufferLayout> m_vertexBufferLayouts;
+	const std::vector<VertexBufferLayout> getVertexBufferLayouts() {
+		std::vector<VertexBufferLayout> vertexBufferLayouts;
 		for (auto vb : m_vertexBuffers)
 		{
 			VertexBufferLayout vertexBufferLayout;
@@ -363,14 +373,13 @@ public:
 			// == Common to attributes from the same buffer ==
 			vertexBufferLayout.arrayStride = vb->m_attribsStride;
 			vertexBufferLayout.stepMode = VertexStepMode::Vertex;
-			m_vertexBufferLayouts.push_back(vertexBufferLayout);
+			vertexBufferLayouts.push_back(vertexBufferLayout);
 		}
-		return m_vertexBufferLayouts;
+		return vertexBufferLayouts;
 	}
 private:
 
 	std::vector<VertexBuffer*> m_vertexBuffers;
-	//std::vector<VertexBufferLayout> m_vertexBufferLayouts;
 	IndexBuffer* m_indexBuffer{nullptr};
 };
 
@@ -385,6 +394,7 @@ public:
 
 	bool add(const std::string& id, Mesh* mesh) { m_meshes[id] = mesh; return true; }
 	Mesh* get(const std::string& id) { return  m_meshes[id]; }
+	std::unordered_map<std::string, Mesh*> getAll() { return m_meshes; }
 private:
 	std::unordered_map<std::string, Mesh*> m_meshes;
 };
@@ -430,22 +440,33 @@ public:
 
 
 			
-
-			Mesh* mesh = MeshManager::getInstance().get("twoTriangles");
-			Pipeline* pipeline = new Pipeline(pass.getShader(), mesh->getVertexBufferLayout());
-			renderPass.setPipeline(pipeline->getRenderPipeline());
-			int slot = 0; //The first argument(slot) corresponds to the index of the buffer layout in the pipelineDesc.vertex.buffers array.
-			for (const auto& vb : mesh->getVertexBuffers())
+			for (auto [meshId , mesh] : MeshManager::getInstance().getAll())
 			{
-				renderPass.setVertexBuffer(slot, vb->getBuffer(), 0, vb->getSize());
-				slot++;
+				Pipeline* pipeline = new Pipeline(pass.getShader(), mesh->getVertexBufferLayouts());
+				renderPass.setPipeline(pipeline->getRenderPipeline());
+				int slot = 0; //The first argument(slot) corresponds to the index of the buffer layout in the pipelineDesc.vertex.buffers array.
+				for (const auto& vb : mesh->getVertexBuffers())
+				{
+					renderPass.setVertexBuffer(slot, vb->getBuffer(), 0, vb->getSize());
+					slot++;
+				}
+				if (mesh->getIndexBuffer() != nullptr)
+				{
+					renderPass.setIndexBuffer(mesh->getIndexBuffer()->getBuffer(), IndexFormat::Uint16, 0, mesh->getIndexBuffer()->getSize());
+					renderPass.drawIndexed(mesh->getIndexBuffer()->getCount(), 1, 0, 0, 0);
+				}
+				else
+					renderPass.draw(mesh->getVertexCount(), 1, 0, 0);
+
+				delete pipeline;
+
 			}
-			renderPass.draw(mesh->getVertexCount(), 1, 0, 0);
+			//Mesh* mesh = MeshManager::getInstance().get("twoTriangles");
+			
 			// Draw 1 instance of a 3-vertices shape
 			
 			renderPass.end();
 			renderPass.release();
-			delete pipeline;
 
 		}
 
@@ -475,24 +496,8 @@ private:
 int m_winWidth = 640;
 int m_winHeight = 480;
 
-
-int main(int, char**) {
-	if (!glfwInit()) {
-		std::cerr << "Could not initialize GLFW!" << std::endl;
-		return 1;
-	}
-
-	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-	GLFWwindow* window = glfwCreateWindow(m_winWidth, m_winHeight, "Learn WebGPU", NULL, NULL);
-	if (!window) {
-		std::cerr << "Could not open window!" << std::endl;
-		return 1;
-	}
-
-	Context::getInstance().initGraphics(window, m_winWidth, m_winHeight);
-
-
+void addTwoTriangles()
+{
 	std::vector<float> positionData = {
 	-0.5, -0.5,
 	+0.5, -0.5,
@@ -511,7 +516,7 @@ int main(int, char**) {
 		1.0, 0.0, 1.0,
 		0.0, 1.0, 1.0
 	};
-	
+
 	int vertexCount = static_cast<int>(positionData.size() / 2);
 	VertexBuffer* vertexBufferPos = new VertexBuffer(positionData, vertexCount);
 	vertexBufferPos->addVertexAttrib("Position", 0, VertexFormat::Float32x2, 0);
@@ -522,10 +527,10 @@ int main(int, char**) {
 	vertexBufferColor->setAttribsStride(3 * sizeof(float));
 
 	Mesh* mesh = new Mesh();
-    mesh->addVertexBuffer(vertexBufferPos);
+	mesh->addVertexBuffer(vertexBufferPos);
 	mesh->addVertexBuffer(vertexBufferColor);
-	
-	//Mesh intrelace
+
+	//interleaved  mesh
 	//std::vector<float> vertexData = {
 	//	// x0,  y0,  r0,  g0,  b0
 	//	-0.5, -0.5, 1.0, 0.0, 0.0,
@@ -547,11 +552,60 @@ int main(int, char**) {
 	//vertexBuffer->setAttribsStride(5 * sizeof(float));
 	//Mesh* mesh = new Mesh();
 	//mesh->addVertexBuffer(vertexBuffer);
-	
-	
+
+
 	MeshManager::getInstance().add("twoTriangles", mesh);
+}
+
+void addColoredPlane() {
+	std::vector<float> pointData = {
+		// x,   y,     r,   g,   b
+		-0.5, -0.5,   1.0, 0.0, 0.0,
+		+0.5, -0.5,   0.0, 1.0, 0.0,
+		+0.5, +0.5,   0.0, 0.0, 1.0,
+		-0.5, +0.5,   1.0, 1.0, 0.0
+	};
+
+	std::vector<uint16_t> indexData = {
+	0, 1, 2, // Triangle #0
+	0, 2, 3  // Triangle #1
+	};
+
+	int indexCount = static_cast<int>(indexData.size());
+	int vertexCount = static_cast<int>(pointData.size() / 5);
+
+	VertexBuffer* vertexBuffer = new VertexBuffer(pointData, vertexCount);
+	vertexBuffer->addVertexAttrib("Position", 0, VertexFormat::Float32x2, 0);
+	vertexBuffer->addVertexAttrib("Color", 1, VertexFormat::Float32x3, 2 * sizeof(float)); // offset = sizeof(Position)
+	vertexBuffer->setAttribsStride(5 * sizeof(float));
+
+	IndexBuffer* indexBuffer = new IndexBuffer(indexData, indexCount);
+	Mesh* mesh = new Mesh();
+	mesh->addVertexBuffer(vertexBuffer);
+	mesh->addIndexBuffer(indexBuffer);
+	MeshManager::getInstance().add("ColoredPlane", mesh);
+}
+
+int main(int, char**) {
+	if (!glfwInit()) {
+		std::cerr << "Could not initialize GLFW!" << std::endl;
+		return 1;
+	}
+
+	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+	GLFWwindow* window = glfwCreateWindow(m_winWidth, m_winHeight, "Learn WebGPU", NULL, NULL);
+	if (!window) {
+		std::cerr << "Could not open window!" << std::endl;
+		return 1;
+	}
+
+	Context::getInstance().initGraphics(window, m_winWidth, m_winHeight);
+
+	//addTwoTriangles();
+	addColoredPlane();
     
-	Shader* shader_1 = new Shader("C:/Dev/WebGPU/build/Debug/data/sahder_1.wgsl");
+	Shader* shader_1 = new Shader(DATA_DIR  "/sahder_1.wgsl");
 
 	Pass pass1(shader_1);
 
