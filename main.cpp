@@ -63,21 +63,21 @@ public:
 			return;
 		}
 
-		std::cout << "Requesting adapter..." << std::endl;
+		//Requesting adapter...
 		m_surface = glfwGetWGPUSurface(m_instance, window);
 		RequestAdapterOptions adapterOpts;
 		adapterOpts.compatibleSurface = m_surface;
 		m_adapter = m_instance.requestAdapter(adapterOpts);
-		std::cout << "Got adapter: " << m_adapter << std::endl;
+		assert(m_adapter);
 
-		std::cout << "Requesting device..." << std::endl;
+		//Requesting device...
 		DeviceDescriptor deviceDesc;
 		deviceDesc.label = "My Device";
 		deviceDesc.requiredFeaturesCount = 0;
 		deviceDesc.requiredLimits = nullptr;
 		deviceDesc.defaultQueue.label = "The default queue";
 		m_device = m_adapter.requestDevice(deviceDesc);
-		std::cout << "Got device: " << m_device << std::endl;
+		assert(m_device);
 
 		// Add an error callback for more debug info
 		auto h = m_device.setUncapturedErrorCallback([](ErrorType type, char const* message) {
@@ -86,18 +86,15 @@ public:
 			std::cout << std::endl;
 		});
 
-
-
-		std::cout << "Creating swapchain..." << std::endl;
-
+		//Creating swapchain...
 		SwapChainDescriptor swapChainDesc;
-		swapChainDesc.width = 640;
-		swapChainDesc.height = 480;
+		swapChainDesc.width = width;
+		swapChainDesc.height = height;
 		swapChainDesc.usage = TextureUsage::RenderAttachment;
 		swapChainDesc.format = swapChainFormat;
 		swapChainDesc.presentMode = PresentMode::Fifo;
 		m_swapChain = m_device.createSwapChain(m_surface, swapChainDesc);
-		std::cout << "Swapchain: " << m_swapChain << std::endl;
+		assert(m_swapChain);
 	}
 
 	void shutdownGraphics()
@@ -154,7 +151,7 @@ public:
 		shaderCodeDesc.code = shaderSource.c_str();
 
 		m_shaderModule = Context::getInstance().getDevice().createShaderModule(shaderDesc);
-		std::cout << "Shader module: " << m_shaderModule << std::endl;
+		assert(m_shaderModule);
 	};
 
 	~Shader() { m_shaderModule.release(); }
@@ -331,7 +328,6 @@ public:
 		bufferDesc.size = (bufferDesc.size + 3) & ~3; // round up to the next multiple of 4
 		m_buffer = Context::getInstance().getDevice().createBuffer(bufferDesc);
 
-
 		// Upload geometry data to the buffer
 		Context::getInstance().getDevice().getQueue().writeBuffer(m_buffer, 0, m_data, bufferDesc.size);
 	};
@@ -437,12 +433,10 @@ public:
 			m_renderPassDesc.timestampWrites = nullptr;
 			
 			RenderPassEncoder renderPass = encoder.beginRenderPass(m_renderPassDesc);
-
-
-			
+		
 			for (auto [meshId , mesh] : MeshManager::getInstance().getAll())
 			{
-				Pipeline* pipeline = new Pipeline(pass.getShader(), mesh->getVertexBufferLayouts());
+				Pipeline* pipeline = new Pipeline(pass.getShader(), mesh->getVertexBufferLayouts()); //TODO le creer le moins possible
 				renderPass.setPipeline(pipeline->getRenderPipeline());
 				int slot = 0; //The first argument(slot) corresponds to the index of the buffer layout in the pipelineDesc.vertex.buffers array.
 				for (const auto& vb : mesh->getVertexBuffers())
@@ -461,13 +455,9 @@ public:
 				delete pipeline;
 
 			}
-			//Mesh* mesh = MeshManager::getInstance().get("twoTriangles");
-			
-			// Draw 1 instance of a 3-vertices shape
 			
 			renderPass.end();
 			renderPass.release();
-
 		}
 
 		CommandBufferDescriptor cmdBufferDescriptor;
