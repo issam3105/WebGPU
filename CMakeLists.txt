@@ -28,7 +28,6 @@ add_subdirectory(ext/glfw3webgpu)
 
 target_link_libraries(App PRIVATE webgpu glfw glfw3webgpu)
 
-target_copy_webgpu_binaries(App)
 
 target_compile_definitions(App PRIVATE
     DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data"

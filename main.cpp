@@ -34,6 +34,7 @@
 #include <cassert>
 #include <filesystem>
 #include <fstream>
+#include <array>
 
 using namespace wgpu;
 
@@ -86,6 +87,12 @@ public:
 			std::cout << std::endl;
 		});
 
+		auto h2 = m_device.setLoggingCallback([](LoggingType type, char const* message) {
+			std::cout << "Device error: type " << type;
+			if (message) std::cout << " (message: " << message << ")";
+			std::cout << std::endl;
+		});
+
 		//Creating swapchain...
 		SwapChainDescriptor swapChainDesc;
 		swapChainDesc.width = width;
@@ -117,6 +124,93 @@ private:
 	Instance m_instance = nullptr;
 	Surface m_surface = nullptr;
 	Adapter m_adapter = nullptr;
+};
+
+#define UNIFORMS_MAX 10
+typedef std::array<float, 4> vec4f ;
+class Uniforms
+{	
+public:
+	Uniforms()
+	{
+		BufferDescriptor bufferDesc;
+		bufferDesc.size = sizeof(std::array<vec4f, UNIFORMS_MAX>);
+		// Make sure to flag the buffer as BufferUsage::Uniform
+		bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Uniform;
+		bufferDesc.mappedAtCreation = false;
+		m_uniformBuffer = Context::getInstance().getDevice().createBuffer(bufferDesc);
+
+		Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, 0, &m_uniformsData, sizeof(std::array<vec4f, UNIFORMS_MAX>));
+
+		BindGroupLayoutEntry bindingLayout = Default;
+		// The binding index as used in the @binding attribute in the shader
+		bindingLayout.binding = 0;
+		// The stage that needs to access this resource
+		bindingLayout.visibility = ShaderStage::Vertex | ShaderStage::Fragment;
+		bindingLayout.buffer.type = BufferBindingType::Uniform;
+		bindingLayout.buffer.minBindingSize = sizeof(std::array<vec4f, UNIFORMS_MAX>);
+
+		// Create a bind group layout
+		BindGroupLayoutDescriptor bindGroupLayoutDesc{};
+		bindGroupLayoutDesc.entryCount = 1;
+		bindGroupLayoutDesc.entries = &bindingLayout;
+		m_bindGroupLayout = Context::getInstance().getDevice().createBindGroupLayout(bindGroupLayoutDesc);
+
+		// Create a binding
+		BindGroupEntry binding{};
+		// The index of the binding (the entries in bindGroupDesc can be in any order)
+		binding.binding = 0;
+		// The buffer it is actually bound to
+		binding.buffer = m_uniformBuffer;
+		// We can specify an offset within the buffer, so that a single buffer can hold
+		// multiple uniform blocks.
+		binding.offset = 0;
+		// And we specify again the size of the buffer.
+		binding.size = sizeof(std::array<vec4f, UNIFORMS_MAX>);
+
+		// A bind group contains one or multiple bindings
+		BindGroupDescriptor bindGroupDesc;
+		bindGroupDesc.layout = m_bindGroupLayout;
+		// There must be as many bindings as declared in the layout!
+		bindGroupDesc.entryCount = bindGroupLayoutDesc.entryCount;
+		bindGroupDesc.entries = &binding;
+		m_bindGroup = Context::getInstance().getDevice().createBindGroup(bindGroupDesc);
+	};
+	~Uniforms() = default;
+
+	void addUniform(std::string name) {
+		assert(m_uniformIndex < UNIFORMS_MAX);
+		m_uniforms[name] = m_uniformIndex++;
+	};
+
+	void setUniform(std::string name, vec4f value)
+	{
+		assert(m_uniforms.find(name) != m_uniforms.end());
+		m_uniformsData[m_uniforms[name]] = value;
+		Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, 0, &m_uniformsData, sizeof(std::array<vec4f, UNIFORMS_MAX>));
+		//Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, m_uniforms[name] *sizeof(vec4f), &m_uniformsData, sizeof(vec4f));
+	}
+
+	void setUniform(std::string name, float value)
+	{
+		assert(m_uniforms.find(name) != m_uniforms.end());
+		vec4f newValue = { value, value, value, value };
+		m_uniformsData[m_uniforms[name]] = newValue;
+		Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, 0, &m_uniformsData, sizeof(std::array<vec4f, UNIFORMS_MAX>));
+	//	Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, m_uniforms[name] * sizeof(vec4f), &m_uniformsData, sizeof(vec4f));
+	}
+
+	BindGroupLayout getBindGroupLayout() { return m_bindGroupLayout; }
+	BindGroup getBindGroup() {return m_bindGroup;}
+
+private:
+	std::array<vec4f, UNIFORMS_MAX> m_uniformsData {};
+	std::unordered_map<std::string, uint16_t> m_uniforms;
+	uint16_t m_uniformIndex = 0;
+	
+	Buffer m_uniformBuffer{ nullptr };
+	BindGroupLayout m_bindGroupLayout{ nullptr };
+	BindGroup m_bindGroup{ nullptr };
 };
 
 class Shader
@@ -151,10 +245,26 @@ public:
 		shaderCodeDesc.code = shaderSource.c_str();
 
 		m_shaderModule = Context::getInstance().getDevice().createShaderModule(shaderDesc);
+		m_shaderModule.getCompilationInfo([](CompilationInfoRequestStatus status, const CompilationInfo& compilationInfo) {
+			if (status == WGPUCompilationInfoRequestStatus_Success) {
+				for (size_t i = 0; i < compilationInfo.messageCount; ++i) {
+					const WGPUCompilationMessage& message = compilationInfo.messages[i];
+					std::cerr << "Shader compilation message (" << message.type << "): " << message.message << std::endl;
+					std::cerr << " - Line: " << message.lineNum << ", Column: " << message.linePos << std::endl;
+					std::cerr << " - Offset: " << message.offset << ", Length: " << message.length << std::endl;
+				}
+			}
+			else {
+				std::cerr << "Failed to get shader compilation info: " << status << std::endl;
+			}
+		});
 		assert(m_shaderModule);
 	};
 
-	~Shader() { m_shaderModule.release(); }
+	~Shader() { 
+		m_shaderModule.release();
+		delete m_uniforms;
+	}
 
 	VertexState getVertexState() const
 	{
@@ -176,9 +286,10 @@ public:
 		return fragmentState;
 	}
 	
+	Uniforms* getUniforms() { return m_uniforms; }
 private:
 	ShaderModule m_shaderModule{ nullptr };
-	
+	Uniforms* m_uniforms{ new Uniforms() }; 
 };
 
 //https://eliemichel.github.io/LearnWebGPU/basic-3d-rendering/hello-triangle.html#render-pipeline
@@ -238,7 +349,12 @@ public:
 		pipelineDesc.multisample.alphaToCoverageEnabled = false;
 
 		// Pipeline layout
-		pipelineDesc.layout = nullptr;
+		// Create the pipeline layout
+		PipelineLayoutDescriptor layoutDesc{};
+		layoutDesc.bindGroupLayoutCount = 1;
+		layoutDesc.bindGroupLayouts = (WGPUBindGroupLayout*)&shader->getUniforms()->getBindGroupLayout();
+		PipelineLayout layout = Context::getInstance().getDevice().createPipelineLayout(layoutDesc);
+		pipelineDesc.layout = layout;
 
 		m_pipeline = Context::getInstance().getDevice().createRenderPipeline(pipelineDesc);
 	};
@@ -438,7 +554,11 @@ public:
 			{
 				Pipeline* pipeline = new Pipeline(pass.getShader(), mesh->getVertexBufferLayouts()); //TODO le creer le moins possible
 				renderPass.setPipeline(pipeline->getRenderPipeline());
+				
+				pass.getShader()->getUniforms()->setUniform("time", static_cast<float>(glfwGetTime()));
+
 				int slot = 0; //The first argument(slot) corresponds to the index of the buffer layout in the pipelineDesc.vertex.buffers array.
+				renderPass.setBindGroup(0, pass.getShader()->getUniforms()->getBindGroup(), 0, nullptr);
 				for (const auto& vb : mesh->getVertexBuffers())
 				{
 					renderPass.setVertexBuffer(slot, vb->getBuffer(), 0, vb->getSize());
@@ -547,6 +667,7 @@ void addTwoTriangles()
 	MeshManager::getInstance().add("twoTriangles", mesh);
 }
 
+
 void addColoredPlane() {
 	std::vector<float> pointData = {
 		// x,   y,     r,   g,   b
@@ -596,6 +717,11 @@ int main(int, char**) {
 	addColoredPlane();
     
 	Shader* shader_1 = new Shader(DATA_DIR  "/sahder_1.wgsl");
+	//L'ordre est important pour le add !
+	shader_1->getUniforms()->addUniform("color");
+	shader_1->getUniforms()->addUniform("time"); 
+	
+	shader_1->getUniforms()->setUniform("color", { 1.0f,1.0f,0.0f,1.0f });
 
 	Pass pass1(shader_1);
 
