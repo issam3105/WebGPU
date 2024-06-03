@@ -44,6 +44,8 @@ TextureFormat swapChainFormat = surface.getPreferredFormat(adapter);
 TextureFormat swapChainFormat = TextureFormat::BGRA8Unorm;
 #endif
 
+TextureFormat depthTextureFormat = TextureFormat::Depth24Plus;
+
 class Context
 {
 public:
@@ -338,7 +340,19 @@ public:
 		fragmentState.targetCount = 1;
 
 		// Depth and stencil tests are not used here
-		pipelineDesc.depthStencil = nullptr;
+		//pipelineDesc.depthStencil = nullptr;
+		DepthStencilState depthStencilState = Default;
+		// Setup depth state
+		depthStencilState.depthCompare = CompareFunction::Less;
+		// Each time a fragment is blended into the target, we update the value of the Z-buffer
+		depthStencilState.depthWriteEnabled = true;
+		// Store the format in a variable as later parts of the code depend on it
+		depthStencilState.format = depthTextureFormat;
+		// Deactivate the stencil alltogether
+		depthStencilState.stencilReadMask = 0;
+		depthStencilState.stencilWriteMask = 0;
+
+		pipelineDesc.depthStencil = &depthStencilState;
 
 		// Multi-sampling
 		// Samples per pixel
@@ -374,12 +388,45 @@ public:
 		m_shader(shader)
 	{
 	};
-	~Pass() = default;
+	~Pass() {
+		m_depthTextureView.release();
+		//depthTexture.destroy(); TODO
+		//depthTexture.release();
+	};
 
 	Shader* getShader() const { return m_shader; }
+	
+	void addDepthBuffer(uint32_t width, uint32_t height, WGPUTextureFormat format)
+	{
+		// Create the depth texture
+		TextureDescriptor depthTextureDesc;
+		depthTextureDesc.dimension = TextureDimension::_2D;
+		depthTextureDesc.format = format;
+		depthTextureDesc.mipLevelCount = 1;
+		depthTextureDesc.sampleCount = 1;
+		depthTextureDesc.size = { width, height, 1 };
+		depthTextureDesc.usage = TextureUsage::RenderAttachment;
+		depthTextureDesc.viewFormatCount = 1;
+		depthTextureDesc.viewFormats = (WGPUTextureFormat*)&format;
+		Texture depthTexture = Context::getInstance().getDevice().createTexture(depthTextureDesc);
+
+		// Create the view of the depth texture manipulated by the rasterizer
+		TextureViewDescriptor depthTextureViewDesc;
+		depthTextureViewDesc.aspect = TextureAspect::DepthOnly;
+		depthTextureViewDesc.baseArrayLayer = 0;
+		depthTextureViewDesc.arrayLayerCount = 1;
+		depthTextureViewDesc.baseMipLevel = 0;
+		depthTextureViewDesc.mipLevelCount = 1;
+		depthTextureViewDesc.dimension = TextureViewDimension::_2D;
+		depthTextureViewDesc.format = format;
+		m_depthTextureView = depthTexture.createView(depthTextureViewDesc);
+	}
+
+	const TextureView getDepthTextureView() const { return m_depthTextureView; }
 private:
 
 	Shader* m_shader { nullptr };
+	TextureView m_depthTextureView{ nullptr };
 };
 
 class VertexBuffer
@@ -540,11 +587,42 @@ public:
 			m_renderPassColorAttachment.resolveTarget = nullptr;
 			m_renderPassColorAttachment.loadOp = LoadOp::Clear;
 			m_renderPassColorAttachment.storeOp = StoreOp::Store;
-			m_renderPassColorAttachment.clearValue = Color{ 0.9, 0.1, 0.2, 1.0 };
+			m_renderPassColorAttachment.clearValue = Color{ 0.3, 0.3, 0.3, 1.0 };
 			m_renderPassDesc.colorAttachmentCount = 1;
 			m_renderPassDesc.colorAttachments = &m_renderPassColorAttachment;
 
-			m_renderPassDesc.depthStencilAttachment = nullptr;
+			if (pass.getDepthTextureView())
+			{
+				RenderPassDepthStencilAttachment depthStencilAttachment;
+				// The view of the depth texture
+				depthStencilAttachment.view = pass.getDepthTextureView();
+
+				// The initial value of the depth buffer, meaning "far"
+				depthStencilAttachment.depthClearValue = 1.0f;
+				// Operation settings comparable to the color attachment
+				depthStencilAttachment.depthLoadOp = LoadOp::Clear;
+				depthStencilAttachment.depthStoreOp = StoreOp::Store;
+				// we could turn off writing to the depth buffer globally here
+				depthStencilAttachment.depthReadOnly = false;
+
+				// Stencil setup, mandatory but unused
+				depthStencilAttachment.stencilClearValue = 0;
+#ifdef WEBGPU_BACKEND_WGPU
+				depthStencilAttachment.stencilLoadOp = LoadOp::Clear;
+				depthStencilAttachment.stencilStoreOp = StoreOp::Store;
+#else
+				depthStencilAttachment.stencilLoadOp = LoadOp::Undefined;
+				depthStencilAttachment.stencilStoreOp = StoreOp::Undefined;
+#endif
+				depthStencilAttachment.stencilReadOnly = true;
+
+				m_renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
+			}
+			else
+			{
+				m_renderPassDesc.depthStencilAttachment = nullptr;
+			}
+
 			m_renderPassDesc.timestampWriteCount = 0;
 			m_renderPassDesc.timestampWrites = nullptr;
 			
@@ -697,6 +775,40 @@ void addColoredPlane() {
 	MeshManager::getInstance().add("ColoredPlane", mesh);
 }
 
+void addPyramid()
+{
+	std::vector<float> pointData = {
+		-0.5f, -0.5f, -0.3f,    1.0f, 1.0f, 1.0f,
+		+0.5f, -0.5f, -0.3f,    1.0f, 1.0f, 1.0f,
+		+0.5f, +0.5f, -0.3f,    1.0f, 1.0f, 1.0f,
+		-0.5f, +0.5f, -0.3f,    1.0f, 1.0f, 1.0f,
+		+0.0f, +0.0f, +0.5f,    0.5f, 0.5f, 0.5f,
+	};
+	std::vector<uint16_t> indexData = {
+		0,  1,  2,
+		0,  2,  3,
+		0,  1,  4,
+		1,  2,  4,
+		2,  3,  4,
+		3,  0,  4,
+	};
+
+	int indexCount = static_cast<int>(indexData.size());
+	int vertexCount = static_cast<int>(pointData.size() / 6);
+
+	VertexBuffer* vertexBuffer = new VertexBuffer(pointData, vertexCount);
+	vertexBuffer->addVertexAttrib("Position", 0, VertexFormat::Float32x3, 0);
+	vertexBuffer->addVertexAttrib("Color", 1, VertexFormat::Float32x3, 3 * sizeof(float)); // offset = sizeof(Position)
+	vertexBuffer->setAttribsStride(6 * sizeof(float));
+
+	IndexBuffer* indexBuffer = new IndexBuffer(indexData, indexCount);
+	Mesh* mesh = new Mesh();
+	mesh->addVertexBuffer(vertexBuffer);
+	mesh->addIndexBuffer(indexBuffer);
+	MeshManager::getInstance().add("Pyramid", mesh);
+}
+
+
 int main(int, char**) {
 	if (!glfwInit()) {
 		std::cerr << "Could not initialize GLFW!" << std::endl;
@@ -714,7 +826,8 @@ int main(int, char**) {
 	Context::getInstance().initGraphics(window, m_winWidth, m_winHeight);
 
 	//addTwoTriangles();
-	addColoredPlane();
+	//addColoredPlane();
+	addPyramid();
     
 	Shader* shader_1 = new Shader(DATA_DIR  "/sahder_1.wgsl");
 	//L'ordre est important pour le add !
@@ -724,6 +837,8 @@ int main(int, char**) {
 	shader_1->getUniforms()->setUniform("color", { 1.0f,1.0f,0.0f,1.0f });
 
 	Pass pass1(shader_1);
+	pass1.addDepthBuffer(m_winWidth, m_winHeight, depthTextureFormat);
+	
 
 	Renderer renderer;
 	renderer.addPass(pass1);
