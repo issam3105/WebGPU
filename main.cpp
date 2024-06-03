@@ -581,15 +581,15 @@ public:
 
 		for (const auto& pass : m_passes)
 		{
-			RenderPassDescriptor m_renderPassDesc;
-			RenderPassColorAttachment m_renderPassColorAttachment;
-			m_renderPassColorAttachment.view = nextTexture;
-			m_renderPassColorAttachment.resolveTarget = nullptr;
-			m_renderPassColorAttachment.loadOp = LoadOp::Clear;
-			m_renderPassColorAttachment.storeOp = StoreOp::Store;
-			m_renderPassColorAttachment.clearValue = Color{ 0.3, 0.3, 0.3, 1.0 };
-			m_renderPassDesc.colorAttachmentCount = 1;
-			m_renderPassDesc.colorAttachments = &m_renderPassColorAttachment;
+			RenderPassDescriptor renderPassDesc;
+			RenderPassColorAttachment renderPassColorAttachment;
+			renderPassColorAttachment.view = nextTexture;
+			renderPassColorAttachment.resolveTarget = nullptr;
+			renderPassColorAttachment.loadOp = LoadOp::Clear;
+			renderPassColorAttachment.storeOp = StoreOp::Store;
+			renderPassColorAttachment.clearValue = Color{ 0.3, 0.3, 0.3, 1.0 };
+			renderPassDesc.colorAttachmentCount = 1;
+			renderPassDesc.colorAttachments = &renderPassColorAttachment;
 
 			if (pass.getDepthTextureView())
 			{
@@ -616,17 +616,17 @@ public:
 #endif
 				depthStencilAttachment.stencilReadOnly = true;
 
-				m_renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
+				renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
 			}
 			else
 			{
-				m_renderPassDesc.depthStencilAttachment = nullptr;
+				renderPassDesc.depthStencilAttachment = nullptr;
 			}
 
-			m_renderPassDesc.timestampWriteCount = 0;
-			m_renderPassDesc.timestampWrites = nullptr;
+			renderPassDesc.timestampWriteCount = 0;
+			renderPassDesc.timestampWrites = nullptr;
 			
-			RenderPassEncoder renderPass = encoder.beginRenderPass(m_renderPassDesc);
+			RenderPassEncoder renderPass = encoder.beginRenderPass(renderPassDesc);
 		
 			for (auto [meshId , mesh] : MeshManager::getInstance().getAll())
 			{
