@@ -35,13 +35,18 @@
 #define WEBGPU_CPP_IMPLEMENTATION
 #include <webgpu/webgpu.hpp>
 
+#define TINYOBJLOADER_IMPLEMENTATION // add this to exactly 1 of your C++ files
+#include "tiny_obj_loader.h"
+
 #include <iostream>
 #include <cassert>
 #include <filesystem>
 #include <fstream>
 #include <array>
+#include <variant>
 
 using namespace wgpu;
+namespace fs = std::filesystem;
 
 using glm::mat4x4;
 using glm::vec4;
@@ -140,20 +145,44 @@ private:
 };
 
 #define UNIFORMS_MAX 15
-typedef std::array<float, 4> vec4f ;
+using Value = std::variant<float, glm::vec4, glm::mat4>;
+struct Uniform {
+	std::string name;
+	int index;
+	Value value;
+	bool isMatrix() const { return std::holds_alternative< glm::mat4>(value); }
+	bool isFloat() const { return std::holds_alternative< float>(value); }
+	bool isVec4() const { return std::holds_alternative< glm::vec4>(value); }
+
+	float getFloat() {
+		assert(isFloat());
+		return std::get<float>(value);
+	}
+
+	glm::vec4 getVec4() {
+		assert(isVec4());
+		return std::get<glm::vec4>(value);
+	}
+
+	glm::mat4x4 getMat4x4() {
+		assert(isMatrix());
+		return std::get<glm::mat4x4>(value);
+	}
+};
+
 class Uniforms
 {	
 public:
 	Uniforms()
 	{
 		BufferDescriptor bufferDesc;
-		bufferDesc.size = sizeof(std::array<vec4f, UNIFORMS_MAX>);
+		bufferDesc.size = sizeof(std::array<glm::vec4, UNIFORMS_MAX>);
 		// Make sure to flag the buffer as BufferUsage::Uniform
 		bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Uniform;
 		bufferDesc.mappedAtCreation = false;
 		m_uniformBuffer = Context::getInstance().getDevice().createBuffer(bufferDesc);
 
-		Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, 0, &m_uniformsData, sizeof(std::array<vec4f, UNIFORMS_MAX>));
+		Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, 0, &m_uniformsData, sizeof(std::array<vec4, UNIFORMS_MAX>));
 
 		BindGroupLayoutEntry bindingLayout = Default;
 		// The binding index as used in the @binding attribute in the shader
@@ -161,7 +190,7 @@ public:
 		// The stage that needs to access this resource
 		bindingLayout.visibility = ShaderStage::Vertex | ShaderStage::Fragment;
 		bindingLayout.buffer.type = BufferBindingType::Uniform;
-		bindingLayout.buffer.minBindingSize = sizeof(std::array<vec4f, UNIFORMS_MAX>);
+		bindingLayout.buffer.minBindingSize = sizeof(std::array<vec4, UNIFORMS_MAX>);
 
 		// Create a bind group layout
 		BindGroupLayoutDescriptor bindGroupLayoutDesc{};
@@ -179,7 +208,7 @@ public:
 		// multiple uniform blocks.
 		binding.offset = 0;
 		// And we specify again the size of the buffer.
-		binding.size = sizeof(std::array<vec4f, UNIFORMS_MAX>);
+		binding.size = sizeof(std::array<vec4, UNIFORMS_MAX>);
 
 		// A bind group contains one or multiple bindings
 		BindGroupDescriptor bindGroupDesc;
@@ -193,47 +222,58 @@ public:
 
 	void addUniform(std::string name) {
 		assert(m_uniformIndex < UNIFORMS_MAX);
-		m_uniforms[name] = m_uniformIndex++;
+		m_uniforms.push_back({ name, m_uniformIndex++, glm::vec4(0.0f)});
 	};
 
 	void addUniformMatrix(std::string name) {
 		assert(m_uniformIndex + 4 < UNIFORMS_MAX);
-		m_uniforms[name] = m_uniformIndex;
+		m_uniforms.push_back({ name, m_uniformIndex, glm::mat4x4(1.0f) });
 		m_uniformIndex += 4;
 	};
 
-	void setUniform(std::string name, vec4f value)
-	{
-		assert(m_uniforms.find(name) != m_uniforms.end());
-		m_uniformsData[m_uniforms[name]] = value;
-		Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, 0, &m_uniformsData, sizeof(std::array<vec4f, UNIFORMS_MAX>));
-		//Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, m_uniforms[name] *sizeof(vec4f), &m_uniformsData, sizeof(vec4f));
+	Uniform& getUniform(std::string name) {
+		auto it = std::find_if(m_uniforms.begin(), m_uniforms.end(), [name](const Uniform& obj) {
+			return obj.name == name;
+		});
+		assert(it != m_uniforms.end());
+		return *it;
 	}
 
-	void setUniform(std::string name, float value)
+	
+	void setUniform(std::string name, const Value& value)
 	{
-		assert(m_uniforms.find(name) != m_uniforms.end());
-		vec4f newValue = { value, value, value, value };
-		m_uniformsData[m_uniforms[name]] = newValue;
-		Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, 0, &m_uniformsData, sizeof(std::array<vec4f, UNIFORMS_MAX>));
-	//	Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, m_uniforms[name] * sizeof(vec4f), &m_uniformsData, sizeof(vec4f));
-	}
-
-	void setUniform(std::string name, mat4x4 value)
-	{
-		assert(m_uniforms.find(name) != m_uniforms.end());
-		m_uniformsData[m_uniforms[name]]   = { value[0][0], value[0][1], value[0][2], value[0][3] };
-		m_uniformsData[m_uniforms[name]+1] = { value[1][0], value[1][1], value[1][2], value[1][3] };
-		m_uniformsData[m_uniforms[name]+2] = { value[2][0], value[2][1], value[2][2], value[2][3] };
-		m_uniformsData[m_uniforms[name]+3] = { value[3][0], value[3][1], value[3][2], value[3][3] };
+		auto& uniform = getUniform(name);
+		uniform.value = value;
+		if (uniform.isVec4())
+			m_uniformsData[uniform.index] = uniform.getVec4();
+		else if (uniform.isFloat())
+		{
+			float newValue = uniform.getFloat();
+			m_uniformsData[uniform.index] = glm::vec4(newValue, newValue, newValue, newValue);
+		}
+		else if (uniform.isMatrix())
+		{
+			int index = getUniform(name).index;
+			mat4x4 mat = uniform.getMat4x4();
+			m_uniformsData[index]     = { mat[0][0], mat[0][1], mat[0][2], mat[0][3] };
+			m_uniformsData[index + 1] = { mat[1][0], mat[1][1], mat[1][2], mat[1][3] };
+			m_uniformsData[index + 2] = { mat[2][0], mat[2][1], mat[2][2], mat[2][3] };
+			m_uniformsData[index + 3] = { mat[3][0], mat[3][1], mat[3][2], mat[3][3] };
+		}
+		else
+			assert(false);
+		Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, 0, &m_uniformsData, sizeof(std::array<vec4, UNIFORMS_MAX>)); //TODO envoyer que la partie modifié
 	}
 
 	BindGroupLayout getBindGroupLayout() { return m_bindGroupLayout; }
 	BindGroup getBindGroup() {return m_bindGroup;}
+	
+	std::vector<Uniform> getUniforms() { return m_uniforms;}
 
 private:
-	std::array<vec4f, UNIFORMS_MAX> m_uniformsData {};
-	std::unordered_map<std::string, uint16_t> m_uniforms;
+	
+	std::vector<Uniform> m_uniforms{};
+	std::array<vec4, UNIFORMS_MAX> m_uniformsData {};
 	uint16_t m_uniformIndex = 0;
 	
 	Buffer m_uniformBuffer{ nullptr };
@@ -251,10 +291,75 @@ public:
 		}
 		file.seekg(0, std::ios::end);
 		size_t size = file.tellg();
-		std::string shaderSource(size, ' ');
+		m_shaderSource = std::string(size, ' ');
 		file.seekg(0);
-		file.read(shaderSource.data(), size);
+		file.read(m_shaderSource.data(), size);
 
+	};
+
+	~Shader() { 
+		m_shaderModule.release();
+		delete m_uniforms;
+	}
+
+	VertexState getVertexState() 
+	{
+		VertexState vertexState;
+		vertexState.module = getShaderModule();
+		vertexState.entryPoint = "vs_main";
+		vertexState.constantCount = 0;
+		vertexState.constants = nullptr;
+		return vertexState;
+	}
+
+	FragmentState getFragmentState() 
+	{
+		FragmentState fragmentState;
+		fragmentState.module = getShaderModule();
+		fragmentState.entryPoint = "fs_main";
+		fragmentState.constantCount = 0;
+		fragmentState.constants = nullptr;
+		return fragmentState;
+	}
+	
+	Uniforms* getUniforms() { return m_uniforms; }
+
+	struct VertexAttr
+	{
+		std::string name;
+		int location; 
+		VertexFormat format;
+	};
+
+	void addVertexInput(const std::string& inputName, int location, VertexFormat format)
+	{
+		m_vertexInputs.push_back({ inputName , location,format });
+	}
+
+	void addVertexOutput(const std::string& inputName, int location, VertexFormat format)
+	{
+		m_vertexOutputs.push_back({ inputName , location,format });
+	}
+
+private:
+	std::string toString(VertexFormat format)
+	{
+		switch (format)
+		{
+		case VertexFormat::Float32x2: return "vec2f";
+		case VertexFormat::Float32x3: return "vec3f";
+		case VertexFormat::Float32x4: return "vec4f";
+		default:
+			assert(false); 
+			return "UNKNOWN";
+			break;
+		}
+	}
+	std::vector<VertexAttr> m_vertexInputs{};
+	std::vector<VertexAttr> m_vertexOutputs{};
+	ShaderModule getShaderModule()
+	{
+		if (m_shaderModule) return m_shaderModule;
 		ShaderModuleDescriptor shaderDesc;
 #ifdef WEBGPU_BACKEND_WGPU
 		shaderDesc.hintCount = 0;
@@ -269,8 +374,34 @@ public:
 		// Connect the chain
 		shaderDesc.nextInChain = &shaderCodeDesc.chain;
 
+		std::string vertexInputOutputStr = "struct VertexInput {\n";
+		for (const auto vertexInput : m_vertexInputs)
+		{ 
+			vertexInputOutputStr += "    @location(" + std::to_string(vertexInput.location) + ") " + vertexInput.name + ": "+ toString(vertexInput.format) +", \n";
+		}
+		vertexInputOutputStr += "}; \n \n";
+
+		vertexInputOutputStr += "struct VertexOutput {\n";
+		vertexInputOutputStr += "    @builtin(position) position: vec4f, \n";
+		for (const auto vertexInput : m_vertexOutputs)
+		{
+			vertexInputOutputStr += "    @location(" + std::to_string(vertexInput.location) + ") " + vertexInput.name + ": " + toString(vertexInput.format) + ", \n";
+		}
+		vertexInputOutputStr += "}; \n \n";
+
+		std::string vertexUniformsStr = "struct Uniforms { \n";
+		for (const auto& uniform : m_uniforms->getUniforms())
+		{
+			vertexUniformsStr += "    " + uniform.name + ": " + (uniform.isMatrix() ? "mat4x4f" : "vec4f") + ", \n";
+		}
+		vertexUniformsStr += "}; \n \n";
+		vertexUniformsStr += "@group(0) @binding(0) var<uniform> u_uniforms: Uniforms;\n"; //TODO prametrique
+
+		m_shaderSource = vertexInputOutputStr + vertexUniformsStr + m_shaderSource;
+
 		// Setup the actual payload of the shader code descriptor
-		shaderCodeDesc.code = shaderSource.c_str();
+		shaderCodeDesc.code = m_shaderSource.c_str();
+		std::cout << m_shaderSource << std::endl;
 
 		m_shaderModule = Context::getInstance().getDevice().createShaderModule(shaderDesc);
 		m_shaderModule.getCompilationInfo([](CompilationInfoRequestStatus status, const CompilationInfo& compilationInfo) {
@@ -287,37 +418,11 @@ public:
 			}
 		});
 		assert(m_shaderModule);
-	};
-
-	~Shader() { 
-		m_shaderModule.release();
-		delete m_uniforms;
+		return m_shaderModule;
 	}
-
-	VertexState getVertexState() const
-	{
-		VertexState vertexState;
-		vertexState.module = m_shaderModule;
-		vertexState.entryPoint = "vs_main";
-		vertexState.constantCount = 0;
-		vertexState.constants = nullptr;
-		return vertexState;
-	}
-
-	FragmentState getFragmentState() const
-	{
-		FragmentState fragmentState;
-		fragmentState.module = m_shaderModule;
-		fragmentState.entryPoint = "fs_main";
-		fragmentState.constantCount = 0;
-		fragmentState.constants = nullptr;
-		return fragmentState;
-	}
-	
-	Uniforms* getUniforms() { return m_uniforms; }
-private:
 	ShaderModule m_shaderModule{ nullptr };
 	Uniforms* m_uniforms{ new Uniforms() }; 
+	std::string m_shaderSource;
 };
 
 //https://eliemichel.github.io/LearnWebGPU/basic-3d-rendering/hello-triangle.html#render-pipeline
@@ -458,12 +563,12 @@ private:
 class VertexBuffer
 {
 public:
-	VertexBuffer(std::vector<float> vertexData, int vertexCount):
-		m_data (vertexData.data()),
+	VertexBuffer(void* vertexData, size_t size, int vertexCount):
+		m_data (vertexData),
 		m_count(vertexCount)
 	{
 		// Create vertex buffer
-		m_size = vertexData.size() * sizeof(float);
+		m_size = size;
 		BufferDescriptor bufferDesc;
 		bufferDesc.size = m_size;
 		bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Vertex;
@@ -493,8 +598,8 @@ public:
 
 private:
 	Buffer m_buffer{ nullptr };
-	float* m_data;
-	uint64_t  m_size;
+	void* m_data;
+	size_t  m_size;
 	int m_count{ 0 };
 	std::vector<VertexAttribute> m_vertexAttribs;
 	uint64_t m_attribsStride = 0;
@@ -505,11 +610,11 @@ private:
 class IndexBuffer
 {
 public:
-	IndexBuffer(std::vector<uint16_t> indexData, int indexCount) :
-		m_data(indexData.data()),
+	IndexBuffer(void* indexData, size_t size, int indexCount) :
+		m_data(indexData),
 		m_count(indexCount)
 	{
-		m_size = indexData.size() * sizeof(uint16_t);
+		m_size = size * sizeof(uint16_t);
 		BufferDescriptor bufferDesc;
 		bufferDesc.size = m_size;
 		bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Index;
@@ -523,13 +628,13 @@ public:
 	~IndexBuffer() {};
 
 	const Buffer& getBuffer()const { return m_buffer; }
-	const uint64_t getSize() const { return m_size; }
+	const size_t getSize() const { return m_size; }
 	const int getCount() const { return m_count; }
 
 private:
 	Buffer m_buffer{ nullptr };
-	uint16_t* m_data;
-	uint64_t  m_size;
+	void* m_data;
+	size_t  m_size;
 	int m_count{ 0 };
 };
 
@@ -668,8 +773,8 @@ public:
 				mat4x4 modelMatrix = R1 * T1 * S;
 				pass.getShader()->getUniforms()->setUniform("model", modelMatrix);
 
-				int slot = 0; //The first argument(slot) corresponds to the index of the buffer layout in the pipelineDesc.vertex.buffers array.
 				renderPass.setBindGroup(0, pass.getShader()->getUniforms()->getBindGroup(), 0, nullptr);
+				int slot = 0; //The first argument(slot) corresponds to the index of the buffer layout in the pipelineDesc.vertex.buffers array.
 				for (const auto& vb : mesh->getVertexBuffers())
 				{
 					renderPass.setVertexBuffer(slot, vb->getBuffer(), 0, vb->getSize());
@@ -739,11 +844,11 @@ void addTwoTriangles()
 	};
 
 	int vertexCount = static_cast<int>(positionData.size() / 2);
-	VertexBuffer* vertexBufferPos = new VertexBuffer(positionData, vertexCount);
+	VertexBuffer* vertexBufferPos = new VertexBuffer(positionData.data(), positionData.size() * sizeof(float), vertexCount);
 	vertexBufferPos->addVertexAttrib("Position", 0, VertexFormat::Float32x2, 0);
 	vertexBufferPos->setAttribsStride(2 * sizeof(float));
 
-	VertexBuffer* vertexBufferColor = new VertexBuffer(colorData, vertexCount);
+	VertexBuffer* vertexBufferColor = new VertexBuffer(colorData.data(), colorData.size() * sizeof(float), vertexCount);
 	vertexBufferColor->addVertexAttrib("Color", 1, VertexFormat::Float32x3, 0); // offset = sizeof(Position)
 	vertexBufferColor->setAttribsStride(3 * sizeof(float));
 
@@ -767,7 +872,7 @@ void addTwoTriangles()
 	//};
 	//int vertexCount = static_cast<int>(vertexData.size() / 5);
 
-	//VertexBuffer* vertexBuffer = new VertexBuffer(vertexData, vertexCount);
+	//VertexBuffer* vertexBuffer = new VertexBuffer(vertexData, vertexCount); // vertexData.size()* sizeof(float)
 	//vertexBuffer->addVertexAttrib("Position", 0, VertexFormat::Float32x2, 0);
 	//vertexBuffer->addVertexAttrib("Color", 1, VertexFormat::Float32x3, 2 * sizeof(float)); // offset = sizeof(Position)
 	//vertexBuffer->setAttribsStride(5 * sizeof(float));
@@ -796,12 +901,12 @@ void addColoredPlane() {
 	int indexCount = static_cast<int>(indexData.size());
 	int vertexCount = static_cast<int>(pointData.size() / 5);
 
-	VertexBuffer* vertexBuffer = new VertexBuffer(pointData, vertexCount);
+	VertexBuffer* vertexBuffer = new VertexBuffer(pointData.data(), pointData.size() * sizeof(float), vertexCount);
 	vertexBuffer->addVertexAttrib("Position", 0, VertexFormat::Float32x2, 0);
 	vertexBuffer->addVertexAttrib("Color", 1, VertexFormat::Float32x3, 2 * sizeof(float)); // offset = sizeof(Position)
 	vertexBuffer->setAttribsStride(5 * sizeof(float));
 
-	IndexBuffer* indexBuffer = new IndexBuffer(indexData, indexCount);
+	IndexBuffer* indexBuffer = new IndexBuffer(indexData.data(), indexData.size(), indexCount);
 	Mesh* mesh = new Mesh();
 	mesh->addVertexBuffer(vertexBuffer);
 	mesh->addIndexBuffer(indexBuffer);
@@ -829,16 +934,94 @@ void addPyramid()
 	int indexCount = static_cast<int>(indexData.size());
 	int vertexCount = static_cast<int>(pointData.size() / 6);
 
-	VertexBuffer* vertexBuffer = new VertexBuffer(pointData, vertexCount);
+	VertexBuffer* vertexBuffer = new VertexBuffer(pointData.data(), pointData.size() * sizeof(float), vertexCount);
 	vertexBuffer->addVertexAttrib("Position", 0, VertexFormat::Float32x3, 0);
 	vertexBuffer->addVertexAttrib("Color", 1, VertexFormat::Float32x3, 3 * sizeof(float)); // offset = sizeof(Position)
 	vertexBuffer->setAttribsStride(6 * sizeof(float));
 
-	IndexBuffer* indexBuffer = new IndexBuffer(indexData, indexCount);
+	IndexBuffer* indexBuffer = new IndexBuffer(indexData.data(), indexData.size(), indexCount);
 	Mesh* mesh = new Mesh();
 	mesh->addVertexBuffer(vertexBuffer);
 	mesh->addIndexBuffer(indexBuffer);
 	MeshManager::getInstance().add("Pyramid", mesh);
+}
+
+struct VertexAttributes {
+	vec3 position;
+	vec3 normal;
+	vec3 color;
+};
+
+bool loadGeometryFromObj(const fs::path& path) {
+	std::vector<VertexAttributes> vertexData;
+	tinyobj::attrib_t attrib;
+	std::vector<tinyobj::shape_t> shapes;
+	std::vector<tinyobj::material_t> materials;
+
+	std::string warn;
+	std::string err;
+
+	// Call the core loading procedure of TinyOBJLoader
+	bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path.string().c_str());
+
+	// Check errors
+	if (!warn.empty()) {
+		std::cout << warn << std::endl;
+	}
+
+	if (!err.empty()) {
+		std::cerr << err << std::endl;
+	}
+
+	if (!ret) {
+		return false;
+	}
+
+	// Filling in vertexData:
+	vertexData.clear();
+	for (const auto& shape : shapes) {
+		size_t offset = vertexData.size();
+		vertexData.resize(offset + shape.mesh.indices.size());
+
+		for (size_t i = 0; i < shape.mesh.indices.size(); ++i) {
+			const tinyobj::index_t& idx = shape.mesh.indices[i];
+
+			vertexData[offset + i].position = {
+				attrib.vertices[3 * idx.vertex_index + 0],
+				-attrib.vertices[3 * idx.vertex_index + 2], // Add a minus to avoid mirroring
+				attrib.vertices[3 * idx.vertex_index + 1]
+			};
+
+			// Also apply the transform to normals!!
+			vertexData[offset + i].normal = {
+				attrib.normals[3 * idx.normal_index + 0],
+				-attrib.normals[3 * idx.normal_index + 2],
+				attrib.normals[3 * idx.normal_index + 1]
+			};
+
+			vertexData[offset + i].color = {
+				attrib.colors[3 * idx.vertex_index + 0],
+				attrib.colors[3 * idx.vertex_index + 1],
+				attrib.colors[3 * idx.vertex_index + 2]
+			};
+		}
+	}
+
+	int indexCount = static_cast<int>(vertexData.size());
+	int vertexCount = static_cast<int>(vertexData.size() );
+	auto* data = vertexData.data();
+	VertexBuffer* vertexBuffer = new VertexBuffer(vertexData.data(), vertexData.size() *sizeof(VertexAttributes), vertexCount);
+	vertexBuffer->addVertexAttrib("Position", 0, VertexFormat::Float32x3, 0);
+	vertexBuffer->addVertexAttrib("Normal", 1, VertexFormat::Float32x3, 3 * sizeof(float));
+	vertexBuffer->addVertexAttrib("Color", 2, VertexFormat::Float32x3, 6 * sizeof(float)); // offset = sizeof(Position)
+	vertexBuffer->setAttribsStride(9 * sizeof(float));
+
+	
+	Mesh* mesh = new Mesh();
+	mesh->addVertexBuffer(vertexBuffer);
+	MeshManager::getInstance().add("obj_1", mesh);
+
+	return true;
 }
 
 
@@ -860,9 +1043,16 @@ int main(int, char**) {
 
 	//addTwoTriangles();
 	//addColoredPlane();
-	addPyramid();
+	//addPyramid();
+	loadGeometryFromObj(DATA_DIR  "/pyramid.obj");
     
 	Shader* shader_1 = new Shader(DATA_DIR  "/sahder_1.wgsl");
+	shader_1->addVertexInput("position", 0, VertexFormat::Float32x3);
+	shader_1->addVertexInput("normal", 1, VertexFormat::Float32x3);
+	shader_1->addVertexInput("color", 2, VertexFormat::Float32x3);
+	shader_1->addVertexOutput("color", 0, VertexFormat::Float32x3);
+	shader_1->addVertexOutput("normal", 1, VertexFormat::Float32x3);
+
 	//L'ordre est important pour le add !
 	shader_1->getUniforms()->addUniform("color");
 	shader_1->getUniforms()->addUniform("time"); 
@@ -885,8 +1075,7 @@ int main(int, char**) {
 	float fov = 2 * glm::atan(1 / focalLength);
 	mat4x4 proj = glm::perspective(fov, ratio, near, far);
 	shader_1->getUniforms()->setUniform("projection", proj);
-	
-	shader_1->getUniforms()->setUniform("color", { 1.0f,1.0f,0.0f,1.0f });
+	shader_1->getUniforms()->setUniform("color", glm::vec4{ 0.8f,0.2f,0.8f,1.0f });
 
 	Pass pass1(shader_1);
 	pass1.addDepthBuffer(m_winWidth, m_winHeight, depthTextureFormat);

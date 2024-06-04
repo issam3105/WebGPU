@@ -7,7 +7,7 @@ project(
 
 
 
-add_executable(App main.cpp webgpu-utils.h webgpu-utils.cpp)
+add_executable(App main.cpp webgpu-utils.h webgpu-utils.cpp tiny_obj_loader.h)
 
 set_target_properties(App PROPERTIES
     CXX_STANDARD 17
@@ -25,8 +25,9 @@ endif()
 add_subdirectory(ext/glfw)
 add_subdirectory(ext/webgpu)
 add_subdirectory(ext/glfw3webgpu)
+add_subdirectory(ext/glm)
 
-target_link_libraries(App PRIVATE webgpu glfw glfw3webgpu)
+target_link_libraries(App PRIVATE webgpu glfw glfw3webgpu glm)
 
 
 target_compile_definitions(App PRIVATE
