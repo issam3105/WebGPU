@@ -27,6 +27,11 @@
 #include <glfw3webgpu.h>
 #include <GLFW/glfw3.h>
 
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_FORCE_LEFT_HANDED
+#include <glm/glm.hpp>
+#include <glm/ext.hpp>
+
 #define WEBGPU_CPP_IMPLEMENTATION
 #include <webgpu/webgpu.hpp>
 
@@ -37,6 +42,12 @@
 #include <array>
 
 using namespace wgpu;
+
+using glm::mat4x4;
+using glm::vec4;
+using glm::vec3;
+
+constexpr float PI = 3.14159265358979323846f;
 
 #ifdef WEBGPU_BACKEND_WGPU
 TextureFormat swapChainFormat = surface.getPreferredFormat(adapter);
@@ -128,7 +139,7 @@ private:
 	Adapter m_adapter = nullptr;
 };
 
-#define UNIFORMS_MAX 10
+#define UNIFORMS_MAX 15
 typedef std::array<float, 4> vec4f ;
 class Uniforms
 {	
@@ -185,6 +196,12 @@ public:
 		m_uniforms[name] = m_uniformIndex++;
 	};
 
+	void addUniformMatrix(std::string name) {
+		assert(m_uniformIndex + 4 < UNIFORMS_MAX);
+		m_uniforms[name] = m_uniformIndex;
+		m_uniformIndex += 4;
+	};
+
 	void setUniform(std::string name, vec4f value)
 	{
 		assert(m_uniforms.find(name) != m_uniforms.end());
@@ -200,6 +217,15 @@ public:
 		m_uniformsData[m_uniforms[name]] = newValue;
 		Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, 0, &m_uniformsData, sizeof(std::array<vec4f, UNIFORMS_MAX>));
 	//	Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, m_uniforms[name] * sizeof(vec4f), &m_uniformsData, sizeof(vec4f));
+	}
+
+	void setUniform(std::string name, mat4x4 value)
+	{
+		assert(m_uniforms.find(name) != m_uniforms.end());
+		m_uniformsData[m_uniforms[name]]   = { value[0][0], value[0][1], value[0][2], value[0][3] };
+		m_uniformsData[m_uniforms[name]+1] = { value[1][0], value[1][1], value[1][2], value[1][3] };
+		m_uniformsData[m_uniforms[name]+2] = { value[2][0], value[2][1], value[2][2], value[2][3] };
+		m_uniformsData[m_uniforms[name]+3] = { value[3][0], value[3][1], value[3][2], value[3][3] };
 	}
 
 	BindGroupLayout getBindGroupLayout() { return m_bindGroupLayout; }
@@ -635,6 +661,13 @@ public:
 				
 				pass.getShader()->getUniforms()->setUniform("time", static_cast<float>(glfwGetTime()));
 
+				float angle1 = static_cast<float>(glfwGetTime());
+				mat4x4 S = glm::scale(mat4x4(1.0), vec3(0.3f));
+				mat4x4 T1 = glm::translate(mat4x4(1.0), vec3(0.5, 0.0, 0.0));
+				mat4x4 R1 = glm::rotate(mat4x4(1.0), angle1, vec3(0.0, 0.0, 1.0));
+				mat4x4 modelMatrix = R1 * T1 * S;
+				pass.getShader()->getUniforms()->setUniform("model", modelMatrix);
+
 				int slot = 0; //The first argument(slot) corresponds to the index of the buffer layout in the pipelineDesc.vertex.buffers array.
 				renderPass.setBindGroup(0, pass.getShader()->getUniforms()->getBindGroup(), 0, nullptr);
 				for (const auto& vb : mesh->getVertexBuffers())
@@ -833,6 +866,25 @@ int main(int, char**) {
 	//L'ordre est important pour le add !
 	shader_1->getUniforms()->addUniform("color");
 	shader_1->getUniforms()->addUniform("time"); 
+    shader_1->getUniforms()->addUniformMatrix("projection");
+    shader_1->getUniforms()->addUniformMatrix("view");
+	shader_1->getUniforms()->addUniformMatrix("model");
+	
+	vec3 focalPoint(0.0, 0.0, -2.0);
+	float angle2 = 3.0f * PI / 4.0f;
+	mat4x4 V(1.0);
+	V = glm::translate(V, -focalPoint);
+	V = glm::rotate(V, -angle2, vec3(1.0, 0.0, 0.0));
+	shader_1->getUniforms()->setUniform("view", V);
+
+	float ratio = 640.0f / 480.0f;
+	float focalLength = 2.0;
+	float near = 0.01f;
+	float far = 100.0f;
+	//float divider = 1 / (focalLength * (far - near));
+	float fov = 2 * glm::atan(1 / focalLength);
+	mat4x4 proj = glm::perspective(fov, ratio, near, far);
+	shader_1->getUniforms()->setUniform("projection", proj);
 	
 	shader_1->getUniforms()->setUniform("color", { 1.0f,1.0f,0.0f,1.0f });
 
