@@ -1053,7 +1053,6 @@ int main(int, char**) {
 	shader_1->addVertexOutput("color", 0, VertexFormat::Float32x3);
 	shader_1->addVertexOutput("normal", 1, VertexFormat::Float32x3);
 
-	//L'ordre est important pour le add !
 	shader_1->getUniforms()->addUniform("color");
 	shader_1->getUniforms()->addUniform("time"); 
     shader_1->getUniforms()->addUniformMatrix("projection");
@@ -1071,7 +1070,6 @@ int main(int, char**) {
 	float focalLength = 2.0;
 	float near = 0.01f;
 	float far = 100.0f;
-	//float divider = 1 / (focalLength * (far - near));
 	float fov = 2 * glm::atan(1 / focalLength);
 	mat4x4 proj = glm::perspective(fov, ratio, near, far);
 	shader_1->getUniforms()->setUniform("projection", proj);
