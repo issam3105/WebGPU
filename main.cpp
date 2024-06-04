@@ -262,7 +262,7 @@ public:
 		}
 		else
 			assert(false);
-		Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, 0, &m_uniformsData, sizeof(std::array<vec4, UNIFORMS_MAX>)); //TODO envoyer que la partie modifié
+		Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, 0, &m_uniformsData, sizeof(std::array<vec4, UNIFORMS_MAX>)); //TODO envoyer que la partie modifie
 	}
 
 	BindGroupLayout getBindGroupLayout() { return m_bindGroupLayout; }
