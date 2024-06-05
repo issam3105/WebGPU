@@ -38,19 +38,21 @@
 #define TINYOBJLOADER_IMPLEMENTATION // add this to exactly 1 of your C++ files
 #include "tiny_obj_loader.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #include <iostream>
 #include <cassert>
 #include <filesystem>
 #include <fstream>
 #include <array>
 #include <variant>
+#include "webgpu-utils.h"
 
 using namespace wgpu;
 namespace fs = std::filesystem;
 
-using glm::mat4x4;
-using glm::vec4;
-using glm::vec3;
+using namespace glm;
 
 constexpr float PI = 3.14159265358979323846f;
 
@@ -88,6 +90,7 @@ public:
 		adapterOpts.compatibleSurface = m_surface;
 		m_adapter = m_instance.requestAdapter(adapterOpts);
 		assert(m_adapter);
+	//	inspectAdapter(m_adapter);
 
 		//Requesting device...
 		DeviceDescriptor deviceDesc;
@@ -97,6 +100,7 @@ public:
 		deviceDesc.defaultQueue.label = "The default queue";
 		m_device = m_adapter.requestDevice(deviceDesc);
 		assert(m_device);
+	//	inspectDevice(m_device);
 
 		// Add an error callback for more debug info
 		auto h = m_device.setUncapturedErrorCallback([](ErrorType type, char const* message) {
@@ -341,6 +345,10 @@ public:
 		m_vertexOutputs.push_back({ inputName , location,format });
 	}
 
+	void addTexture(const std::string& name) { m_textures.push_back(name); }
+	void addSampler(const std::string& name) { m_samplers.push_back(name); }
+	std::vector<std::string> m_textures{};
+	std::vector<std::string> m_samplers{};
 private:
 	std::string toString(VertexFormat format)
 	{
@@ -401,7 +409,7 @@ private:
 
 		// Setup the actual payload of the shader code descriptor
 		shaderCodeDesc.code = m_shaderSource.c_str();
-		std::cout << m_shaderSource << std::endl;
+		
 
 		m_shaderModule = Context::getInstance().getDevice().createShaderModule(shaderDesc);
 		m_shaderModule.getCompilationInfo([](CompilationInfoRequestStatus status, const CompilationInfo& compilationInfo) {
@@ -523,6 +531,8 @@ public:
 		m_depthTextureView.release();
 		//depthTexture.destroy(); TODO
 		//depthTexture.release();
+		delete depthStencilAttachment;
+		delete renderPassColorAttachment;
 	};
 
 	Shader* getShader() const { return m_shader; }
@@ -553,9 +563,53 @@ public:
 		m_depthTextureView = depthTexture.createView(depthTextureViewDesc);
 	}
 
-	const TextureView getDepthTextureView() const { return m_depthTextureView; }
-private:
+	//const TextureView getDepthTextureView() const { return m_depthTextureView; }
+	const RenderPassDepthStencilAttachment* getRenderPassDepthStencilAttachment(){
+		if (m_depthTextureView)
+		{
+			depthStencilAttachment = new RenderPassDepthStencilAttachment(); 
+			// The view of the depth texture
+			depthStencilAttachment->view = m_depthTextureView;
 
+			// The initial value of the depth buffer, meaning "far"
+			depthStencilAttachment->depthClearValue = 1.0f;
+			// Operation settings comparable to the color attachment
+			depthStencilAttachment->depthLoadOp = LoadOp::Clear;
+			depthStencilAttachment->depthStoreOp = StoreOp::Store;
+			// we could turn off writing to the depth buffer globally here
+			depthStencilAttachment->depthReadOnly = false;
+
+			// Stencil setup, mandatory but unused
+			depthStencilAttachment->stencilClearValue = 0;
+#ifdef WEBGPU_BACKEND_WGPU
+			depthStencilAttachment->stencilLoadOp = LoadOp::Clear;
+			depthStencilAttachment->stencilStoreOp = StoreOp::Store;
+#else
+			depthStencilAttachment->stencilLoadOp = LoadOp::Undefined;
+			depthStencilAttachment->stencilStoreOp = StoreOp::Undefined;
+#endif
+			depthStencilAttachment->stencilReadOnly = true;
+			return depthStencilAttachment;
+		}
+		else
+		{
+			return nullptr;
+		}
+	}
+
+	const RenderPassColorAttachment* getRenderPassColorAttachment(WGPUTextureView view) {
+		renderPassColorAttachment = new RenderPassColorAttachment();
+		renderPassColorAttachment->view = view;
+		renderPassColorAttachment->resolveTarget = nullptr;
+		renderPassColorAttachment->loadOp = LoadOp::Clear;
+		renderPassColorAttachment->storeOp = StoreOp::Store;
+		renderPassColorAttachment->clearValue = Color{ 0.3, 0.3, 0.3, 1.0 };
+		return renderPassColorAttachment;
+	}
+
+private:
+	RenderPassDepthStencilAttachment* depthStencilAttachment;
+	RenderPassColorAttachment* renderPassColorAttachment;
 	Shader* m_shader { nullptr };
 	TextureView m_depthTextureView{ nullptr };
 };
@@ -710,49 +764,13 @@ public:
 			std::cerr << "Cannot acquire next swap chain texture" << std::endl;
 		}
 
-		for (const auto& pass : m_passes)
+		for (auto& pass : m_passes)
 		{
 			RenderPassDescriptor renderPassDesc;
-			RenderPassColorAttachment renderPassColorAttachment;
-			renderPassColorAttachment.view = nextTexture;
-			renderPassColorAttachment.resolveTarget = nullptr;
-			renderPassColorAttachment.loadOp = LoadOp::Clear;
-			renderPassColorAttachment.storeOp = StoreOp::Store;
-			renderPassColorAttachment.clearValue = Color{ 0.3, 0.3, 0.3, 1.0 };
+
 			renderPassDesc.colorAttachmentCount = 1;
-			renderPassDesc.colorAttachments = &renderPassColorAttachment;
-
-			if (pass.getDepthTextureView())
-			{
-				RenderPassDepthStencilAttachment depthStencilAttachment;
-				// The view of the depth texture
-				depthStencilAttachment.view = pass.getDepthTextureView();
-
-				// The initial value of the depth buffer, meaning "far"
-				depthStencilAttachment.depthClearValue = 1.0f;
-				// Operation settings comparable to the color attachment
-				depthStencilAttachment.depthLoadOp = LoadOp::Clear;
-				depthStencilAttachment.depthStoreOp = StoreOp::Store;
-				// we could turn off writing to the depth buffer globally here
-				depthStencilAttachment.depthReadOnly = false;
-
-				// Stencil setup, mandatory but unused
-				depthStencilAttachment.stencilClearValue = 0;
-#ifdef WEBGPU_BACKEND_WGPU
-				depthStencilAttachment.stencilLoadOp = LoadOp::Clear;
-				depthStencilAttachment.stencilStoreOp = StoreOp::Store;
-#else
-				depthStencilAttachment.stencilLoadOp = LoadOp::Undefined;
-				depthStencilAttachment.stencilStoreOp = StoreOp::Undefined;
-#endif
-				depthStencilAttachment.stencilReadOnly = true;
-
-				renderPassDesc.depthStencilAttachment = &depthStencilAttachment;
-			}
-			else
-			{
-				renderPassDesc.depthStencilAttachment = nullptr;
-			}
+			renderPassDesc.colorAttachments = pass.getRenderPassColorAttachment(nextTexture);//&renderPassColorAttachment;
+			renderPassDesc.depthStencilAttachment = pass.getRenderPassDepthStencilAttachment();
 
 			renderPassDesc.timestampWriteCount = 0;
 			renderPassDesc.timestampWrites = nullptr;
@@ -763,16 +781,6 @@ public:
 			{
 				Pipeline* pipeline = new Pipeline(pass.getShader(), mesh->getVertexBufferLayouts()); //TODO le creer le moins possible
 				renderPass.setPipeline(pipeline->getRenderPipeline());
-				
-				pass.getShader()->getUniforms()->setUniform("time", static_cast<float>(glfwGetTime()));
-
-				float angle1 = static_cast<float>(glfwGetTime());
-				mat4x4 S = glm::scale(mat4x4(1.0), vec3(0.3f));
-				mat4x4 T1 = glm::translate(mat4x4(1.0), vec3(0.5, 0.0, 0.0));
-				mat4x4 R1 = glm::rotate(mat4x4(1.0), angle1, vec3(0.0, 0.0, 1.0));
-				mat4x4 modelMatrix = R1 * T1 * S;
-				pass.getShader()->getUniforms()->setUniform("model", modelMatrix);
-
 				renderPass.setBindGroup(0, pass.getShader()->getUniforms()->getBindGroup(), 0, nullptr);
 				int slot = 0; //The first argument(slot) corresponds to the index of the buffer layout in the pipelineDesc.vertex.buffers array.
 				for (const auto& vb : mesh->getVertexBuffers())
@@ -950,6 +958,7 @@ struct VertexAttributes {
 	vec3 position;
 	vec3 normal;
 	vec3 color;
+	vec2 uv;
 };
 
 bool loadGeometryFromObj(const fs::path& path) {
@@ -1004,6 +1013,11 @@ bool loadGeometryFromObj(const fs::path& path) {
 				attrib.colors[3 * idx.vertex_index + 1],
 				attrib.colors[3 * idx.vertex_index + 2]
 			};
+
+			vertexData[offset + i].uv = {
+				attrib.texcoords[2 * idx.texcoord_index + 0],
+				1 - attrib.texcoords[2 * idx.texcoord_index + 1]
+			};
 		}
 	}
 
@@ -1013,8 +1027,9 @@ bool loadGeometryFromObj(const fs::path& path) {
 	VertexBuffer* vertexBuffer = new VertexBuffer(vertexData.data(), vertexData.size() *sizeof(VertexAttributes), vertexCount);
 	vertexBuffer->addVertexAttrib("Position", 0, VertexFormat::Float32x3, 0);
 	vertexBuffer->addVertexAttrib("Normal", 1, VertexFormat::Float32x3, 3 * sizeof(float));
-	vertexBuffer->addVertexAttrib("Color", 2, VertexFormat::Float32x3, 6 * sizeof(float)); // offset = sizeof(Position)
-	vertexBuffer->setAttribsStride(9 * sizeof(float));
+	vertexBuffer->addVertexAttrib("Color", 2, VertexFormat::Float32x3, 6 * sizeof(float)); 
+	vertexBuffer->addVertexAttrib("TexCoord", 3, VertexFormat::Float32x2, 9 * sizeof(float));
+	vertexBuffer->setAttribsStride(11 * sizeof(float));
 
 	
 	Mesh* mesh = new Mesh();
@@ -1022,6 +1037,115 @@ bool loadGeometryFromObj(const fs::path& path) {
 	MeshManager::getInstance().add("obj_1", mesh);
 
 	return true;
+}
+
+// Auxiliary function for loadTexture
+static void writeMipMaps(
+	Texture texture,
+	Extent3D textureSize,
+	uint32_t mipLevelCount,
+	const unsigned char* pixelData)
+{
+	Queue queue = Context::getInstance().getDevice().getQueue();
+
+	// Arguments telling which part of the texture we upload to
+	ImageCopyTexture destination;
+	destination.texture = texture;
+	destination.origin = { 0, 0, 0 };
+	destination.aspect = TextureAspect::All;
+
+	// Arguments telling how the C++ side pixel memory is laid out
+	TextureDataLayout source;
+	source.offset = 0;
+
+	// Create image data
+	Extent3D mipLevelSize = textureSize;
+	std::vector<unsigned char> previousLevelPixels;
+	Extent3D previousMipLevelSize;
+	for (uint32_t level = 0; level < mipLevelCount; ++level) {
+		// Pixel data for the current level
+		std::vector<unsigned char> pixels(4 * mipLevelSize.width * mipLevelSize.height);
+		if (level == 0) {
+			// We cannot really avoid this copy since we need this
+			// in previousLevelPixels at the next iteration
+			memcpy(pixels.data(), pixelData, pixels.size());
+		}
+		else {
+			// Create mip level data
+			for (uint32_t i = 0; i < mipLevelSize.width; ++i) {
+				for (uint32_t j = 0; j < mipLevelSize.height; ++j) {
+					unsigned char* p = &pixels[4 * (j * mipLevelSize.width + i)];
+					// Get the corresponding 4 pixels from the previous level
+					unsigned char* p00 = &previousLevelPixels[4 * ((2 * j + 0) * previousMipLevelSize.width + (2 * i + 0))];
+					unsigned char* p01 = &previousLevelPixels[4 * ((2 * j + 0) * previousMipLevelSize.width + (2 * i + 1))];
+					unsigned char* p10 = &previousLevelPixels[4 * ((2 * j + 1) * previousMipLevelSize.width + (2 * i + 0))];
+					unsigned char* p11 = &previousLevelPixels[4 * ((2 * j + 1) * previousMipLevelSize.width + (2 * i + 1))];
+					// Average
+					p[0] = (p00[0] + p01[0] + p10[0] + p11[0]) / 4;
+					p[1] = (p00[1] + p01[1] + p10[1] + p11[1]) / 4;
+					p[2] = (p00[2] + p01[2] + p10[2] + p11[2]) / 4;
+					p[3] = (p00[3] + p01[3] + p10[3] + p11[3]) / 4;
+				}
+			}
+		}
+
+		// Upload data to the GPU texture
+		destination.mipLevel = level;
+		source.bytesPerRow = 4 * mipLevelSize.width;
+		source.rowsPerImage = mipLevelSize.height;
+		queue.writeTexture(destination, pixels.data(), pixels.size(), source, mipLevelSize);
+
+		previousLevelPixels = std::move(pixels);
+		previousMipLevelSize = mipLevelSize;
+		mipLevelSize.width /= 2;
+		mipLevelSize.height /= 2;
+	}
+
+	queue.release();
+}
+
+static uint32_t bit_width(uint32_t m) {
+	if (m == 0) return 0;
+	else { uint32_t w = 0; while (m >>= 1) ++w; return w; }
+}
+
+Texture loadTexture(const fs::path& path, TextureView* pTextureView) {
+	int width, height, channels;
+	unsigned char* pixelData = stbi_load(path.string().c_str(), &width, &height, &channels, 4 /* force 4 channels */);
+	// If data is null, loading failed.
+	if (nullptr == pixelData) return nullptr;
+
+	// Use the width, height, channels and data variables here
+	TextureDescriptor textureDesc;
+	textureDesc.dimension = TextureDimension::_2D;
+	textureDesc.format = TextureFormat::RGBA8Unorm; // by convention for bmp, png and jpg file. Be careful with other formats.
+	textureDesc.size = { (unsigned int)width, (unsigned int)height, 1 };
+	textureDesc.mipLevelCount = bit_width(std::max(textureDesc.size.width, textureDesc.size.height));
+	textureDesc.sampleCount = 1;
+	textureDesc.usage = TextureUsage::TextureBinding | TextureUsage::CopyDst;
+	textureDesc.viewFormatCount = 0;
+	textureDesc.viewFormats = nullptr;
+	Texture texture = Context::getInstance().getDevice().createTexture(textureDesc);
+
+	// Upload data to the GPU texture
+	writeMipMaps(texture, textureDesc.size, textureDesc.mipLevelCount, pixelData);
+
+	stbi_image_free(pixelData);
+	// (Do not use data after this)
+
+	if (pTextureView) {
+		TextureViewDescriptor textureViewDesc;
+		textureViewDesc.aspect = TextureAspect::All;
+		textureViewDesc.baseArrayLayer = 0;
+		textureViewDesc.arrayLayerCount = 1;
+		textureViewDesc.baseMipLevel = 0;
+		textureViewDesc.mipLevelCount = textureDesc.mipLevelCount;
+		textureViewDesc.dimension = TextureViewDimension::_2D;
+		textureViewDesc.format = textureDesc.format;
+		*pTextureView = texture.createView(textureViewDesc);
+	}
+
+	return texture;
 }
 
 
@@ -1044,20 +1168,28 @@ int main(int, char**) {
 	//addTwoTriangles();
 	//addColoredPlane();
 	//addPyramid();
-	loadGeometryFromObj(DATA_DIR  "/pyramid.obj");
+	loadGeometryFromObj(DATA_DIR  "/fourareen.obj");
+
+	TextureView textureView = nullptr;
+	Texture texture = loadTexture(DATA_DIR "/fourareen2K_albedo.jpg", &textureView);
     
 	Shader* shader_1 = new Shader(DATA_DIR  "/sahder_1.wgsl");
 	shader_1->addVertexInput("position", 0, VertexFormat::Float32x3);
 	shader_1->addVertexInput("normal", 1, VertexFormat::Float32x3);
 	shader_1->addVertexInput("color", 2, VertexFormat::Float32x3);
+	shader_1->addVertexInput("uv", 3, VertexFormat::Float32x2);
 	shader_1->addVertexOutput("color", 0, VertexFormat::Float32x3);
 	shader_1->addVertexOutput("normal", 1, VertexFormat::Float32x3);
+	shader_1->addVertexOutput("uv", 2, VertexFormat::Float32x2);
 
 	shader_1->getUniforms()->addUniform("color");
 	shader_1->getUniforms()->addUniform("time"); 
     shader_1->getUniforms()->addUniformMatrix("projection");
     shader_1->getUniforms()->addUniformMatrix("view");
 	shader_1->getUniforms()->addUniformMatrix("model");
+
+	shader_1->addTexture("baseColor");
+	shader_1->addSampler("baseColorSampler");
 	
 	vec3 focalPoint(0.0, 0.0, -2.0);
 	float angle2 = 3.0f * PI / 4.0f;
@@ -1073,7 +1205,7 @@ int main(int, char**) {
 	float fov = 2 * glm::atan(1 / focalLength);
 	mat4x4 proj = glm::perspective(fov, ratio, near, far);
 	shader_1->getUniforms()->setUniform("projection", proj);
-	shader_1->getUniforms()->setUniform("color", glm::vec4{ 0.8f,0.2f,0.8f,1.0f });
+	shader_1->getUniforms()->setUniform("color", glm::vec4{ 1.0f,1.0f,1.0f,1.0f });
 
 	Pass pass1(shader_1);
 	pass1.addDepthBuffer(m_winWidth, m_winHeight, depthTextureFormat);
@@ -1084,6 +1216,15 @@ int main(int, char**) {
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
+
+		shader_1->getUniforms()->setUniform("time", static_cast<float>(glfwGetTime()));
+
+		float angle1 = static_cast<float>(glfwGetTime());
+		mat4x4 S = glm::scale(mat4x4(1.0), vec3(0.3f));
+		mat4x4 T1 = glm::translate(mat4x4(1.0), vec3(0.5, 0.0, 0.0));
+		mat4x4 R1 = glm::rotate(mat4x4(1.0), angle1, vec3(0.0, 0.0, 1.0));
+		mat4x4 modelMatrix = R1 * T1 * S;
+		shader_1->getUniforms()->setUniform("model", modelMatrix);
 
 		renderer.draw();
 

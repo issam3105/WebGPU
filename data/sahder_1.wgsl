@@ -4,6 +4,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 	out.position = u_uniforms.projection * u_uniforms.view * u_uniforms.model * vec4f(in.position, 1.0);
 	out.color = in.color;
 	out.normal = in.normal;
+	out.uv = in.uv;
 	return out;
 }
 
@@ -16,4 +17,5 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	// Gamma-correction
 	let corrected_color = pow(color, vec3f(2.2));
 	return vec4f(corrected_color, 1.0);
+//	return vec4f(in.uv.x, in.uv.y, 0.0, 1.0);
 }
