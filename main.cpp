@@ -1227,6 +1227,47 @@ std::string loadFile(const std::filesystem::path& path) {
 	return str;
 };
 
+struct CameraState {
+	// angles.x is the rotation of the camera around the global vertical axis, affected by mouse.x
+	// angles.y is the rotation of the camera around its local horizontal axis, affected by mouse.y
+	vec2 angles = { 0.8f, 0.5f };
+	// zoom is the position of the camera along its local forward axis, affected by the scroll wheel
+	float zoom = -1.2f;
+};
+
+struct DragState {
+	// Whether a drag action is ongoing (i.e., we are between mouse press and mouse release)
+	bool active = false;
+	// The position of the mouse at the beginning of the drag action
+	vec2 startMouse;
+	// The camera state at the beginning of the drag action
+	CameraState startCameraState;
+
+	// Constant settings
+	float sensitivity = 0.01f;
+	float scrollSensitivity = 0.1f;
+
+	// Inertia
+	vec2 velocity = { 0.0, 0.0 };
+	vec2 previousDelta;
+	float intertia = 0.9f;
+};
+
+
+DragState m_drag;
+CameraState m_cameraState;
+
+void updateViewMatrix(Shader* shader) {
+	float cx = cos(m_cameraState.angles.x);
+	float sx = sin(m_cameraState.angles.x);
+	float cy = cos(m_cameraState.angles.y);
+	float sy = sin(m_cameraState.angles.y);
+	vec3 position = vec3(cx * cy, sx * cy, sy) * std::exp(-m_cameraState.zoom);
+	mat4x4 viewMatrix = glm::lookAt(position, vec3(0.0f), vec3(0, 0, 1));
+	shader->getUniforms()->setUniform("view", viewMatrix);
+
+}
+
 
 int main(int, char**) {
 	if (!glfwInit()) {
@@ -1303,6 +1344,7 @@ int main(int, char**) {
 	float fov = 2 * glm::atan(1 / focalLength);
 	mat4x4 proj = glm::perspective(fov, ratio, near, far);
 	shader_1->getUniforms()->setUniform("projection", proj);
+	shader_1->getUniforms()->setUniform("model", glm::mat4(1.0f));
 	shader_1->getUniforms()->setUniform("color", glm::vec4{ 1.0f,1.0f,1.0f,1.0f });
 
 	Pass pass1(shader_1);
@@ -1312,17 +1354,52 @@ int main(int, char**) {
 	Renderer renderer;
 	renderer.addPass(pass1);
 
+	glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos) {
+		if (m_drag.active) {
+			vec2 currentMouse = vec2((float)xpos, (float)ypos);
+			vec2 delta = (currentMouse - m_drag.startMouse) * m_drag.sensitivity;
+			m_cameraState.angles = m_drag.startCameraState.angles + delta;
+			// Clamp to avoid going too far when orbitting up/down
+			m_cameraState.angles.y = glm::clamp(m_cameraState.angles.y, -PI / 2 + 1e-5f, PI / 2 - 1e-5f);
+			// Inertia
+			m_drag.velocity = delta - m_drag.previousDelta;
+			m_drag.previousDelta = delta;
+		}
+	});
+
+	glfwSetMouseButtonCallback(window, [](GLFWwindow* window, int button, int action, int mods) {
+		if (button == GLFW_MOUSE_BUTTON_LEFT) {
+			switch (action) {
+			case GLFW_PRESS:
+				m_drag.active = true;
+				double xpos, ypos;
+				glfwGetCursorPos(window, &xpos, &ypos);
+				m_drag.startMouse = vec2(-(float)xpos, (float)ypos);
+				m_drag.startCameraState = m_cameraState;
+				break;
+			case GLFW_RELEASE:
+				m_drag.active = false;
+				break;
+			}
+		}
+	});
+
+	glfwSetScrollCallback(window, [](GLFWwindow* window, double xoffset, double yoffset) {
+		m_cameraState.zoom += m_drag.scrollSensitivity * static_cast<float>(yoffset);
+		m_cameraState.zoom = glm::clamp(m_cameraState.zoom, -2.0f, 2.0f);
+	});
+
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
-
-		shader_1->getUniforms()->setUniform("time", static_cast<float>(glfwGetTime()));
+	 	updateViewMatrix(shader_1);
+		/*shader_1->getUniforms()->setUniform("time", static_cast<float>(glfwGetTime()));
 
 		float angle1 = static_cast<float>(glfwGetTime());
 		mat4x4 S = glm::scale(mat4x4(1.0), vec3(0.3f));
 		mat4x4 T1 = glm::translate(mat4x4(1.0), vec3(0.5, 0.0, 0.0));
 		mat4x4 R1 = glm::rotate(mat4x4(1.0), angle1, vec3(0.0, 0.0, 1.0));
 		mat4x4 modelMatrix = R1 * T1 * S;
-		shader_1->getUniforms()->setUniform("model", modelMatrix);
+		shader_1->getUniforms()->setUniform("model", modelMatrix);*/
 
 		renderer.draw();
 

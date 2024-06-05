@@ -12,7 +12,7 @@ add_executable(App main.cpp webgpu-utils.h webgpu-utils.cpp tiny_obj_loader.h st
 set_target_properties(App PROPERTIES
     CXX_STANDARD 17
     CXX_EXTENSIONS OFF
-    COMPILE_WARNING_AS_ERROR ON
+    COMPILE_WARNING_AS_ERROR OFF
 )
 
 if (MSVC)
