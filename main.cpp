@@ -115,6 +115,13 @@ public:
 			std::cout << std::endl;
 		});
 
+		m_device.pushErrorScope(WGPUErrorFilter_Validation);
+		m_device.popErrorScope([](ErrorType type, char const* message) {
+			std::cout << "Device error: type " << type;
+			if (message) std::cout << " (message: " << message << ")";
+			std::cout << std::endl;
+		});
+
 		//Creating swapchain...
 		SwapChainDescriptor swapChainDesc;
 		swapChainDesc.width = width;
@@ -1324,9 +1331,9 @@ int main(int, char**) {
     shader_1->getUniforms()->addUniformMatrix("view");
 	shader_1->getUniforms()->addUniformMatrix("model");
 
-	shader_1->addTexture("gradientTexture", textureView);
-//	shader_1->addTexture("gradientTexture1", textureView);
-	shader_1->addSampler("textureSampler", sampler);
+	shader_1->addTexture("baseColorTexture", textureView);
+	//shader_1->addTexture("gradientTexture1", textureView);
+	shader_1->addSampler("baseColorSampler", sampler);
 
 	shader_1->build();
 	
