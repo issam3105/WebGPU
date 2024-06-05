@@ -187,40 +187,6 @@ public:
 		m_uniformBuffer = Context::getInstance().getDevice().createBuffer(bufferDesc);
 
 		Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, 0, &m_uniformsData, sizeof(std::array<vec4, UNIFORMS_MAX>));
-
-		BindGroupLayoutEntry bindingLayout = Default;
-		// The binding index as used in the @binding attribute in the shader
-		bindingLayout.binding = 0;
-		// The stage that needs to access this resource
-		bindingLayout.visibility = ShaderStage::Vertex | ShaderStage::Fragment;
-		bindingLayout.buffer.type = BufferBindingType::Uniform;
-		bindingLayout.buffer.minBindingSize = sizeof(std::array<vec4, UNIFORMS_MAX>);
-
-		// Create a bind group layout
-		BindGroupLayoutDescriptor bindGroupLayoutDesc{};
-		bindGroupLayoutDesc.entryCount = 1;
-		bindGroupLayoutDesc.entries = &bindingLayout;
-		m_bindGroupLayout = Context::getInstance().getDevice().createBindGroupLayout(bindGroupLayoutDesc);
-
-		// Create a binding
-		BindGroupEntry binding{};
-		// The index of the binding (the entries in bindGroupDesc can be in any order)
-		binding.binding = 0;
-		// The buffer it is actually bound to
-		binding.buffer = m_uniformBuffer;
-		// We can specify an offset within the buffer, so that a single buffer can hold
-		// multiple uniform blocks.
-		binding.offset = 0;
-		// And we specify again the size of the buffer.
-		binding.size = sizeof(std::array<vec4, UNIFORMS_MAX>);
-
-		// A bind group contains one or multiple bindings
-		BindGroupDescriptor bindGroupDesc;
-		bindGroupDesc.layout = m_bindGroupLayout;
-		// There must be as many bindings as declared in the layout!
-		bindGroupDesc.entryCount = bindGroupLayoutDesc.entryCount;
-		bindGroupDesc.entries = &binding;
-		m_bindGroup = Context::getInstance().getDevice().createBindGroup(bindGroupDesc);
 	};
 	~Uniforms() = default;
 
@@ -269,11 +235,12 @@ public:
 		Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, 0, &m_uniformsData, sizeof(std::array<vec4, UNIFORMS_MAX>)); //TODO envoyer que la partie modifie
 	}
 
-	BindGroupLayout getBindGroupLayout() { return m_bindGroupLayout; }
-	BindGroup getBindGroup() {return m_bindGroup;}
+	
 	
 	std::vector<Uniform> getUniforms() { return m_uniforms;}
-
+	Buffer getBuffer() {
+		return m_uniformBuffer;
+	}
 private:
 	
 	std::vector<Uniform> m_uniforms{};
@@ -281,35 +248,189 @@ private:
 	uint16_t m_uniformIndex = 0;
 	
 	Buffer m_uniformBuffer{ nullptr };
-	BindGroupLayout m_bindGroupLayout{ nullptr };
-	BindGroup m_bindGroup{ nullptr };
+	
 };
 
 class Shader
 {
 public:
-	Shader(const std::filesystem::path& path) {
-		std::ifstream file(path);
-		if (!file.is_open()) {
-			std::cerr << path.c_str() << " not found ! " << std::endl;
-		}
-		file.seekg(0, std::ios::end);
-		size_t size = file.tellg();
-		m_shaderSource = std::string(size, ' ');
-		file.seekg(0);
-		file.read(m_shaderSource.data(), size);
-
-	};
+	Shader() {};
 
 	~Shader() { 
 		m_shaderModule.release();
 		delete m_uniforms;
 	}
 
+	void setUserCode(std::string userCode)
+	{
+		m_shaderSource = userCode;
+	}
+
+	void build()
+	{
+		std::vector<BindGroupLayoutEntry> bindingLayoutEntries{};
+
+		BindGroupLayoutEntry uniformsBindingLayout = Default;
+		// The binding index as used in the @binding attribute in the shader
+		uniformsBindingLayout.binding = 0;
+		// The stage that needs to access this resource
+		uniformsBindingLayout.visibility = ShaderStage::Vertex | ShaderStage::Fragment;
+		uniformsBindingLayout.buffer.type = BufferBindingType::Uniform;
+		uniformsBindingLayout.buffer.minBindingSize = sizeof(std::array<vec4, UNIFORMS_MAX>);
+		bindingLayoutEntries.push_back(uniformsBindingLayout);
+
+		for(const auto& texture : m_textures)
+		{
+			// The texture binding
+			BindGroupLayoutEntry textureBindingLayout = Default;
+			textureBindingLayout.binding = 1;
+			textureBindingLayout.visibility = ShaderStage::Fragment;
+			textureBindingLayout.texture.sampleType = TextureSampleType::Float;
+			textureBindingLayout.texture.viewDimension = TextureViewDimension::_2D;
+			bindingLayoutEntries.push_back(textureBindingLayout);
+		}
+
+		for (const auto& sampler: m_samplers)
+		{
+			// The texture sampler binding
+			BindGroupLayoutEntry samplerBindingLayout = Default;
+			samplerBindingLayout.binding = 2;
+			samplerBindingLayout.visibility = ShaderStage::Fragment;
+			samplerBindingLayout.sampler.type = SamplerBindingType::Filtering;
+			bindingLayoutEntries.push_back(samplerBindingLayout);
+		}
+
+
+		// Create a bind group layout
+		BindGroupLayoutDescriptor bindGroupLayoutDesc{};
+		bindGroupLayoutDesc.entryCount = (uint32_t)bindingLayoutEntries.size();;
+		bindGroupLayoutDesc.entries = bindingLayoutEntries.data();
+		m_bindGroupLayout = Context::getInstance().getDevice().createBindGroupLayout(bindGroupLayoutDesc);
+
+		int binding = 0;
+		std::vector<BindGroupEntry> bindings;
+		{
+			// Create a binding
+			BindGroupEntry uniformBinding{};
+			// The index of the binding (the entries in bindGroupDesc can be in any order)
+			uniformBinding.binding = binding++;
+			// The buffer it is actually bound to
+			uniformBinding.buffer = m_uniforms->getBuffer();
+			// We can specify an offset within the buffer, so that a single buffer can hold
+			// multiple uniform blocks.
+			uniformBinding.offset = 0;
+			// And we specify again the size of the buffer.
+			uniformBinding.size = sizeof(std::array<vec4, UNIFORMS_MAX>);
+			bindings.push_back(uniformBinding);
+		}
+
+		for (const auto& texture : m_textures)
+		{
+			BindGroupEntry textureBinding{};
+			// The index of the binding (the entries in bindGroupDesc can be in any order)
+			textureBinding.binding = binding++;
+			// The buffer it is actually bound to
+			textureBinding.textureView = texture.second;
+			bindings.push_back(textureBinding);
+		}
+
+		for (const auto& sampler : m_samplers)
+		{
+			BindGroupEntry samplerBinding{};
+			// The index of the binding (the entries in bindGroupDesc can be in any order)
+			samplerBinding.binding = binding++;
+			// The buffer it is actually bound to
+			samplerBinding.sampler = sampler.second;
+			bindings.push_back(samplerBinding);
+		}
+
+		// A bind group contains one or multiple bindings
+		BindGroupDescriptor bindGroupDesc;
+		bindGroupDesc.layout = m_bindGroupLayout;
+		// There must be as many bindings as declared in the layout!
+		bindGroupDesc.entryCount = (uint32_t)bindings.size();
+		bindGroupDesc.entries = bindings.data();
+		m_bindGroup = Context::getInstance().getDevice().createBindGroup(bindGroupDesc);
+
+
+		//ShaderModule
+		ShaderModuleDescriptor shaderDesc;
+#ifdef WEBGPU_BACKEND_WGPU
+		shaderDesc.hintCount = 0;
+		shaderDesc.hints = nullptr;
+#endif
+
+		// Use the extension mechanism to load a WGSL shader source code
+		ShaderModuleWGSLDescriptor shaderCodeDesc;
+		// Set the chained struct's header
+		shaderCodeDesc.chain.next = nullptr;
+		shaderCodeDesc.chain.sType = SType::ShaderModuleWGSLDescriptor;
+		// Connect the chain
+		shaderDesc.nextInChain = &shaderCodeDesc.chain;
+
+		std::string vertexInputOutputStr = "struct VertexInput {\n";
+		for (const auto vertexInput : m_vertexInputs)
+		{
+			vertexInputOutputStr += "    @location(" + std::to_string(vertexInput.location) + ") " + vertexInput.name + ": " + toString(vertexInput.format) + ", \n";
+		}
+		vertexInputOutputStr += "}; \n \n";
+
+		vertexInputOutputStr += "struct VertexOutput {\n";
+		vertexInputOutputStr += "    @builtin(position) position: vec4f, \n";
+		for (const auto vertexInput : m_vertexOutputs)
+		{
+			vertexInputOutputStr += "    @location(" + std::to_string(vertexInput.location) + ") " + vertexInput.name + ": " + toString(vertexInput.format) + ", \n";
+		}
+		vertexInputOutputStr += "}; \n \n";
+
+		std::string vertexUniformsStr = "struct Uniforms { \n";
+		for (const auto& uniform : m_uniforms->getUniforms())
+		{
+			vertexUniformsStr += "    " + uniform.name + ": " + (uniform.isMatrix() ? "mat4x4f" : "vec4f") + ", \n";
+		}
+		vertexUniformsStr += "}; \n \n";
+		//Binding groups
+		{
+			vertexUniformsStr += "@group(0) @binding(0) var<uniform> u_uniforms: Uniforms;\n";
+			int binding = 1; //0 used for uniforms
+			for (const auto& texture : m_textures)
+			{
+				vertexUniformsStr += "@group(0) @binding(" + std::to_string(binding++) + ") var " + texture.first + " : texture_2d<f32>;\n";
+			}
+			for (const auto& sampler : m_samplers)
+			{
+				vertexUniformsStr += "@group(0) @binding(" + std::to_string(binding++) + ") var " + sampler.first + " : sampler;\n";
+			}
+			vertexUniformsStr += "\n \n";
+		}
+
+		m_shaderSource = vertexInputOutputStr + vertexUniformsStr + m_shaderSource;
+
+		// Setup the actual payload of the shader code descriptor
+		shaderCodeDesc.code = m_shaderSource.c_str();
+		std::cout << m_shaderSource << std::endl;
+
+		m_shaderModule = Context::getInstance().getDevice().createShaderModule(shaderDesc);
+		m_shaderModule.getCompilationInfo([](CompilationInfoRequestStatus status, const CompilationInfo& compilationInfo) {
+			if (status == WGPUCompilationInfoRequestStatus_Success) {
+				for (size_t i = 0; i < compilationInfo.messageCount; ++i) {
+					const WGPUCompilationMessage& message = compilationInfo.messages[i];
+					std::cerr << "Shader compilation message (" << message.type << "): " << message.message << std::endl;
+					std::cerr << " - Line: " << message.lineNum << ", Column: " << message.linePos << std::endl;
+					std::cerr << " - Offset: " << message.offset << ", Length: " << message.length << std::endl;
+				}
+			}
+			else {
+				std::cerr << "Failed to get shader compilation info: " << status << std::endl;
+			}
+		});
+		assert(m_shaderModule);
+	}
+
 	VertexState getVertexState() 
 	{
 		VertexState vertexState;
-		vertexState.module = getShaderModule();
+		vertexState.module = m_shaderModule;
 		vertexState.entryPoint = "vs_main";
 		vertexState.constantCount = 0;
 		vertexState.constants = nullptr;
@@ -319,7 +440,7 @@ public:
 	FragmentState getFragmentState() 
 	{
 		FragmentState fragmentState;
-		fragmentState.module = getShaderModule();
+		fragmentState.module = m_shaderModule;
 		fragmentState.entryPoint = "fs_main";
 		fragmentState.constantCount = 0;
 		fragmentState.constants = nullptr;
@@ -345,11 +466,19 @@ public:
 		m_vertexOutputs.push_back({ inputName , location,format });
 	}
 
-	void addTexture(const std::string& name) { m_textures.push_back(name); }
-	void addSampler(const std::string& name) { m_samplers.push_back(name); }
-	std::vector<std::string> m_textures{};
-	std::vector<std::string> m_samplers{};
+	void addTexture(const std::string& name, TextureView texturView) { m_textures.push_back({ name, texturView }); }
+	void addSampler(const std::string& name, Sampler sampler) { m_samplers.push_back({ name, sampler }); }
+	
+
+	BindGroupLayout getBindGroupLayout() { return m_bindGroupLayout; }
+	BindGroup getBindGroup() {return m_bindGroup; }
+
 private:
+	BindGroupLayout m_bindGroupLayout{ nullptr };
+	BindGroup m_bindGroup{ nullptr };
+	std::vector<std::pair<std::string, TextureView> > m_textures{};
+	std::vector<std::pair<std::string, Sampler>> m_samplers{};
+
 	std::string toString(VertexFormat format)
 	{
 		switch (format)
@@ -365,69 +494,6 @@ private:
 	}
 	std::vector<VertexAttr> m_vertexInputs{};
 	std::vector<VertexAttr> m_vertexOutputs{};
-	ShaderModule getShaderModule()
-	{
-		if (m_shaderModule) return m_shaderModule;
-		ShaderModuleDescriptor shaderDesc;
-#ifdef WEBGPU_BACKEND_WGPU
-		shaderDesc.hintCount = 0;
-		shaderDesc.hints = nullptr;
-#endif
-
-		// Use the extension mechanism to load a WGSL shader source code
-		ShaderModuleWGSLDescriptor shaderCodeDesc;
-		// Set the chained struct's header
-		shaderCodeDesc.chain.next = nullptr;
-		shaderCodeDesc.chain.sType = SType::ShaderModuleWGSLDescriptor;
-		// Connect the chain
-		shaderDesc.nextInChain = &shaderCodeDesc.chain;
-
-		std::string vertexInputOutputStr = "struct VertexInput {\n";
-		for (const auto vertexInput : m_vertexInputs)
-		{ 
-			vertexInputOutputStr += "    @location(" + std::to_string(vertexInput.location) + ") " + vertexInput.name + ": "+ toString(vertexInput.format) +", \n";
-		}
-		vertexInputOutputStr += "}; \n \n";
-
-		vertexInputOutputStr += "struct VertexOutput {\n";
-		vertexInputOutputStr += "    @builtin(position) position: vec4f, \n";
-		for (const auto vertexInput : m_vertexOutputs)
-		{
-			vertexInputOutputStr += "    @location(" + std::to_string(vertexInput.location) + ") " + vertexInput.name + ": " + toString(vertexInput.format) + ", \n";
-		}
-		vertexInputOutputStr += "}; \n \n";
-
-		std::string vertexUniformsStr = "struct Uniforms { \n";
-		for (const auto& uniform : m_uniforms->getUniforms())
-		{
-			vertexUniformsStr += "    " + uniform.name + ": " + (uniform.isMatrix() ? "mat4x4f" : "vec4f") + ", \n";
-		}
-		vertexUniformsStr += "}; \n \n";
-		vertexUniformsStr += "@group(0) @binding(0) var<uniform> u_uniforms: Uniforms;\n"; //TODO prametrique
-
-		m_shaderSource = vertexInputOutputStr + vertexUniformsStr + m_shaderSource;
-
-		// Setup the actual payload of the shader code descriptor
-		shaderCodeDesc.code = m_shaderSource.c_str();
-		
-
-		m_shaderModule = Context::getInstance().getDevice().createShaderModule(shaderDesc);
-		m_shaderModule.getCompilationInfo([](CompilationInfoRequestStatus status, const CompilationInfo& compilationInfo) {
-			if (status == WGPUCompilationInfoRequestStatus_Success) {
-				for (size_t i = 0; i < compilationInfo.messageCount; ++i) {
-					const WGPUCompilationMessage& message = compilationInfo.messages[i];
-					std::cerr << "Shader compilation message (" << message.type << "): " << message.message << std::endl;
-					std::cerr << " - Line: " << message.lineNum << ", Column: " << message.linePos << std::endl;
-					std::cerr << " - Offset: " << message.offset << ", Length: " << message.length << std::endl;
-				}
-			}
-			else {
-				std::cerr << "Failed to get shader compilation info: " << status << std::endl;
-			}
-		});
-		assert(m_shaderModule);
-		return m_shaderModule;
-	}
 	ShaderModule m_shaderModule{ nullptr };
 	Uniforms* m_uniforms{ new Uniforms() }; 
 	std::string m_shaderSource;
@@ -505,7 +571,7 @@ public:
 		// Create the pipeline layout
 		PipelineLayoutDescriptor layoutDesc{};
 		layoutDesc.bindGroupLayoutCount = 1;
-		layoutDesc.bindGroupLayouts = (WGPUBindGroupLayout*)&shader->getUniforms()->getBindGroupLayout();
+		layoutDesc.bindGroupLayouts = (WGPUBindGroupLayout*)&shader->getBindGroupLayout();
 		PipelineLayout layout = Context::getInstance().getDevice().createPipelineLayout(layoutDesc);
 		pipelineDesc.layout = layout;
 
@@ -781,7 +847,7 @@ public:
 			{
 				Pipeline* pipeline = new Pipeline(pass.getShader(), mesh->getVertexBufferLayouts()); //TODO le creer le moins possible
 				renderPass.setPipeline(pipeline->getRenderPipeline());
-				renderPass.setBindGroup(0, pass.getShader()->getUniforms()->getBindGroup(), 0, nullptr);
+				renderPass.setBindGroup(0, pass.getShader()->getBindGroup(), 0, nullptr);
 				int slot = 0; //The first argument(slot) corresponds to the index of the buffer layout in the pipelineDesc.vertex.buffers array.
 				for (const auto& vb : mesh->getVertexBuffers())
 				{
@@ -1148,6 +1214,19 @@ Texture loadTexture(const fs::path& path, TextureView* pTextureView) {
 	return texture;
 }
 
+std::string loadFile(const std::filesystem::path& path) {
+	std::ifstream file(path);
+	if (!file.is_open()) {
+		std::cerr << path.c_str() << " not found ! " << std::endl;
+	}
+	file.seekg(0, std::ios::end);
+	size_t size = file.tellg();
+	std::string str = std::string(size, ' ');
+	file.seekg(0);
+	file.read(str.data(), size);
+	return str;
+};
+
 
 int main(int, char**) {
 	if (!glfwInit()) {
@@ -1172,8 +1251,24 @@ int main(int, char**) {
 
 	TextureView textureView = nullptr;
 	Texture texture = loadTexture(DATA_DIR "/fourareen2K_albedo.jpg", &textureView);
+
+	// Create a sampler
+	SamplerDescriptor samplerDesc;
+	samplerDesc.addressModeU = AddressMode::Repeat;
+	samplerDesc.addressModeV = AddressMode::Repeat;
+	samplerDesc.addressModeW = AddressMode::Repeat;
+	samplerDesc.magFilter = FilterMode::Linear;
+	samplerDesc.minFilter = FilterMode::Linear;
+	samplerDesc.mipmapFilter = MipmapFilterMode::Linear;
+	samplerDesc.lodMinClamp = 0.0f;
+	samplerDesc.lodMaxClamp = 8.0f;
+	samplerDesc.compare = CompareFunction::Undefined;
+	samplerDesc.maxAnisotropy = 1;
+	Sampler sampler = Context::getInstance().getDevice().createSampler(samplerDesc);
     
-	Shader* shader_1 = new Shader(DATA_DIR  "/sahder_1.wgsl");
+	std::string userCode = loadFile(DATA_DIR  "/sahder_1.wgsl");
+	Shader* shader_1 = new Shader();
+	shader_1->setUserCode(userCode);
 	shader_1->addVertexInput("position", 0, VertexFormat::Float32x3);
 	shader_1->addVertexInput("normal", 1, VertexFormat::Float32x3);
 	shader_1->addVertexInput("color", 2, VertexFormat::Float32x3);
@@ -1188,8 +1283,11 @@ int main(int, char**) {
     shader_1->getUniforms()->addUniformMatrix("view");
 	shader_1->getUniforms()->addUniformMatrix("model");
 
-	shader_1->addTexture("baseColor");
-	shader_1->addSampler("baseColorSampler");
+	shader_1->addTexture("gradientTexture", textureView);
+//	shader_1->addTexture("gradientTexture1", textureView);
+	shader_1->addSampler("textureSampler", sampler);
+
+	shader_1->build();
 	
 	vec3 focalPoint(0.0, 0.0, -2.0);
 	float angle2 = 3.0f * PI / 4.0f;
