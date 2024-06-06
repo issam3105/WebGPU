@@ -26,8 +26,10 @@ add_subdirectory(ext/glfw)
 add_subdirectory(ext/webgpu)
 add_subdirectory(ext/glfw3webgpu)
 add_subdirectory(ext/glm)
+add_subdirectory(ext/imgui)
 
-target_link_libraries(App PRIVATE webgpu glfw glfw3webgpu glm)
+
+target_link_libraries(App PRIVATE webgpu glfw glfw3webgpu glm imgui)
 
 
 target_compile_definitions(App PRIVATE

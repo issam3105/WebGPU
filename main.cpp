@@ -41,6 +41,10 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+#include <imgui.h>
+#include <backends/imgui_impl_wgpu.h>
+#include <backends/imgui_impl_glfw.h>
+
 #include <iostream>
 #include <cassert>
 #include <filesystem>
@@ -860,6 +864,88 @@ private:
 	std::unordered_map<std::string, Mesh*> m_meshes;
 };
 
+class ShaderManager
+{
+public:
+	ShaderManager() = default;
+	~ShaderManager() = default;
+
+	static ShaderManager& getInstance() {
+		static ShaderManager shaderManager;
+		return shaderManager;
+	};
+
+	bool add(const std::string& id, Shader* shader) {
+		m_shaders[id] = shader;
+		shader->build();
+		return true;
+	}
+	Shader* getShader(const std::string& id) { return  m_shaders[id]; }
+private:
+	std::unordered_map<std::string, Shader*> m_shaders{};
+};
+
+class TextureManager
+{
+public:
+	TextureManager() = default;
+	~TextureManager() = default;
+
+	static TextureManager& getInstance() {
+		static TextureManager textureManager;
+		return textureManager;
+	};
+
+	bool add(const std::string& id, wgpu::TextureView* textureView) { m_textures[id] = textureView; return true; }
+	wgpu::TextureView* getTextureView(const std::string& id) { return  m_textures[id]; }
+	std::unordered_map<std::string, wgpu::TextureView*>& getAll() { return m_textures; }
+private:
+	std::unordered_map<std::string, wgpu::TextureView*> m_textures{};
+};
+
+class ImGUIWrapper
+{
+public:
+	ImGUIWrapper(GLFWwindow* window)
+	{
+		// Setup Dear ImGui context
+		IMGUI_CHECKVERSION();
+		ImGui::CreateContext();
+		ImGui::GetIO();
+
+		// Setup Platform/Renderer backends
+		ImGui_ImplGlfw_InitForOther(window, true);
+	//	ImGui_ImplGlfw_InstallCallbacks(window);
+		ImGui_ImplWGPU_Init(Context::getInstance().getDevice(), 3, swapChainFormat, depthTextureFormat);
+	};
+	~ImGUIWrapper()
+	{
+		ImGui_ImplGlfw_Shutdown();
+		ImGui_ImplWGPU_Shutdown();
+	};
+
+	void begin()
+	{
+		// Start the Dear ImGui frame
+		ImGui_ImplWGPU_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();	
+	}
+
+	void end(RenderPassEncoder renderPass)
+	{
+		// Draw the UI
+		ImGui::EndFrame();
+		// Convert the UI defined above into low-level drawing commands
+		ImGui::Render();
+		// Execute the low-level drawing commands on the WebGPU backend
+		ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), renderPass);
+	}
+};
+
+
+ImGUIWrapper* m_imgui;
+
 
 class Renderer
 {
@@ -916,6 +1002,47 @@ public:
 				delete pipeline;
 
 			}
+			
+			// Build UI
+			
+			{
+				m_imgui->begin();
+				static ImVec4 clear_color = ImVec4(1.0f, 1.0f, 1.0f, 1.00f);
+
+				ImGui::Begin("Material Editor");                              
+				ImGui::ColorEdit4("BaseColorFactor", (float*)&clear_color);       
+				auto shader = ShaderManager::getInstance().getShader("shader1");
+				shader->setUniform("baseColorFactor", glm::vec4(clear_color.x, clear_color.y, clear_color.z, clear_color.w));
+				
+				static int selectedTextureIndex = -1;
+				std::vector<std::string> textureNames;
+				for (const auto& texturePair : TextureManager::getInstance().getAll()) {
+					textureNames.push_back(texturePair.first);
+				}
+
+				if (ImGui::BeginCombo("BaseColorTexture", selectedTextureIndex == -1 ? "Select a texture" : textureNames[selectedTextureIndex].c_str())) {
+					for (int i = 0; i < textureNames.size(); i++) {
+						bool isSelected = (selectedTextureIndex == i);
+						if (ImGui::Selectable(textureNames[i].c_str(), isSelected)) {
+							selectedTextureIndex = i;
+						//	std::cout << "Selected texture: " << textureNames[i] << std::endl;
+							shader->setTexture("baseColorTexture", *TextureManager::getInstance().getTextureView(textureNames[i]));
+						}
+						if (isSelected) {
+							ImGui::SetItemDefaultFocus();
+						}
+					}
+					ImGui::EndCombo();
+				}
+				
+				ImGuiIO& io = ImGui::GetIO();
+				ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+				ImGui::End();
+				m_imgui->end(renderPass);
+			}
+
+			
+
 			renderPass.popDebugGroup();
 
 			renderPass.end();
@@ -946,8 +1073,8 @@ private:
 };
 
 
-int m_winWidth = 640;
-int m_winHeight = 480;
+int m_winWidth = 1280;
+int m_winHeight = 720;
 
 void addTwoTriangles()
 {
@@ -1372,47 +1499,6 @@ void updateViewMatrix(Shader* shader) {
 }
 
 
-
-
-class TextureManager
-{
-public:
-	TextureManager() = default;
-	~TextureManager() = default;
-
-	static TextureManager& getInstance() {
-		static TextureManager textureManager;
-		return textureManager;
-	};
-
-	bool add(const std::string& id, wgpu::TextureView* textureView) { m_textures[id] = textureView ; return true; }
-	wgpu::TextureView* getTextureView(const std::string& id) { return  m_textures[id]; }
-private:
-	std::unordered_map<std::string, wgpu::TextureView*> m_textures{};
-};
-
-class ShaderManager
-{
-public:
-	ShaderManager() = default;
-	~ShaderManager() = default;
-
-	static ShaderManager& getInstance() {
-		static ShaderManager shaderManager;
-		return shaderManager;
-	};
-
-	bool add(const std::string& id, Shader* shader) { m_shaders[id] = shader;
-		shader->build();
-		return true; 
-	}
-	Shader* getShader(const std::string& id) { return  m_shaders[id]; }
-private:
-	std::unordered_map<std::string, Shader*> m_shaders{};
-};
-
-
-
 int main(int, char**) {
 	if (!glfwInit()) {
 		std::cerr << "Could not initialize GLFW!" << std::endl;
@@ -1429,6 +1515,8 @@ int main(int, char**) {
 
 	Context::getInstance().initGraphics(window, m_winWidth, m_winHeight);
 
+	
+
 	//addTwoTriangles();
 	//addColoredPlane();
 	//addPyramid();
@@ -1441,6 +1529,11 @@ int main(int, char**) {
 	TextureView whiteTextureView = nullptr;
 	Texture  whiteTexture = CreateWhiteTexture( &whiteTextureView);
 	TextureManager().getInstance().add("whiteTex", &whiteTextureView);
+
+	
+	TextureView uv_checkerTextureView = nullptr;
+	Texture uv_checkerTexture = loadTexture(DATA_DIR "/uv_checker.jpg", &uv_checkerTextureView);
+	TextureManager().getInstance().add("uv_checker", &uv_checkerTextureView);
 
 	// Create a sampler
 	SamplerDescriptor samplerDesc;
@@ -1517,6 +1610,12 @@ int main(int, char**) {
 	});
 
 	glfwSetMouseButtonCallback(window, [](GLFWwindow* window, int button, int action, int mods) {
+		ImGuiIO& io = ImGui::GetIO();
+		if (io.WantCaptureMouse) {
+			// Don't rotate the camera if the mouse is already captured by an ImGui
+			// interaction at this frame.
+			return;
+		}
 		if (button == GLFW_MOUSE_BUTTON_LEFT) {
 			switch (action) {
 			case GLFW_PRESS:
@@ -1550,6 +1649,8 @@ int main(int, char**) {
 		if (key == GLFW_KEY_F && action == GLFW_PRESS)
 			shader->setUniform("baseColorFactor", glm::vec4(1.0f, 0.0, 0.0, 1.0));
 	});
+
+	m_imgui = new ImGUIWrapper(window); //After glfw callbacks
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
