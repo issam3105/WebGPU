@@ -103,24 +103,19 @@ public:
 	//	inspectDevice(m_device);
 
 		// Add an error callback for more debug info
-		auto h = m_device.setUncapturedErrorCallback([](ErrorType type, char const* message) {
+		m_errorCallbackHandle = m_device.setUncapturedErrorCallback([](ErrorType type, char const* message) {
 			std::cout << "Device error: type " << type;
 			if (message) std::cout << " (message: " << message << ")";
 			std::cout << std::endl;
 		});
-
+		
 		auto h2 = m_device.setLoggingCallback([](LoggingType type, char const* message) {
 			std::cout << "Device error: type " << type;
 			if (message) std::cout << " (message: " << message << ")";
 			std::cout << std::endl;
 		});
 
-		m_device.pushErrorScope(WGPUErrorFilter_Validation);
-		m_device.popErrorScope([](ErrorType type, char const* message) {
-			std::cout << "Device error: type " << type;
-			if (message) std::cout << " (message: " << message << ")";
-			std::cout << std::endl;
-		});
+		
 
 		//Creating swapchain...
 		SwapChainDescriptor swapChainDesc;
@@ -132,6 +127,8 @@ public:
 		m_swapChain = m_device.createSwapChain(m_surface, swapChainDesc);
 		assert(m_swapChain);
 	}
+
+	std::unique_ptr<wgpu::ErrorCallback> m_errorCallbackHandle;
 
 	void shutdownGraphics()
 	{
@@ -159,10 +156,10 @@ private:
 using Value = std::variant<float, glm::vec4, glm::mat4>;
 struct Uniform {
 	std::string name;
-	int index;
+	int handle;
 	Value value;
 	bool isMatrix() const { return std::holds_alternative< glm::mat4>(value); }
-	bool isFloat() const { return std::holds_alternative< float>(value); }
+	/*bool isFloat() const { return std::holds_alternative< float>(value); }
 	bool isVec4() const { return std::holds_alternative< glm::vec4>(value); }
 
 	float getFloat() {
@@ -178,13 +175,14 @@ struct Uniform {
 	glm::mat4x4 getMat4x4() {
 		assert(isMatrix());
 		return std::get<glm::mat4x4>(value);
-	}
+	}*/
 };
 
-class Uniforms
-{	
+
+class UniformsBuffer
+{
 public:
-	Uniforms()
+	UniformsBuffer()
 	{
 		BufferDescriptor bufferDesc;
 		bufferDesc.size = sizeof(std::array<glm::vec4, UNIFORMS_MAX>);
@@ -195,68 +193,53 @@ public:
 
 		Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, 0, &m_uniformsData, sizeof(std::array<vec4, UNIFORMS_MAX>));
 	};
-	~Uniforms() = default;
+	~UniformsBuffer() = default;
 
-	void addUniform(std::string name) {
+	uint16_t allocateVec4() { 
 		assert(m_uniformIndex < UNIFORMS_MAX);
-		m_uniforms.push_back({ name, m_uniformIndex++, glm::vec4(0.0f)});
-	};
-
-	void addUniformMatrix(std::string name) {
-		assert(m_uniformIndex + 4 < UNIFORMS_MAX);
-		m_uniforms.push_back({ name, m_uniformIndex, glm::mat4x4(1.0f) });
-		m_uniformIndex += 4;
-	};
-
-	Uniform& getUniform(std::string name) {
-		auto it = std::find_if(m_uniforms.begin(), m_uniforms.end(), [name](const Uniform& obj) {
-			return obj.name == name;
-		});
-		assert(it != m_uniforms.end());
-		return *it;
+		return m_uniformIndex++;
 	}
 
-	
-	void setUniform(std::string name, const Value& value)
+	uint16_t allocateMat4()
 	{
-		auto& uniform = getUniform(name);
-		uniform.value = value;
-		if (uniform.isVec4())
-			m_uniformsData[uniform.index] = uniform.getVec4();
-		else if (uniform.isFloat())
+		assert(m_uniformIndex + 4 < UNIFORMS_MAX);
+		uint16_t currentHandle = m_uniformIndex;
+		m_uniformIndex += 4;
+		return currentHandle;
+	}
+
+	void set(uint16_t handle, const Value& value)
+	{
+		if (std::holds_alternative< glm::vec4>(value))
+			m_uniformsData[handle] = std::get<glm::vec4>(value);
+		else if (std::holds_alternative< float>(value))
 		{
-			float newValue = uniform.getFloat();
-			m_uniformsData[uniform.index] = glm::vec4(newValue, newValue, newValue, newValue);
+			float newValue = std::get<float>(value);
+			m_uniformsData[handle] = glm::vec4(newValue, newValue, newValue, newValue);
 		}
-		else if (uniform.isMatrix())
+		else if (std::holds_alternative< glm::mat4x4>(value))
 		{
-			int index = getUniform(name).index;
-			mat4x4 mat = uniform.getMat4x4();
-			m_uniformsData[index]     = { mat[0][0], mat[0][1], mat[0][2], mat[0][3] };
-			m_uniformsData[index + 1] = { mat[1][0], mat[1][1], mat[1][2], mat[1][3] };
-			m_uniformsData[index + 2] = { mat[2][0], mat[2][1], mat[2][2], mat[2][3] };
-			m_uniformsData[index + 3] = { mat[3][0], mat[3][1], mat[3][2], mat[3][3] };
+
+			mat4x4 mat = std::get<mat4x4>(value);
+			m_uniformsData[handle] = { mat[0][0], mat[0][1], mat[0][2], mat[0][3] };
+			m_uniformsData[handle + 1] = { mat[1][0], mat[1][1], mat[1][2], mat[1][3] };
+			m_uniformsData[handle + 2] = { mat[2][0], mat[2][1], mat[2][2], mat[2][3] };
+			m_uniformsData[handle + 3] = { mat[3][0], mat[3][1], mat[3][2], mat[3][3] };
 		}
 		else
 			assert(false);
 		Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, 0, &m_uniformsData, sizeof(std::array<vec4, UNIFORMS_MAX>)); //TODO envoyer que la partie modifie
 	}
 
-	
-	
-	std::vector<Uniform> getUniforms() { return m_uniforms;}
-	Buffer getBuffer() {
-		return m_uniformBuffer;
-	}
+	Buffer getBuffer() { return m_uniformBuffer; }
+
 private:
-	
-	std::vector<Uniform> m_uniforms{};
-	std::array<vec4, UNIFORMS_MAX> m_uniformsData {};
+	std::array<vec4, UNIFORMS_MAX> m_uniformsData{};
 	uint16_t m_uniformIndex = 0;
-	
 	Buffer m_uniformBuffer{ nullptr };
-	
 };
+
+
 
 class Shader
 {
@@ -265,7 +248,6 @@ public:
 
 	~Shader() { 
 		m_shaderModule.release();
-		delete m_uniforms;
 	}
 
 	void setUserCode(std::string userCode)
@@ -275,11 +257,12 @@ public:
 
 	void build()
 	{
+		int binding = 0;
 		std::vector<BindGroupLayoutEntry> bindingLayoutEntries{};
 
 		BindGroupLayoutEntry uniformsBindingLayout = Default;
 		// The binding index as used in the @binding attribute in the shader
-		uniformsBindingLayout.binding = 0;
+		uniformsBindingLayout.binding = binding++;
 		// The stage that needs to access this resource
 		uniformsBindingLayout.visibility = ShaderStage::Vertex | ShaderStage::Fragment;
 		uniformsBindingLayout.buffer.type = BufferBindingType::Uniform;
@@ -290,7 +273,7 @@ public:
 		{
 			// The texture binding
 			BindGroupLayoutEntry textureBindingLayout = Default;
-			textureBindingLayout.binding = 1;
+			textureBindingLayout.binding = binding++;
 			textureBindingLayout.visibility = ShaderStage::Fragment;
 			textureBindingLayout.texture.sampleType = TextureSampleType::Float;
 			textureBindingLayout.texture.viewDimension = TextureViewDimension::_2D;
@@ -301,7 +284,7 @@ public:
 		{
 			// The texture sampler binding
 			BindGroupLayoutEntry samplerBindingLayout = Default;
-			samplerBindingLayout.binding = 2;
+			samplerBindingLayout.binding = binding++;
 			samplerBindingLayout.visibility = ShaderStage::Fragment;
 			samplerBindingLayout.sampler.type = SamplerBindingType::Filtering;
 			bindingLayoutEntries.push_back(samplerBindingLayout);
@@ -314,7 +297,7 @@ public:
 		bindGroupLayoutDesc.entries = bindingLayoutEntries.data();
 		m_bindGroupLayout = Context::getInstance().getDevice().createBindGroupLayout(bindGroupLayoutDesc);
 
-		int binding = 0;
+		binding = 0;
 		std::vector<BindGroupEntry> bindings;
 		{
 			// Create a binding
@@ -322,7 +305,7 @@ public:
 			// The index of the binding (the entries in bindGroupDesc can be in any order)
 			uniformBinding.binding = binding++;
 			// The buffer it is actually bound to
-			uniformBinding.buffer = m_uniforms->getBuffer();
+			uniformBinding.buffer = m_uniformsBuffer.getBuffer();
 			// We can specify an offset within the buffer, so that a single buffer can hold
 			// multiple uniform blocks.
 			uniformBinding.offset = 0;
@@ -391,7 +374,7 @@ public:
 		vertexInputOutputStr += "}; \n \n";
 
 		std::string vertexUniformsStr = "struct Uniforms { \n";
-		for (const auto& uniform : m_uniforms->getUniforms())
+		for (const auto& uniform : m_uniforms)
 		{
 			vertexUniformsStr += "    " + uniform.name + ": " + (uniform.isMatrix() ? "mat4x4f" : "vec4f") + ", \n";
 		}
@@ -454,7 +437,6 @@ public:
 		return fragmentState;
 	}
 	
-	Uniforms* getUniforms() { return m_uniforms; }
 
 	struct VertexAttr
 	{
@@ -475,6 +457,31 @@ public:
 
 	void addTexture(const std::string& name, TextureView texturView) { m_textures.push_back({ name, texturView }); }
 	void addSampler(const std::string& name, Sampler sampler) { m_samplers.push_back({ name, sampler }); }
+
+	void addUniform(std::string name) {
+		uint16_t handle =m_uniformsBuffer.allocateVec4();
+		m_uniforms.push_back({ name, handle, glm::vec4(0.0f)});
+	};
+		
+	void addUniformMatrix(std::string name) {
+		uint16_t handle = m_uniformsBuffer.allocateMat4();
+		m_uniforms.push_back({ name, handle, glm::mat4x4(1.0f) });
+	};
+		
+	Uniform& getUniform(std::string name) {
+		auto it = std::find_if(m_uniforms.begin(), m_uniforms.end(), [name](const Uniform& obj) {
+			return obj.name == name;
+		});
+		assert(it != m_uniforms.end());
+		return *it;
+	}
+		
+			
+	void setUniform(std::string name, const Value& value)
+	{
+		auto& uniform = getUniform(name);
+		m_uniformsBuffer.set(uniform.handle, value);
+	}
 	
 
 	BindGroupLayout getBindGroupLayout() { return m_bindGroupLayout; }
@@ -502,7 +509,8 @@ private:
 	std::vector<VertexAttr> m_vertexInputs{};
 	std::vector<VertexAttr> m_vertexOutputs{};
 	ShaderModule m_shaderModule{ nullptr };
-	Uniforms* m_uniforms{ new Uniforms() }; 
+	std::vector<Uniform> m_uniforms{};
+	UniformsBuffer m_uniformsBuffer{};
 	std::string m_shaderSource;
 };
 
@@ -849,7 +857,7 @@ public:
 			renderPassDesc.timestampWrites = nullptr;
 			
 			RenderPassEncoder renderPass = encoder.beginRenderPass(renderPassDesc);
-		
+			renderPass.pushDebugGroup("Render Pass");
 			for (auto [meshId , mesh] : MeshManager::getInstance().getAll())
 			{
 				Pipeline* pipeline = new Pipeline(pass.getShader(), mesh->getVertexBufferLayouts()); //TODO le creer le moins possible
@@ -872,10 +880,12 @@ public:
 				delete pipeline;
 
 			}
-			
+			renderPass.popDebugGroup();
+
 			renderPass.end();
 			renderPass.release();
 		}
+		Context::getInstance().getDevice().tick();
 
 		CommandBufferDescriptor cmdBufferDescriptor;
 		cmdBufferDescriptor.label = "Command buffer";
@@ -1271,7 +1281,7 @@ void updateViewMatrix(Shader* shader) {
 	float sy = sin(m_cameraState.angles.y);
 	vec3 position = vec3(cx * cy, sx * cy, sy) * std::exp(-m_cameraState.zoom);
 	mat4x4 viewMatrix = glm::lookAt(position, vec3(0.0f), vec3(0, 0, 1));
-	shader->getUniforms()->setUniform("view", viewMatrix);
+	shader->setUniform("view", viewMatrix);
 
 }
 
@@ -1312,7 +1322,7 @@ int main(int, char**) {
 	samplerDesc.lodMaxClamp = 8.0f;
 	samplerDesc.compare = CompareFunction::Undefined;
 	samplerDesc.maxAnisotropy = 1;
-	Sampler sampler = Context::getInstance().getDevice().createSampler(samplerDesc);
+	Sampler defaultSampler = Context::getInstance().getDevice().createSampler(samplerDesc);
     
 	std::string userCode = loadFile(DATA_DIR  "/sahder_1.wgsl");
 	Shader* shader_1 = new Shader();
@@ -1321,19 +1331,21 @@ int main(int, char**) {
 	shader_1->addVertexInput("normal", 1, VertexFormat::Float32x3);
 	shader_1->addVertexInput("color", 2, VertexFormat::Float32x3);
 	shader_1->addVertexInput("uv", 3, VertexFormat::Float32x2);
+
 	shader_1->addVertexOutput("color", 0, VertexFormat::Float32x3);
 	shader_1->addVertexOutput("normal", 1, VertexFormat::Float32x3);
 	shader_1->addVertexOutput("uv", 2, VertexFormat::Float32x2);
 
-	shader_1->getUniforms()->addUniform("color");
-	shader_1->getUniforms()->addUniform("time"); 
-    shader_1->getUniforms()->addUniformMatrix("projection");
-    shader_1->getUniforms()->addUniformMatrix("view");
-	shader_1->getUniforms()->addUniformMatrix("model");
+	shader_1->addUniform("color");
+	shader_1->addUniform("time"); 
+    shader_1->addUniformMatrix("projection");
+    shader_1->addUniformMatrix("view");
+	shader_1->addUniformMatrix("model");
 
 	shader_1->addTexture("baseColorTexture", textureView);
-	//shader_1->addTexture("gradientTexture1", textureView);
-	shader_1->addSampler("baseColorSampler", sampler);
+	shader_1->addTexture("metallicTexture", textureView);
+	shader_1->addTexture("normalTexture", textureView);
+	shader_1->addSampler("defaultSampler", defaultSampler);
 
 	shader_1->build();
 	
@@ -1342,7 +1354,7 @@ int main(int, char**) {
 	mat4x4 V(1.0);
 	V = glm::translate(V, -focalPoint);
 	V = glm::rotate(V, -angle2, vec3(1.0, 0.0, 0.0));
-	shader_1->getUniforms()->setUniform("view", V);
+	shader_1->setUniform("view", V);
 
 	float ratio = 640.0f / 480.0f;
 	float focalLength = 2.0;
@@ -1350,9 +1362,9 @@ int main(int, char**) {
 	float far = 100.0f;
 	float fov = 2 * glm::atan(1 / focalLength);
 	mat4x4 proj = glm::perspective(fov, ratio, near, far);
-	shader_1->getUniforms()->setUniform("projection", proj);
-	shader_1->getUniforms()->setUniform("model", glm::mat4(1.0f));
-	shader_1->getUniforms()->setUniform("color", glm::vec4{ 1.0f,1.0f,1.0f,1.0f });
+	shader_1->setUniform("projection", proj);
+	shader_1->setUniform("model", glm::mat4(1.0f));
+	shader_1->setUniform("color", glm::vec4{ 1.0f,1.0f,1.0f,1.0f });
 
 	Pass pass1(shader_1);
 	pass1.addDepthBuffer(m_winWidth, m_winHeight, depthTextureFormat);
@@ -1398,16 +1410,8 @@ int main(int, char**) {
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
+		
 	 	updateViewMatrix(shader_1);
-		/*shader_1->getUniforms()->setUniform("time", static_cast<float>(glfwGetTime()));
-
-		float angle1 = static_cast<float>(glfwGetTime());
-		mat4x4 S = glm::scale(mat4x4(1.0), vec3(0.3f));
-		mat4x4 T1 = glm::translate(mat4x4(1.0), vec3(0.5, 0.0, 0.0));
-		mat4x4 R1 = glm::rotate(mat4x4(1.0), angle1, vec3(0.0, 0.0, 1.0));
-		mat4x4 modelMatrix = R1 * T1 * S;
-		shader_1->getUniforms()->setUniform("model", modelMatrix);*/
-
 		renderer.draw();
 
 	}
