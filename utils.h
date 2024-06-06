@@ -393,4 +393,20 @@ namespace Utils
 		file.read(str.data(), size);
 		return str;
 	};
+
+	Sampler createDefaultSampler()
+	{
+		SamplerDescriptor samplerDesc;
+		samplerDesc.addressModeU = AddressMode::Repeat;
+		samplerDesc.addressModeV = AddressMode::Repeat;
+		samplerDesc.addressModeW = AddressMode::Repeat;
+		samplerDesc.magFilter = FilterMode::Linear;
+		samplerDesc.minFilter = FilterMode::Linear;
+		samplerDesc.mipmapFilter = MipmapFilterMode::Linear;
+		samplerDesc.lodMinClamp = 0.0f;
+		samplerDesc.lodMaxClamp = 8.0f;
+		samplerDesc.compare = CompareFunction::Undefined;
+		samplerDesc.maxAnisotropy = 1;
+		return Context::getInstance().getDevice().createSampler(samplerDesc);
+	}
 }

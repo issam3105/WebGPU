@@ -38,7 +38,7 @@ public:
 		ImGui::NewFrame();
 	}
 
-	void end(RenderPassEncoder renderPass)
+	void draw(RenderPassEncoder renderPass)
 	{
 		// Draw the UI
 		ImGui::EndFrame();

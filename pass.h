@@ -5,6 +5,7 @@
 #include <webgpu/webgpu.hpp>
 
 #include "context.h"
+#include "imgui_wrapper.h"
 
 class Pass
 {
@@ -23,6 +24,8 @@ public:
 	};
 
 	Shader* getShader() const { return m_shader; }
+	void setImGuiWrapper(ImGUIWrapper* imGuiWrapper) { m_imGuiWrapper = imGuiWrapper; }
+	ImGUIWrapper* getImGuiWrapper() { return m_imGuiWrapper; }
 
 	void addDepthBuffer(uint32_t width, uint32_t height, WGPUTextureFormat format)
 	{
@@ -99,4 +102,5 @@ private:
 	RenderPassColorAttachment* renderPassColorAttachment;
 	Shader* m_shader{ nullptr };
 	TextureView m_depthTextureView{ nullptr };
+	ImGUIWrapper* m_imGuiWrapper{ nullptr };
 };

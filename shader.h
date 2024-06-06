@@ -382,6 +382,7 @@ private:
 		bindGroupDesc.entryCount = (uint32_t)bindings.size();
 		bindGroupDesc.entries = bindings.data();
 		m_bindGroup = Context::getInstance().getDevice().createBindGroup(bindGroupDesc);
+		m_dirtyBindGroup = false;
 	}
 
 	bool m_dirtyBindGroup = true;

@@ -57,6 +57,7 @@
 #include "managers.h"
 #include "imgui_wrapper.h"
 #include "utils.h"
+#include "renderer.h"
 
 using namespace wgpu;
 namespace fs = std::filesystem;
@@ -73,130 +74,7 @@ TextureFormat swapChainFormat = TextureFormat::BGRA8Unorm;
 
 TextureFormat depthTextureFormat = TextureFormat::Depth24Plus;
 
-ImGUIWrapper* m_imgui;
 
-
-class Renderer
-{
-public:
-	Renderer()
-	{
-		m_queue = Context::getInstance().getDevice().getQueue();	
-	};
-	~Renderer() = default;
-
-	void draw()
-	{
-		CommandEncoderDescriptor commandEncoderDesc;
-		commandEncoderDesc.label = "Command Encoder";
-		CommandEncoder encoder = Context::getInstance().getDevice().createCommandEncoder(commandEncoderDesc);
-		
-		TextureView nextTexture = Context::getInstance().getSwapChain().getCurrentTextureView();
-		if (!nextTexture) {
-			std::cerr << "Cannot acquire next swap chain texture" << std::endl;
-		}
-
-		for (auto& pass : m_passes)
-		{
-			RenderPassDescriptor renderPassDesc;
-
-			renderPassDesc.colorAttachmentCount = 1;
-			renderPassDesc.colorAttachments = pass.getRenderPassColorAttachment(nextTexture);//&renderPassColorAttachment;
-			renderPassDesc.depthStencilAttachment = pass.getRenderPassDepthStencilAttachment();
-
-			renderPassDesc.timestampWriteCount = 0;
-			renderPassDesc.timestampWrites = nullptr;
-			
-			RenderPassEncoder renderPass = encoder.beginRenderPass(renderPassDesc);
-			renderPass.pushDebugGroup("Render Pass");
-			for (auto [meshId , mesh] : MeshManager::getInstance().getAll())
-			{
-				Pipeline* pipeline = new Pipeline(pass.getShader(), mesh->getVertexBufferLayouts(), swapChainFormat, depthTextureFormat); //TODO le creer le moins possible
-				renderPass.setPipeline(pipeline->getRenderPipeline());
-				renderPass.setBindGroup(0, pass.getShader()->getBindGroup(), 0, nullptr);
-				int slot = 0; //The first argument(slot) corresponds to the index of the buffer layout in the pipelineDesc.vertex.buffers array.
-				for (const auto& vb : mesh->getVertexBuffers())
-				{
-					renderPass.setVertexBuffer(slot, vb->getBuffer(), 0, vb->getSize());
-					slot++;
-				}
-				if (mesh->getIndexBuffer() != nullptr)
-				{
-					renderPass.setIndexBuffer(mesh->getIndexBuffer()->getBuffer(), IndexFormat::Uint16, 0, mesh->getIndexBuffer()->getSize());
-					renderPass.drawIndexed(mesh->getIndexBuffer()->getCount(), 1, 0, 0, 0);
-				}
-				else
-					renderPass.draw(mesh->getVertexCount(), 1, 0, 0);
-
-				delete pipeline;
-			}
-			
-			// Build UI
-			
-			{
-				m_imgui->begin();
-				static ImVec4 clear_color = ImVec4(1.0f, 1.0f, 1.0f, 1.00f);
-
-				ImGui::Begin("Material Editor");                              
-				ImGui::ColorEdit4("BaseColorFactor", (float*)&clear_color);       
-				auto shader = ShaderManager::getInstance().getShader("shader1");
-				shader->setUniform("baseColorFactor", glm::vec4(clear_color.x, clear_color.y, clear_color.z, clear_color.w));
-				
-				static int selectedTextureIndex = -1;
-				std::vector<std::string> textureNames;
-				for (const auto& texturePair : TextureManager::getInstance().getAll()) {
-					textureNames.push_back(texturePair.first);
-				}
-
-				if (ImGui::BeginCombo("BaseColorTexture", selectedTextureIndex == -1 ? "Select a texture" : textureNames[selectedTextureIndex].c_str())) {
-					for (int i = 0; i < textureNames.size(); i++) {
-						bool isSelected = (selectedTextureIndex == i);
-						if (ImGui::Selectable(textureNames[i].c_str(), isSelected)) {
-							selectedTextureIndex = i;
-						//	std::cout << "Selected texture: " << textureNames[i] << std::endl;
-							shader->setTexture("baseColorTexture", *TextureManager::getInstance().getTextureView(textureNames[i]));
-						}
-						if (isSelected) {
-							ImGui::SetItemDefaultFocus();
-						}
-					}
-					ImGui::EndCombo();
-				}
-				
-				ImGuiIO& io = ImGui::GetIO();
-				ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-				ImGui::End();
-				m_imgui->end(renderPass);
-			}
-
-			renderPass.popDebugGroup();
-
-			renderPass.end();
-			renderPass.release();
-		}
-		Context::getInstance().getDevice().tick();
-
-		CommandBufferDescriptor cmdBufferDescriptor;
-		cmdBufferDescriptor.label = "Command buffer";
-		CommandBuffer command = encoder.finish(cmdBufferDescriptor);
-		encoder.release();
-		m_queue.submit(command);
-		command.release();
-
-		Context::getInstance().getSwapChain().getCurrentTextureView().release();
-		Context::getInstance().getSwapChain().present();
-	};
-
-	void addPass(const Pass& pass)
-	{
-		m_passes.push_back(pass);
-	}
-
-
-private:
-	Queue m_queue{ nullptr };
-	std::vector<Pass> m_passes;
-};
 
 
 int m_winWidth = 1280;
@@ -279,18 +157,8 @@ int main(int, char**) {
 	TextureManager().getInstance().add("uv_checker", &uv_checkerTextureView);
 
 	// Create a sampler
-	SamplerDescriptor samplerDesc;
-	samplerDesc.addressModeU = AddressMode::Repeat;
-	samplerDesc.addressModeV = AddressMode::Repeat;
-	samplerDesc.addressModeW = AddressMode::Repeat;
-	samplerDesc.magFilter = FilterMode::Linear;
-	samplerDesc.minFilter = FilterMode::Linear;
-	samplerDesc.mipmapFilter = MipmapFilterMode::Linear;
-	samplerDesc.lodMinClamp = 0.0f;
-	samplerDesc.lodMaxClamp = 8.0f;
-	samplerDesc.compare = CompareFunction::Undefined;
-	samplerDesc.maxAnisotropy = 1;
-	Sampler defaultSampler = Context::getInstance().getDevice().createSampler(samplerDesc);
+
+	Sampler defaultSampler = Utils::createDefaultSampler();
     
 	std::string userCode = Utils::loadFile(DATA_DIR  "/sahder_1.wgsl");
 	Shader* shader_1 = new Shader();
@@ -330,14 +198,6 @@ int main(int, char**) {
 	mat4x4 proj = glm::perspective(fov, ratio, near, far);
 	shader_1->setUniform("projection", proj);
 	shader_1->setUniform("model", glm::mat4(1.0f));
-
-	Pass pass1(shader_1);
-	pass1.addDepthBuffer(m_winWidth, m_winHeight, depthTextureFormat);
-	
-	
-
-	Renderer renderer;
-	renderer.addPass(pass1);
 
 	glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos) {
 		if (m_drag.active) {
@@ -393,12 +253,55 @@ int main(int, char**) {
 			shader->setUniform("baseColorFactor", glm::vec4(1.0f, 0.0, 0.0, 1.0));
 	});
 
-	m_imgui = new ImGUIWrapper(window, swapChainFormat, depthTextureFormat); //After glfw callbacks
+	ImGUIWrapper* imgui = new ImGUIWrapper(window, swapChainFormat, depthTextureFormat); //After glfw callbacks
+
+	Pass pass1(shader_1);
+	pass1.addDepthBuffer(m_winWidth, m_winHeight, depthTextureFormat);
+	pass1.setImGuiWrapper(imgui);
+
+	Renderer renderer(swapChainFormat, depthTextureFormat);
+	renderer.addPass(pass1);
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
 		
 	 	updateViewMatrix(shader_1);
+
+		{
+			imgui->begin();
+			static ImVec4 clear_color = ImVec4(1.0f, 1.0f, 1.0f, 1.00f);
+
+			ImGui::Begin("Material Editor");
+			ImGui::ColorEdit4("BaseColorFactor", (float*)&clear_color);
+			auto shader = ShaderManager::getInstance().getShader("shader1");
+			shader->setUniform("baseColorFactor", glm::vec4(clear_color.x, clear_color.y, clear_color.z, clear_color.w));
+
+			static int selectedTextureIndex = -1;
+			std::vector<std::string> textureNames;
+			for (const auto& texturePair : TextureManager::getInstance().getAll()) {
+				textureNames.push_back(texturePair.first);
+			}
+
+			if (ImGui::BeginCombo("BaseColorTexture", selectedTextureIndex == -1 ? "Select a texture" : textureNames[selectedTextureIndex].c_str())) {
+				for (int i = 0; i < textureNames.size(); i++) {
+					bool isSelected = (selectedTextureIndex == i);
+					if (ImGui::Selectable(textureNames[i].c_str(), isSelected)) {
+						selectedTextureIndex = i;
+						//	std::cout << "Selected texture: " << textureNames[i] << std::endl;
+						shader->setTexture("baseColorTexture", *TextureManager::getInstance().getTextureView(textureNames[i]));
+					}
+					if (isSelected) {
+						ImGui::SetItemDefaultFocus();
+					}
+				}
+				ImGui::EndCombo();
+			}
+
+			ImGuiIO& io = ImGui::GetIO();
+			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+			ImGui::End();
+		}
+
 		renderer.draw();
 
 	}
