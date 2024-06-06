@@ -297,52 +297,6 @@ public:
 		bindGroupLayoutDesc.entries = bindingLayoutEntries.data();
 		m_bindGroupLayout = Context::getInstance().getDevice().createBindGroupLayout(bindGroupLayoutDesc);
 
-		binding = 0;
-		std::vector<BindGroupEntry> bindings;
-		{
-			// Create a binding
-			BindGroupEntry uniformBinding{};
-			// The index of the binding (the entries in bindGroupDesc can be in any order)
-			uniformBinding.binding = binding++;
-			// The buffer it is actually bound to
-			uniformBinding.buffer = m_uniformsBuffer.getBuffer();
-			// We can specify an offset within the buffer, so that a single buffer can hold
-			// multiple uniform blocks.
-			uniformBinding.offset = 0;
-			// And we specify again the size of the buffer.
-			uniformBinding.size = sizeof(std::array<vec4, UNIFORMS_MAX>);
-			bindings.push_back(uniformBinding);
-		}
-
-		for (const auto& texture : m_textures)
-		{
-			BindGroupEntry textureBinding{};
-			// The index of the binding (the entries in bindGroupDesc can be in any order)
-			textureBinding.binding = binding++;
-			// The buffer it is actually bound to
-			textureBinding.textureView = texture.second;
-			bindings.push_back(textureBinding);
-		}
-
-		for (const auto& sampler : m_samplers)
-		{
-			BindGroupEntry samplerBinding{};
-			// The index of the binding (the entries in bindGroupDesc can be in any order)
-			samplerBinding.binding = binding++;
-			// The buffer it is actually bound to
-			samplerBinding.sampler = sampler.second;
-			bindings.push_back(samplerBinding);
-		}
-
-		// A bind group contains one or multiple bindings
-		BindGroupDescriptor bindGroupDesc;
-		bindGroupDesc.layout = m_bindGroupLayout;
-		// There must be as many bindings as declared in the layout!
-		bindGroupDesc.entryCount = (uint32_t)bindings.size();
-		bindGroupDesc.entries = bindings.data();
-		m_bindGroup = Context::getInstance().getDevice().createBindGroup(bindGroupDesc);
-
-
 		//ShaderModule
 		ShaderModuleDescriptor shaderDesc;
 #ifdef WEBGPU_BACKEND_WGPU
@@ -455,18 +409,44 @@ public:
 		m_vertexOutputs.push_back({ inputName , location,format });
 	}
 
-	void addTexture(const std::string& name, TextureView texturView) { m_textures.push_back({ name, texturView }); }
-	void addSampler(const std::string& name, Sampler sampler) { m_samplers.push_back({ name, sampler }); }
+	void addTexture(const std::string& name, TextureView defaultTextureView) { m_textures.push_back({ name, defaultTextureView }); }
+	
+	void setTexture(const std::string& name, TextureView textureView)
+	{
+		auto it = std::find_if(m_textures.begin(), m_textures.end(), [name](const std::pair<std::string, TextureView>& obj) {
+			return obj.first == name;
+		});
+		assert(it != m_textures.end());
+		it->second = textureView;
+		m_dirtyBindGroup = true;
+	}
+	
 
-	void addUniform(std::string name) {
-		uint16_t handle =m_uniformsBuffer.allocateVec4();
-		m_uniforms.push_back({ name, handle, glm::vec4(0.0f)});
+	void addSampler(const std::string& name, Sampler defaultSampler) { m_samplers.push_back({ name, defaultSampler }); }
+	
+	void setSampler(const std::string& name, Sampler sampler)
+	{
+		auto it = std::find_if(m_samplers.begin(), m_samplers.end(), [name](const std::pair<std::string, Sampler>& obj) {
+			return obj.first == name;
+		});
+		assert(it != m_samplers.end());
+		it->second = sampler;
+		m_dirtyBindGroup = true;
+	}
+
+
+	void addUniform(std::string name, const Value& defaultValue) {
+		uint16_t handle = -1;
+		if (std::holds_alternative< glm::vec4>(defaultValue) || std::holds_alternative< float>(defaultValue))
+			handle = m_uniformsBuffer.allocateVec4();
+		else if (std::holds_alternative< glm::mat4x4>(defaultValue))
+			handle = m_uniformsBuffer.allocateMat4();
+		else
+			assert(false);
+		m_uniformsBuffer.set(handle, defaultValue);
+		m_uniforms.push_back({ name, handle, defaultValue });
 	};
 		
-	void addUniformMatrix(std::string name) {
-		uint16_t handle = m_uniformsBuffer.allocateMat4();
-		m_uniforms.push_back({ name, handle, glm::mat4x4(1.0f) });
-	};
 		
 	Uniform& getUniform(std::string name) {
 		auto it = std::find_if(m_uniforms.begin(), m_uniforms.end(), [name](const Uniform& obj) {
@@ -485,9 +465,64 @@ public:
 	
 
 	BindGroupLayout getBindGroupLayout() { return m_bindGroupLayout; }
-	BindGroup getBindGroup() {return m_bindGroup; }
+	BindGroup getBindGroup() {
+		if (m_dirtyBindGroup)
+			refreshBinding();
+		return m_bindGroup; 
+	}
 
 private:
+
+	void refreshBinding()
+	{
+		//To CALL AFTER build()
+		int binding = 0;
+		std::vector<BindGroupEntry> bindings;
+		{
+			// Create a binding
+			BindGroupEntry uniformBinding{};
+			// The index of the binding (the entries in bindGroupDesc can be in any order)
+			uniformBinding.binding = binding++;
+			// The buffer it is actually bound to
+			uniformBinding.buffer = m_uniformsBuffer.getBuffer();
+			// We can specify an offset within the buffer, so that a single buffer can hold
+			// multiple uniform blocks.
+			uniformBinding.offset = 0;
+			// And we specify again the size of the buffer.
+			uniformBinding.size = sizeof(std::array<vec4, UNIFORMS_MAX>);
+			bindings.push_back(uniformBinding);
+		}
+
+		for (const auto& texture : m_textures)
+		{
+			BindGroupEntry textureBinding{};
+			// The index of the binding (the entries in bindGroupDesc can be in any order)
+			textureBinding.binding = binding++;
+			// The buffer it is actually bound to
+			textureBinding.textureView = texture.second;
+			bindings.push_back(textureBinding);
+		}
+
+		for (const auto& sampler : m_samplers)
+		{
+			BindGroupEntry samplerBinding{};
+			// The index of the binding (the entries in bindGroupDesc can be in any order)
+			samplerBinding.binding = binding++;
+			// The buffer it is actually bound to
+			samplerBinding.sampler = sampler.second;
+			bindings.push_back(samplerBinding);
+		}
+
+		// A bind group contains one or multiple bindings
+		BindGroupDescriptor bindGroupDesc;
+		bindGroupDesc.layout = m_bindGroupLayout;
+		// There must be as many bindings as declared in the layout!
+		bindGroupDesc.entryCount = (uint32_t)bindings.size();
+		bindGroupDesc.entries = bindings.data();
+		m_bindGroup = Context::getInstance().getDevice().createBindGroup(bindGroupDesc);
+	}
+
+	bool m_dirtyBindGroup = true;
 	BindGroupLayout m_bindGroupLayout{ nullptr };
 	BindGroup m_bindGroup{ nullptr };
 	std::vector<std::pair<std::string, TextureView> > m_textures{};
@@ -607,6 +642,7 @@ public:
 	Pass(Shader* shader):
 		m_shader(shader)
 	{
+	//	m_shader->build();
 	};
 	~Pass() {
 		m_depthTextureView.release();
@@ -1231,6 +1267,56 @@ Texture loadTexture(const fs::path& path, TextureView* pTextureView) {
 	return texture;
 }
 
+wgpu::Texture CreateWhiteTexture(TextureView* pTextureView) {
+
+	wgpu::Extent3D textureSize = { 1, 1, 1 };
+	// Define the texture descriptor
+	wgpu::TextureDescriptor textureDesc = {};
+	textureDesc.size = textureSize;
+	textureDesc.format = wgpu::TextureFormat::RGBA8Unorm;
+	textureDesc.usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding;
+	textureDesc.dimension = wgpu::TextureDimension::_2D;
+	textureDesc.mipLevelCount = 1;
+	textureDesc.sampleCount = 1;
+
+	// Create the texture
+	Texture texture = Context::getInstance().getDevice().createTexture(textureDesc);
+
+	// Define the white pixel data
+	uint8_t whitePixel[4] = { 255, 255, 255, 255 };
+
+	// Define the texture data layout
+	wgpu::TextureDataLayout textureDataLayout = {};
+	textureDataLayout.offset = 0;
+	textureDataLayout.bytesPerRow = 4;
+	textureDataLayout.rowsPerImage = 1;
+
+	// Define the texture copy view
+	wgpu::ImageCopyTexture imageCopyTexture = {};
+	imageCopyTexture.texture = texture;
+	imageCopyTexture.origin = { 0, 0, 0 };
+	imageCopyTexture.mipLevel = 0;
+
+	// Write the white pixel data to the texture
+
+	Context::getInstance().getDevice().getQueue().writeTexture(imageCopyTexture, whitePixel, sizeof(whitePixel), textureDataLayout, textureSize);
+
+	if (pTextureView) {
+		TextureViewDescriptor textureViewDesc;
+		textureViewDesc.aspect = TextureAspect::All;
+		textureViewDesc.baseArrayLayer = 0;
+		textureViewDesc.arrayLayerCount = 1;
+		textureViewDesc.baseMipLevel = 0;
+		textureViewDesc.mipLevelCount = textureDesc.mipLevelCount;
+		textureViewDesc.dimension = TextureViewDimension::_2D;
+		textureViewDesc.format = textureDesc.format;
+		*pTextureView = texture.createView(textureViewDesc);
+	}
+
+	return texture;
+}
+
+
 std::string loadFile(const std::filesystem::path& path) {
 	std::ifstream file(path);
 	if (!file.is_open()) {
@@ -1286,6 +1372,47 @@ void updateViewMatrix(Shader* shader) {
 }
 
 
+
+
+class TextureManager
+{
+public:
+	TextureManager() = default;
+	~TextureManager() = default;
+
+	static TextureManager& getInstance() {
+		static TextureManager textureManager;
+		return textureManager;
+	};
+
+	bool add(const std::string& id, wgpu::TextureView* textureView) { m_textures[id] = textureView ; return true; }
+	wgpu::TextureView* getTextureView(const std::string& id) { return  m_textures[id]; }
+private:
+	std::unordered_map<std::string, wgpu::TextureView*> m_textures{};
+};
+
+class ShaderManager
+{
+public:
+	ShaderManager() = default;
+	~ShaderManager() = default;
+
+	static ShaderManager& getInstance() {
+		static ShaderManager shaderManager;
+		return shaderManager;
+	};
+
+	bool add(const std::string& id, Shader* shader) { m_shaders[id] = shader;
+		shader->build();
+		return true; 
+	}
+	Shader* getShader(const std::string& id) { return  m_shaders[id]; }
+private:
+	std::unordered_map<std::string, Shader*> m_shaders{};
+};
+
+
+
 int main(int, char**) {
 	if (!glfwInit()) {
 		std::cerr << "Could not initialize GLFW!" << std::endl;
@@ -1309,6 +1436,11 @@ int main(int, char**) {
 
 	TextureView textureView = nullptr;
 	Texture texture = loadTexture(DATA_DIR "/fourareen2K_albedo.jpg", &textureView);
+	TextureManager().getInstance().add("fourareen2K_albedo", &textureView);
+
+	TextureView whiteTextureView = nullptr;
+	Texture  whiteTexture = CreateWhiteTexture( &whiteTextureView);
+	TextureManager().getInstance().add("whiteTex", &whiteTextureView);
 
 	// Create a sampler
 	SamplerDescriptor samplerDesc;
@@ -1336,18 +1468,16 @@ int main(int, char**) {
 	shader_1->addVertexOutput("normal", 1, VertexFormat::Float32x3);
 	shader_1->addVertexOutput("uv", 2, VertexFormat::Float32x2);
 
-	shader_1->addUniform("color");
-	shader_1->addUniform("time"); 
-    shader_1->addUniformMatrix("projection");
-    shader_1->addUniformMatrix("view");
-	shader_1->addUniformMatrix("model");
+	shader_1->addUniform("baseColorFactor", glm::vec4(1.0f));
+	shader_1->addUniform("time", 0.0f); 
+    shader_1->addUniform("projection", glm::mat4x4(1.0f));
+    shader_1->addUniform("view", glm::mat4x4(1.0f));
+	shader_1->addUniform("model", glm::mat4x4(1.0f));
 
-	shader_1->addTexture("baseColorTexture", textureView);
-	shader_1->addTexture("metallicTexture", textureView);
-	shader_1->addTexture("normalTexture", textureView);
+	shader_1->addTexture("baseColorTexture", whiteTextureView);
 	shader_1->addSampler("defaultSampler", defaultSampler);
 
-	shader_1->build();
+	ShaderManager::getInstance().add("shader1", shader_1);
 	
 	vec3 focalPoint(0.0, 0.0, -2.0);
 	float angle2 = 3.0f * PI / 4.0f;
@@ -1364,10 +1494,10 @@ int main(int, char**) {
 	mat4x4 proj = glm::perspective(fov, ratio, near, far);
 	shader_1->setUniform("projection", proj);
 	shader_1->setUniform("model", glm::mat4(1.0f));
-	shader_1->setUniform("color", glm::vec4{ 1.0f,1.0f,1.0f,1.0f });
 
 	Pass pass1(shader_1);
 	pass1.addDepthBuffer(m_winWidth, m_winHeight, depthTextureFormat);
+	
 	
 
 	Renderer renderer;
@@ -1406,6 +1536,19 @@ int main(int, char**) {
 	glfwSetScrollCallback(window, [](GLFWwindow* window, double xoffset, double yoffset) {
 		m_cameraState.zoom += m_drag.scrollSensitivity * static_cast<float>(yoffset);
 		m_cameraState.zoom = glm::clamp(m_cameraState.zoom, -2.0f, 2.0f);
+	});
+
+	glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scancode, int action, int mods)
+	{
+		auto shader = ShaderManager::getInstance().getShader("shader1");
+		if (key == GLFW_KEY_E && action == GLFW_PRESS)
+			shader->setTexture("baseColorTexture", *TextureManager::getInstance().getTextureView("whiteTex"));
+		if (key == GLFW_KEY_R && action == GLFW_PRESS)
+			shader->setTexture("baseColorTexture", *TextureManager::getInstance().getTextureView("fourareen2K_albedo"));
+		if(key == GLFW_KEY_D && action == GLFW_PRESS)
+			shader->setUniform("baseColorFactor", glm::vec4(1.0f));
+		if (key == GLFW_KEY_F && action == GLFW_PRESS)
+			shader->setUniform("baseColorFactor", glm::vec4(1.0f, 0.0, 0.0, 1.0));
 	});
 
 	while (!glfwWindowShouldClose(window)) {
