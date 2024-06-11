@@ -74,9 +74,6 @@ TextureFormat swapChainFormat = TextureFormat::BGRA8Unorm;
 
 TextureFormat depthTextureFormat = TextureFormat::Depth24Plus;
 
-
-
-
 int m_winWidth = 1280;
 int m_winHeight = 720;
 
@@ -256,10 +253,12 @@ int main(int, char**) {
 	ImGUIWrapper* imgui = new ImGUIWrapper(window, swapChainFormat, depthTextureFormat); //After glfw callbacks
 
 	Pass pass1(shader_1);
+	Pipeline* pipeline = new Pipeline(shader_1, swapChainFormat, depthTextureFormat);
+	pass1.setPipeline(pipeline);
 	pass1.addDepthBuffer(m_winWidth, m_winHeight, depthTextureFormat);
 	pass1.setImGuiWrapper(imgui);
 
-	Renderer renderer(swapChainFormat, depthTextureFormat);
+	Renderer renderer;
 	renderer.addPass(pass1);
 
 	while (!glfwWindowShouldClose(window)) {

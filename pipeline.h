@@ -10,14 +10,44 @@ using namespace wgpu;
 class Pipeline
 {
 public:
-	Pipeline(Shader* shader, std::vector<VertexBufferLayout> vertexBufferLayouts, TextureFormat swapChainFormat, TextureFormat depthTextureFormat) {
+	Pipeline(Shader* shader, TextureFormat swapChainFormat, TextureFormat depthTextureFormat) {
 		//Creating render pipeline
 		RenderPipelineDescriptor pipelineDesc;
 
 		// Vertex fetch
+		std::vector<VertexAttribute> m_vertexAttribs;
+		//Positions
+		VertexAttribute vertexAttribute;
+		vertexAttribute.shaderLocation = 0;
+		vertexAttribute.format = VertexFormat::Float32x3;
+		vertexAttribute.offset = 0;
+		m_vertexAttribs.push_back(vertexAttribute);
+		//Normals
+		vertexAttribute.shaderLocation = 1;
+		vertexAttribute.format = VertexFormat::Float32x3;
+		vertexAttribute.offset = 3 * sizeof(float);
+		m_vertexAttribs.push_back(vertexAttribute);
+		//Tangents
+		vertexAttribute.shaderLocation = 2;
+		vertexAttribute.format = VertexFormat::Float32x3;
+		vertexAttribute.offset = 6 * sizeof(float);
+		m_vertexAttribs.push_back(vertexAttribute);
+		//TexCoords
+		vertexAttribute.shaderLocation = 3;
+		vertexAttribute.format = VertexFormat::Float32x2;
+		vertexAttribute.offset = 9 * sizeof(float);
+		m_vertexAttribs.push_back(vertexAttribute);
+
+		VertexBufferLayout vertexBufferLayout;
+		// [...] Build vertex buffer layout
+		vertexBufferLayout.attributeCount = (uint32_t)m_vertexAttribs.size();
+		vertexBufferLayout.attributes = m_vertexAttribs.data();
+		// == Common to attributes from the same buffer ==
+		vertexBufferLayout.arrayStride = 11 * sizeof(float);
+		vertexBufferLayout.stepMode = VertexStepMode::Vertex;
 		pipelineDesc.vertex = shader->getVertexState();
-		pipelineDesc.vertex.bufferCount = static_cast<uint32_t>(vertexBufferLayouts.size());
-		pipelineDesc.vertex.buffers = vertexBufferLayouts.data();
+		pipelineDesc.vertex.bufferCount = 1;
+		pipelineDesc.vertex.buffers = &vertexBufferLayout;
 
 		// Primitive assembly and rasterization
 		pipelineDesc.primitive.topology = PrimitiveTopology::TriangleList;

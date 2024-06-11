@@ -97,10 +97,14 @@ public:
 		return renderPassColorAttachment;
 	}
 
+	void setPipeline(Pipeline* pipline) { m_pipline = pipline; }
+	Pipeline* getPipeline() { return m_pipline; }
+
 private:
 	RenderPassDepthStencilAttachment* depthStencilAttachment;
 	RenderPassColorAttachment* renderPassColorAttachment;
 	Shader* m_shader{ nullptr };
+	Pipeline* m_pipline{ nullptr };
 	TextureView m_depthTextureView{ nullptr };
 	ImGUIWrapper* m_imGuiWrapper{ nullptr };
 };

@@ -13,139 +13,146 @@
 namespace fs = std::filesystem;
 namespace Utils
 {
-	void addTwoTriangles()
-	{
-		std::vector<float> positionData = {
-		-0.5, -0.5,
-		+0.5, -0.5,
-		+0.0, +0.5,
-		-0.55f, -0.5,
-		-0.05f, +0.5,
-		-0.55f, +0.5
-		};
+	//void addTwoTriangles()
+	//{
+	//	std::vector<float> positionData = {
+	//	-0.5, -0.5,
+	//	+0.5, -0.5,
+	//	+0.0, +0.5,
+	//	-0.55f, -0.5,
+	//	-0.05f, +0.5,
+	//	-0.55f, +0.5
+	//	};
 
-		// r0,  g0,  b0, r1,  g1,  b1, ...
-		std::vector<float> colorData = {
-			1.0, 0.0, 0.0,
-			0.0, 1.0, 0.0,
-			0.0, 0.0, 1.0,
-			1.0, 1.0, 0.0,
-			1.0, 0.0, 1.0,
-			0.0, 1.0, 1.0
-		};
+	//	// r0,  g0,  b0, r1,  g1,  b1, ...
+	//	std::vector<float> colorData = {
+	//		1.0, 0.0, 0.0,
+	//		0.0, 1.0, 0.0,
+	//		0.0, 0.0, 1.0,
+	//		1.0, 1.0, 0.0,
+	//		1.0, 0.0, 1.0,
+	//		0.0, 1.0, 1.0
+	//	};
 
-		int vertexCount = static_cast<int>(positionData.size() / 2);
-		VertexBuffer* vertexBufferPos = new VertexBuffer(positionData.data(), positionData.size() * sizeof(float), vertexCount);
-		vertexBufferPos->addVertexAttrib("Position", 0, VertexFormat::Float32x2, 0);
-		vertexBufferPos->setAttribsStride(2 * sizeof(float));
+	//	int vertexCount = static_cast<int>(positionData.size() / 2);
+	//	VertexBuffer* vertexBufferPos = new VertexBuffer(positionData.data(), positionData.size() * sizeof(float), vertexCount);
+	//	vertexBufferPos->addVertexAttrib("Position", 0, VertexFormat::Float32x2, 0);
+	//	vertexBufferPos->setAttribsStride(2 * sizeof(float));
 
-		VertexBuffer* vertexBufferColor = new VertexBuffer(colorData.data(), colorData.size() * sizeof(float), vertexCount);
-		vertexBufferColor->addVertexAttrib("Color", 1, VertexFormat::Float32x3, 0); // offset = sizeof(Position)
-		vertexBufferColor->setAttribsStride(3 * sizeof(float));
+	//	VertexBuffer* vertexBufferColor = new VertexBuffer(colorData.data(), colorData.size() * sizeof(float), vertexCount);
+	//	vertexBufferColor->addVertexAttrib("Color", 1, VertexFormat::Float32x3, 0); // offset = sizeof(Position)
+	//	vertexBufferColor->setAttribsStride(3 * sizeof(float));
 
-		Mesh* mesh = new Mesh();
-		mesh->addVertexBuffer(vertexBufferPos);
-		mesh->addVertexBuffer(vertexBufferColor);
+	//	Mesh* mesh = new Mesh();
+	//	mesh->addVertexBuffer(vertexBufferPos);
+	//	mesh->addVertexBuffer(vertexBufferColor);
 
-		//interleaved  mesh
-		//std::vector<float> vertexData = {
-		//	// x0,  y0,  r0,  g0,  b0
-		//	-0.5, -0.5, 1.0, 0.0, 0.0,
+	//	//interleaved  mesh
+	//	//std::vector<float> vertexData = {
+	//	//	// x0,  y0,  r0,  g0,  b0
+	//	//	-0.5, -0.5, 1.0, 0.0, 0.0,
 
-		//	// x1,  y1,  r1,  g1,  b1
-		//	+0.5, -0.5, 0.0, 1.0, 0.0,
+	//	//	// x1,  y1,  r1,  g1,  b1
+	//	//	+0.5, -0.5, 0.0, 1.0, 0.0,
 
-		//	// ...
-		//	+0.0,   +0.5, 0.0, 0.0, 1.0,
-		//	-0.55f, -0.5, 1.0, 1.0, 0.0,
-		//	-0.05f, +0.5, 1.0, 0.0, 1.0,
-		//	-0.55f, +0.5, 0.0, 1.0, 1.0
-		//};
-		//int vertexCount = static_cast<int>(vertexData.size() / 5);
+	//	//	// ...
+	//	//	+0.0,   +0.5, 0.0, 0.0, 1.0,
+	//	//	-0.55f, -0.5, 1.0, 1.0, 0.0,
+	//	//	-0.05f, +0.5, 1.0, 0.0, 1.0,
+	//	//	-0.55f, +0.5, 0.0, 1.0, 1.0
+	//	//};
+	//	//int vertexCount = static_cast<int>(vertexData.size() / 5);
 
-		//VertexBuffer* vertexBuffer = new VertexBuffer(vertexData, vertexCount); // vertexData.size()* sizeof(float)
-		//vertexBuffer->addVertexAttrib("Position", 0, VertexFormat::Float32x2, 0);
-		//vertexBuffer->addVertexAttrib("Color", 1, VertexFormat::Float32x3, 2 * sizeof(float)); // offset = sizeof(Position)
-		//vertexBuffer->setAttribsStride(5 * sizeof(float));
-		//Mesh* mesh = new Mesh();
-		//mesh->addVertexBuffer(vertexBuffer);
-
-
-		MeshManager::getInstance().add("twoTriangles", mesh);
-	}
+	//	//VertexBuffer* vertexBuffer = new VertexBuffer(vertexData, vertexCount); // vertexData.size()* sizeof(float)
+	//	//vertexBuffer->addVertexAttrib("Position", 0, VertexFormat::Float32x2, 0);
+	//	//vertexBuffer->addVertexAttrib("Color", 1, VertexFormat::Float32x3, 2 * sizeof(float)); // offset = sizeof(Position)
+	//	//vertexBuffer->setAttribsStride(5 * sizeof(float));
+	//	//Mesh* mesh = new Mesh();
+	//	//mesh->addVertexBuffer(vertexBuffer);
 
 
-	void addColoredPlane() {
-		std::vector<float> pointData = {
-			// x,   y,     r,   g,   b
-			-0.5, -0.5,   1.0, 0.0, 0.0,
-			+0.5, -0.5,   0.0, 1.0, 0.0,
-			+0.5, +0.5,   0.0, 0.0, 1.0,
-			-0.5, +0.5,   1.0, 1.0, 0.0
-		};
+	//	MeshManager::getInstance().add("twoTriangles", mesh);
+	//}
 
-		std::vector<uint16_t> indexData = {
-		0, 1, 2, // Triangle #0
-		0, 2, 3  // Triangle #1
-		};
 
-		int indexCount = static_cast<int>(indexData.size());
-		int vertexCount = static_cast<int>(pointData.size() / 5);
+	//void addColoredPlane() {
+	//	std::vector<float> pointData = {
+	//		// x,   y,     r,   g,   b
+	//		-0.5, -0.5,   1.0, 0.0, 0.0,
+	//		+0.5, -0.5,   0.0, 1.0, 0.0,
+	//		+0.5, +0.5,   0.0, 0.0, 1.0,
+	//		-0.5, +0.5,   1.0, 1.0, 0.0
+	//	};
 
-		VertexBuffer* vertexBuffer = new VertexBuffer(pointData.data(), pointData.size() * sizeof(float), vertexCount);
-		vertexBuffer->addVertexAttrib("Position", 0, VertexFormat::Float32x2, 0);
-		vertexBuffer->addVertexAttrib("Color", 1, VertexFormat::Float32x3, 2 * sizeof(float)); // offset = sizeof(Position)
-		vertexBuffer->setAttribsStride(5 * sizeof(float));
+	//	std::vector<uint16_t> indexData = {
+	//	0, 1, 2, // Triangle #0
+	//	0, 2, 3  // Triangle #1
+	//	};
 
-		IndexBuffer* indexBuffer = new IndexBuffer(indexData.data(), indexData.size(), indexCount);
-		Mesh* mesh = new Mesh();
-		mesh->addVertexBuffer(vertexBuffer);
-		mesh->addIndexBuffer(indexBuffer);
-		MeshManager::getInstance().add("ColoredPlane", mesh);
-	}
+	//	int indexCount = static_cast<int>(indexData.size());
+	//	int vertexCount = static_cast<int>(pointData.size() / 5);
 
-	void addPyramid()
-	{
-		std::vector<float> pointData = {
-			-0.5f, -0.5f, -0.3f,    1.0f, 1.0f, 1.0f,
-			+0.5f, -0.5f, -0.3f,    1.0f, 1.0f, 1.0f,
-			+0.5f, +0.5f, -0.3f,    1.0f, 1.0f, 1.0f,
-			-0.5f, +0.5f, -0.3f,    1.0f, 1.0f, 1.0f,
-			+0.0f, +0.0f, +0.5f,    0.5f, 0.5f, 0.5f,
-		};
-		std::vector<uint16_t> indexData = {
-			0,  1,  2,
-			0,  2,  3,
-			0,  1,  4,
-			1,  2,  4,
-			2,  3,  4,
-			3,  0,  4,
-		};
+	//	VertexBuffer* vertexBuffer = new VertexBuffer(pointData.data(), pointData.size() * sizeof(float), vertexCount);
+	//	vertexBuffer->addVertexAttrib("Position", 0, VertexFormat::Float32x2, 0);
+	//	vertexBuffer->addVertexAttrib("Color", 1, VertexFormat::Float32x3, 2 * sizeof(float)); // offset = sizeof(Position)
+	//	vertexBuffer->setAttribsStride(5 * sizeof(float));
 
-		int indexCount = static_cast<int>(indexData.size());
-		int vertexCount = static_cast<int>(pointData.size() / 6);
+	//	IndexBuffer* indexBuffer = new IndexBuffer(indexData.data(), indexData.size(), indexCount);
+	//	Mesh* mesh = new Mesh();
+	//	mesh->addVertexBuffer(vertexBuffer);
+	//	mesh->addIndexBuffer(indexBuffer);
+	//	MeshManager::getInstance().add("ColoredPlane", mesh);
+	//}
 
-		VertexBuffer* vertexBuffer = new VertexBuffer(pointData.data(), pointData.size() * sizeof(float), vertexCount);
-		vertexBuffer->addVertexAttrib("Position", 0, VertexFormat::Float32x3, 0);
-		vertexBuffer->addVertexAttrib("Color", 1, VertexFormat::Float32x3, 3 * sizeof(float)); // offset = sizeof(Position)
-		vertexBuffer->setAttribsStride(6 * sizeof(float));
+	//void addPyramid()
+	//{
+	//	std::vector<float> pointData = {
+	//		-0.5f, -0.5f, -0.3f,    1.0f, 1.0f, 1.0f,
+	//		+0.5f, -0.5f, -0.3f,    1.0f, 1.0f, 1.0f,
+	//		+0.5f, +0.5f, -0.3f,    1.0f, 1.0f, 1.0f,
+	//		-0.5f, +0.5f, -0.3f,    1.0f, 1.0f, 1.0f,
+	//		+0.0f, +0.0f, +0.5f,    0.5f, 0.5f, 0.5f,
+	//	};
+	//	std::vector<uint16_t> indexData = {
+	//		0,  1,  2,
+	//		0,  2,  3,
+	//		0,  1,  4,
+	//		1,  2,  4,
+	//		2,  3,  4,
+	//		3,  0,  4,
+	//	};
 
-		IndexBuffer* indexBuffer = new IndexBuffer(indexData.data(), indexData.size(), indexCount);
-		Mesh* mesh = new Mesh();
-		mesh->addVertexBuffer(vertexBuffer);
-		mesh->addIndexBuffer(indexBuffer);
-		MeshManager::getInstance().add("Pyramid", mesh);
-	}
+	//	int indexCount = static_cast<int>(indexData.size());
+	//	int vertexCount = static_cast<int>(pointData.size() / 6);
 
-	struct VertexAttributes {
+	//	VertexBuffer* vertexBuffer = new VertexBuffer(pointData.data(), pointData.size() * sizeof(float), vertexCount);
+	//	vertexBuffer->addVertexAttrib("Position", 0, VertexFormat::Float32x3, 0);
+	//	vertexBuffer->addVertexAttrib("Color", 1, VertexFormat::Float32x3, 3 * sizeof(float)); // offset = sizeof(Position)
+	//	vertexBuffer->setAttribsStride(6 * sizeof(float));
+
+	//	IndexBuffer* indexBuffer = new IndexBuffer(indexData.data(), indexData.size(), indexCount);
+	//	Mesh* mesh = new Mesh();
+	//	mesh->addVertexBuffer(vertexBuffer);
+	//	mesh->addIndexBuffer(indexBuffer);
+	//	MeshManager::getInstance().add("Pyramid", mesh);
+	//}
+
+	/*struct VertexAttributes {
 		vec3 position;
 		vec3 normal;
 		vec3 color;
 		vec2 uv;
-	};
+	};*/
+
+	/*struct Vertex {
+		vec3 position = vec3(0.0, 0.0, 0.0);
+		vec3 normal = vec3(0.0, 0.0, 0.0);;
+		vec3 tangent = vec3(0.0, 0.0, 0.0);;
+		vec2 uv = vec2(0.0, 0.0);;
+	};*/
 
 	bool loadGeometryFromObj(const fs::path& path) {
-		std::vector<VertexAttributes> vertexData;
+		//std::vector<VertexAttributes> vertexData;
 		tinyobj::attrib_t attrib;
 		std::vector<tinyobj::shape_t> shapes;
 		std::vector<tinyobj::material_t> materials;
@@ -170,53 +177,51 @@ namespace Utils
 		}
 
 		// Filling in vertexData:
-		vertexData.clear();
+		//vertexData.clear();
+		std::vector<Vertex> vertices;
 		for (const auto& shape : shapes) {
-			size_t offset = vertexData.size();
-			vertexData.resize(offset + shape.mesh.indices.size());
+			for (const auto& index : shape.mesh.indices) {
+				Vertex vertex = {};
 
-			for (size_t i = 0; i < shape.mesh.indices.size(); ++i) {
-				const tinyobj::index_t& idx = shape.mesh.indices[i];
-
-				vertexData[offset + i].position = {
-					attrib.vertices[3 * idx.vertex_index + 0],
-					-attrib.vertices[3 * idx.vertex_index + 2], // Add a minus to avoid mirroring
-					attrib.vertices[3 * idx.vertex_index + 1]
+				vertex.position = {
+					attrib.vertices[3 * index.vertex_index + 0],
+					-attrib.vertices[3 * index.vertex_index + 2], // Add a minus to avoid mirroring
+					attrib.vertices[3 * index.vertex_index + 1]
 				};
 
 				// Also apply the transform to normals!!
-				vertexData[offset + i].normal = {
-					attrib.normals[3 * idx.normal_index + 0],
-					-attrib.normals[3 * idx.normal_index + 2],
-					attrib.normals[3 * idx.normal_index + 1]
-				};
+				if (!attrib.normals.empty()) {
+					vertex.normal = {
+						attrib.normals[3 * index.normal_index + 0],
+						-attrib.normals[3 * index.normal_index + 2],
+						attrib.normals[3 * index.normal_index + 1]
+					};
+				}
 
-				vertexData[offset + i].color = {
-					attrib.colors[3 * idx.vertex_index + 0],
-					attrib.colors[3 * idx.vertex_index + 1],
-					attrib.colors[3 * idx.vertex_index + 2]
-				};
+				if (!attrib.texcoords.empty()) {
+					vertex.uv = {
+						attrib.texcoords[2 * index.texcoord_index + 0],
+						1- attrib.texcoords[2 * index.texcoord_index + 1]
+					};
+				}
 
-				vertexData[offset + i].uv = {
-					attrib.texcoords[2 * idx.texcoord_index + 0],
-					1 - attrib.texcoords[2 * idx.texcoord_index + 1]
-				};
+				vertices.push_back(vertex);
 			}
 		}
 
-		int indexCount = static_cast<int>(vertexData.size());
-		int vertexCount = static_cast<int>(vertexData.size());
-		auto* data = vertexData.data();
-		VertexBuffer* vertexBuffer = new VertexBuffer(vertexData.data(), vertexData.size() * sizeof(VertexAttributes), vertexCount);
+		/*int indexCount = static_cast<int>(vertices.size());
+		int vertexCount = static_cast<int>(vertices.size());
+		auto* data = vertices.data();
+		VertexBuffer* vertexBuffer = new VertexBuffer(vertices.data(), vertices.size() * sizeof(Vertex), vertexCount);
 		vertexBuffer->addVertexAttrib("Position", 0, VertexFormat::Float32x3, 0);
 		vertexBuffer->addVertexAttrib("Normal", 1, VertexFormat::Float32x3, 3 * sizeof(float));
-		vertexBuffer->addVertexAttrib("Color", 2, VertexFormat::Float32x3, 6 * sizeof(float));
+		vertexBuffer->addVertexAttrib("Tangent", 2, VertexFormat::Float32x3, 6 * sizeof(float));
 		vertexBuffer->addVertexAttrib("TexCoord", 3, VertexFormat::Float32x2, 9 * sizeof(float));
-		vertexBuffer->setAttribsStride(11 * sizeof(float));
+		vertexBuffer->setAttribsStride(11 * sizeof(float));*/
 
 
 		Mesh* mesh = new Mesh();
-		mesh->addVertexBuffer(vertexBuffer);
+		mesh->setVertices(vertices);
 		MeshManager::getInstance().add("obj_1", mesh);
 
 		return true;

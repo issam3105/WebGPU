@@ -26,15 +26,15 @@ public:
 
 	~VertexBuffer() {};
 
-	void addVertexAttrib(const std::string& attribName, int location, VertexFormat format, int offset)
-	{
-		VertexAttribute vertexAttribute;
-		vertexAttribute.shaderLocation = location;
-		vertexAttribute.format = format;
-		vertexAttribute.offset = offset;
-		m_vertexAttribs.push_back(vertexAttribute);
-	}
-	void setAttribsStride(uint64_t attribsStride) { m_attribsStride = attribsStride; }
+	//void addVertexAttrib(const std::string& attribName, int location, VertexFormat format, int offset)
+	//{
+	//	VertexAttribute vertexAttribute;
+	//	vertexAttribute.shaderLocation = location;
+	//	vertexAttribute.format = format;
+	//	vertexAttribute.offset = offset;
+	//	m_vertexAttribs.push_back(vertexAttribute);
+	//}
+	//void setAttribsStride(uint64_t attribsStride) { m_attribsStride = attribsStride; }
 
 
 	const Buffer& getBuffer()const { return m_buffer; }
@@ -46,8 +46,8 @@ private:
 	void* m_data;
 	size_t  m_size;
 	int m_count{ 0 };
-	std::vector<VertexAttribute> m_vertexAttribs;
-	uint64_t m_attribsStride = 0;
+	//std::vector<VertexAttribute> m_vertexAttribs;
+	//uint64_t m_attribsStride = 0;
 
 	friend class Mesh;
 };
@@ -83,37 +83,38 @@ private:
 	int m_count{ 0 };
 };
 
+struct Vertex {
+	vec3 position = vec3(0.0, 0.0, 0.0);
+	vec3 normal = vec3(0.0, 0.0, 0.0);;
+	vec3 tangent = vec3(0.0, 0.0, 0.0);;
+	vec2 uv = vec2(0.0, 0.0);;
+};
+
 
 class Mesh
 {
 public:
 	Mesh() {};
 	~Mesh() {};
-	void addVertexBuffer(VertexBuffer* vertexBuffer) { m_vertexBuffers.push_back(vertexBuffer); }
-	void addIndexBuffer(IndexBuffer* indexBuffer) { m_indexBuffer = indexBuffer; }
+	void setVertices(std::vector<Vertex> vertices) { 
+		m_vertices = vertices; 
+		int indexCount = static_cast<int>(vertices.size());
+		int vertexCount = static_cast<int>(vertices.size());
+		auto* data = vertices.data();
+		m_vertexBuffer = new VertexBuffer(vertices.data(), vertices.size() * sizeof(Vertex), vertexCount);
+	}
+	void setIndices(std::vector<uint16_t> indices) { m_indices = indices; }
 
-	std::vector<VertexBuffer*> getVertexBuffers() { return  m_vertexBuffers; }
+	VertexBuffer* getVertexBuffer() { return  m_vertexBuffer; }
 	IndexBuffer* getIndexBuffer() { return m_indexBuffer; };
 
-	int getVertexCount() { return m_vertexBuffers[0]->getCount(); } //il faut que tout les vertexBuffer aillent le meme count !!
+	int getVertexCount() { return m_vertices.size(); } 
 
-	const std::vector<VertexBufferLayout> getVertexBufferLayouts() {
-		std::vector<VertexBufferLayout> vertexBufferLayouts;
-		for (auto vb : m_vertexBuffers)
-		{
-			VertexBufferLayout vertexBufferLayout;
-			// [...] Build vertex buffer layout
-			vertexBufferLayout.attributeCount = (uint32_t)vb->m_vertexAttribs.size();
-			vertexBufferLayout.attributes = vb->m_vertexAttribs.data();
-			// == Common to attributes from the same buffer ==
-			vertexBufferLayout.arrayStride = vb->m_attribsStride;
-			vertexBufferLayout.stepMode = VertexStepMode::Vertex;
-			vertexBufferLayouts.push_back(vertexBufferLayout);
-		}
-		return vertexBufferLayouts;
-	}
 private:
 
-	std::vector<VertexBuffer*> m_vertexBuffers;
+	VertexBuffer* m_vertexBuffer;
 	IndexBuffer* m_indexBuffer{ nullptr };
+
+	std::vector<uint16_t> m_indices;
+	std::vector<Vertex> m_vertices;
 };

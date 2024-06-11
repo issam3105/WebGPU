@@ -9,11 +9,9 @@
 class Renderer
 {
 public:
-	Renderer(TextureFormat swapChainFormat, TextureFormat depthTextureFormat)
+	Renderer()
 	{
 		m_queue = Context::getInstance().getDevice().getQueue();
-		m_swapChainFormat = swapChainFormat;
-		m_depthTextureFormat = depthTextureFormat;
 	};
 	~Renderer() = default;
 
@@ -43,15 +41,9 @@ public:
 			renderPass.pushDebugGroup("Render Pass");
 			for (auto [meshId, mesh] : MeshManager::getInstance().getAll())
 			{
-				Pipeline* pipeline = new Pipeline(pass.getShader(), mesh->getVertexBufferLayouts(), m_swapChainFormat, m_depthTextureFormat); //TODO le creer le moins possible
-				renderPass.setPipeline(pipeline->getRenderPipeline());
+				renderPass.setPipeline(pass.getPipeline()->getRenderPipeline());
 				renderPass.setBindGroup(0, pass.getShader()->getBindGroup(), 0, nullptr);
-				int slot = 0; //The first argument(slot) corresponds to the index of the buffer layout in the pipelineDesc.vertex.buffers array.
-				for (const auto& vb : mesh->getVertexBuffers())
-				{
-					renderPass.setVertexBuffer(slot, vb->getBuffer(), 0, vb->getSize());
-					slot++;
-				}
+				renderPass.setVertexBuffer(0, mesh->getVertexBuffer()->getBuffer(), 0, mesh->getVertexBuffer()->getSize());
 				if (mesh->getIndexBuffer() != nullptr)
 				{
 					renderPass.setIndexBuffer(mesh->getIndexBuffer()->getBuffer(), IndexFormat::Uint16, 0, mesh->getIndexBuffer()->getSize());
@@ -59,8 +51,6 @@ public:
 				}
 				else
 					renderPass.draw(mesh->getVertexCount(), 1, 0, 0);
-
-				delete pipeline;
 			}
 
 			// Build UI
@@ -94,7 +84,4 @@ public:
 private:
 	Queue m_queue{ nullptr };
 	std::vector<Pass> m_passes;
-
-	TextureFormat m_swapChainFormat{ TextureFormat::Undefined };
-	TextureFormat m_depthTextureFormat{ TextureFormat::Undefined };
 };
