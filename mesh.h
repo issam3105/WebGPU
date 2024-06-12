@@ -59,7 +59,7 @@ public:
 		m_data(indexData),
 		m_count(indexCount)
 	{
-		m_size = size * sizeof(uint16_t);
+		m_size = size ;
 		BufferDescriptor bufferDesc;
 		bufferDesc.size = m_size;
 		bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Index;
@@ -95,15 +95,20 @@ class Mesh
 {
 public:
 	Mesh() {};
-	~Mesh() {};
+	~Mesh() {
+		delete m_vertexBuffer;
+		delete m_indexBuffer;
+	};
 	void setVertices(std::vector<Vertex> vertices) { 
 		m_vertices = vertices; 
-		int indexCount = static_cast<int>(vertices.size());
 		int vertexCount = static_cast<int>(vertices.size());
-		auto* data = vertices.data();
 		m_vertexBuffer = new VertexBuffer(vertices.data(), vertices.size() * sizeof(Vertex), vertexCount);
 	}
-	void setIndices(std::vector<uint16_t> indices) { m_indices = indices; }
+	void setIndices(std::vector<uint16_t> indices) { 
+		m_indices = indices; 
+		int indexCount = static_cast<int>(indices.size());
+		m_indexBuffer = new IndexBuffer(indices.data(), indices.size() * sizeof(uint16_t), indexCount);
+	}
 
 	VertexBuffer* getVertexBuffer() { return  m_vertexBuffer; }
 	IndexBuffer* getIndexBuffer() { return m_indexBuffer; };

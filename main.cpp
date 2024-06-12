@@ -38,8 +38,6 @@
 #define TINYOBJLOADER_IMPLEMENTATION // add this to exactly 1 of your C++ files
 #include "tiny_obj_loader.h"
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
 
 #include <iostream>
 #include <cassert>
@@ -118,6 +116,18 @@ void updateViewMatrix(Shader* shader) {
 
 }
 
+std::vector<std::string> GetFiles(const std::string& directoryPath, std::string extension) {
+	std::vector<std::string> gltfFiles;
+
+	for (const auto& entry : fs::recursive_directory_iterator(directoryPath)) {
+		if (entry.is_regular_file() && entry.path().extension() == extension) {
+			gltfFiles.push_back(entry.path().string());
+		}
+	}
+
+	return gltfFiles;
+}
+
 
 int main(int, char**) {
 	if (!glfwInit()) {
@@ -135,23 +145,22 @@ int main(int, char**) {
 
 	Context::getInstance().initGraphics(window, m_winWidth, m_winHeight, swapChainFormat);
 
-	//addTwoTriangles();
-	//addColoredPlane();
-	//addPyramid();
-	Utils::loadGeometryFromObj(DATA_DIR  "/fourareen.obj");
+	std::vector<std::string> jpgFiles = GetFiles(DATA_DIR, ".jpg");
+	std::vector<std::string> pngFiles = GetFiles(DATA_DIR, ".png");
+	jpgFiles.insert(jpgFiles.end(), pngFiles.begin(), pngFiles.end());
 
-	TextureView textureView = nullptr;
-	Texture texture = Utils::loadTexture(DATA_DIR "/fourareen2K_albedo.jpg", &textureView);
-	TextureManager().getInstance().add("fourareen2K_albedo", &textureView);
+
+	std::unordered_map<std::string, std::shared_ptr<wgpu::TextureView>> textures{};
+	for (auto& file : jpgFiles)
+	{
+		TextureView textureView =nullptr;
+		Texture gltfTexture = Utils::loadTexture(file, &textureView);
+		TextureManager().getInstance().add(file, textureView);
+	}
 
 	TextureView whiteTextureView = nullptr;
-	Texture  whiteTexture = Utils::CreateWhiteTexture( &whiteTextureView);
-	TextureManager().getInstance().add("whiteTex", &whiteTextureView);
-
-	
-	TextureView uv_checkerTextureView = nullptr;
-	Texture uv_checkerTexture = Utils::loadTexture(DATA_DIR "/uv_checker.jpg", &uv_checkerTextureView);
-	TextureManager().getInstance().add("uv_checker", &uv_checkerTextureView);
+	Texture  whiteTexture = Utils::CreateWhiteTexture(&whiteTextureView);
+	TextureManager().getInstance().add("whiteTex", whiteTextureView);
 
 	// Create a sampler
 
@@ -189,10 +198,10 @@ int main(int, char**) {
 
 	float ratio = 640.0f / 480.0f;
 	float focalLength = 2.0;
-	float near = 0.01f;
-	float far = 100.0f;
+	float nearPlane = 0.01f;
+	float farPlane = 100.0f;
 	float fov = 2 * glm::atan(1 / focalLength);
-	mat4x4 proj = glm::perspective(fov, ratio, near, far);
+	mat4x4 proj = glm::perspective(fov, ratio, nearPlane, farPlane);
 	shader_1->setUniform("projection", proj);
 	shader_1->setUniform("model", glm::mat4(1.0f));
 
@@ -241,9 +250,9 @@ int main(int, char**) {
 	{
 		auto shader = ShaderManager::getInstance().getShader("shader1");
 		if (key == GLFW_KEY_E && action == GLFW_PRESS)
-			shader->setTexture("baseColorTexture", *TextureManager::getInstance().getTextureView("whiteTex"));
+			shader->setTexture("baseColorTexture", TextureManager::getInstance().getTextureView("whiteTex"));
 		if (key == GLFW_KEY_R && action == GLFW_PRESS)
-			shader->setTexture("baseColorTexture", *TextureManager::getInstance().getTextureView("fourareen2K_albedo"));
+			shader->setTexture("baseColorTexture", TextureManager::getInstance().getTextureView("fourareen2K_albedo"));
 		if(key == GLFW_KEY_D && action == GLFW_PRESS)
 			shader->setUniform("baseColorFactor", glm::vec4(1.0f));
 		if (key == GLFW_KEY_F && action == GLFW_PRESS)
@@ -271,23 +280,19 @@ int main(int, char**) {
 			static ImVec4 clear_color = ImVec4(1.0f, 1.0f, 1.0f, 1.00f);
 
 			ImGui::Begin("Material Editor");
-			ImGui::ColorEdit4("BaseColorFactor", (float*)&clear_color);
-			auto shader = ShaderManager::getInstance().getShader("shader1");
-			shader->setUniform("baseColorFactor", glm::vec4(clear_color.x, clear_color.y, clear_color.z, clear_color.w));
+			static int selectedGLTFIndex = -1;
+			//std::vector<std::string> gltfFiles = GetFiles(DATA_DIR, ".gltf");
+			std::vector<std::string> gltfFiles = GetFiles("C:/Dev/glTF-Sample-Models/2.0", ".gltf");
 
-			static int selectedTextureIndex = -1;
-			std::vector<std::string> textureNames;
-			for (const auto& texturePair : TextureManager::getInstance().getAll()) {
-				textureNames.push_back(texturePair.first);
-			}
-
-			if (ImGui::BeginCombo("BaseColorTexture", selectedTextureIndex == -1 ? "Select a texture" : textureNames[selectedTextureIndex].c_str())) {
-				for (int i = 0; i < textureNames.size(); i++) {
-					bool isSelected = (selectedTextureIndex == i);
-					if (ImGui::Selectable(textureNames[i].c_str(), isSelected)) {
-						selectedTextureIndex = i;
-						//	std::cout << "Selected texture: " << textureNames[i] << std::endl;
-						shader->setTexture("baseColorTexture", *TextureManager::getInstance().getTextureView(textureNames[i]));
+			if (ImGui::BeginCombo("GLTF Files", selectedGLTFIndex == -1 ? "Select a GLTF" : gltfFiles[selectedGLTFIndex].c_str())) {
+				for (int i = 0; i < gltfFiles.size(); i++) {
+					bool isSelected = (selectedGLTFIndex == i);
+					if (ImGui::Selectable(gltfFiles[i].c_str(), isSelected)) {
+						if (selectedGLTFIndex != -1)
+							MeshManager::getInstance().clear();//MeshManager::getInstance().remove(gltfFiles[selectedGLTFIndex]);
+						selectedGLTFIndex = i;
+						Mesh* myMesh = Utils::LoadGLTF(gltfFiles[i]);
+						
 					}
 					if (isSelected) {
 						ImGui::SetItemDefaultFocus();
@@ -295,6 +300,32 @@ int main(int, char**) {
 				}
 				ImGui::EndCombo();
 			}
+
+			ImGui::ColorEdit4("BaseColorFactor", (float*)&clear_color);
+			auto shader = ShaderManager::getInstance().getShader("shader1");
+			shader->setUniform("baseColorFactor", glm::vec4(clear_color.x, clear_color.y, clear_color.z, clear_color.w));
+			{
+				static int selectedTextureIndex = -1;
+				std::vector<std::string> textureNames;
+				for (const auto& texturePair : TextureManager::getInstance().getAll()) {
+					textureNames.push_back(texturePair.first);
+				}
+
+				if (ImGui::BeginCombo("BaseColorTexture", selectedTextureIndex == -1 ? "Select a texture" : textureNames[selectedTextureIndex].c_str())) {
+					for (int i = 0; i < textureNames.size(); i++) {
+						bool isSelected = (selectedTextureIndex == i);
+						if (ImGui::Selectable(textureNames[i].c_str(), isSelected)) {
+							selectedTextureIndex = i;
+							//	std::cout << "Selected texture: " << textureNames[i] << std::endl;
+							shader->setTexture("baseColorTexture", TextureManager::getInstance().getTextureView(textureNames[i]));
+						}
+						if (isSelected) {
+							ImGui::SetItemDefaultFocus();
+						}
+					}
+					ImGui::EndCombo();
+				}
+		    }
 
 			ImGuiIO& io = ImGui::GetIO();
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);

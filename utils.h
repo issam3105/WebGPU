@@ -10,147 +10,13 @@
 
 #include "context.h"
 
+#include "tiny_gltf.h"
+
+#include "stb_image.h"
+
 namespace fs = std::filesystem;
 namespace Utils
 {
-	//void addTwoTriangles()
-	//{
-	//	std::vector<float> positionData = {
-	//	-0.5, -0.5,
-	//	+0.5, -0.5,
-	//	+0.0, +0.5,
-	//	-0.55f, -0.5,
-	//	-0.05f, +0.5,
-	//	-0.55f, +0.5
-	//	};
-
-	//	// r0,  g0,  b0, r1,  g1,  b1, ...
-	//	std::vector<float> colorData = {
-	//		1.0, 0.0, 0.0,
-	//		0.0, 1.0, 0.0,
-	//		0.0, 0.0, 1.0,
-	//		1.0, 1.0, 0.0,
-	//		1.0, 0.0, 1.0,
-	//		0.0, 1.0, 1.0
-	//	};
-
-	//	int vertexCount = static_cast<int>(positionData.size() / 2);
-	//	VertexBuffer* vertexBufferPos = new VertexBuffer(positionData.data(), positionData.size() * sizeof(float), vertexCount);
-	//	vertexBufferPos->addVertexAttrib("Position", 0, VertexFormat::Float32x2, 0);
-	//	vertexBufferPos->setAttribsStride(2 * sizeof(float));
-
-	//	VertexBuffer* vertexBufferColor = new VertexBuffer(colorData.data(), colorData.size() * sizeof(float), vertexCount);
-	//	vertexBufferColor->addVertexAttrib("Color", 1, VertexFormat::Float32x3, 0); // offset = sizeof(Position)
-	//	vertexBufferColor->setAttribsStride(3 * sizeof(float));
-
-	//	Mesh* mesh = new Mesh();
-	//	mesh->addVertexBuffer(vertexBufferPos);
-	//	mesh->addVertexBuffer(vertexBufferColor);
-
-	//	//interleaved  mesh
-	//	//std::vector<float> vertexData = {
-	//	//	// x0,  y0,  r0,  g0,  b0
-	//	//	-0.5, -0.5, 1.0, 0.0, 0.0,
-
-	//	//	// x1,  y1,  r1,  g1,  b1
-	//	//	+0.5, -0.5, 0.0, 1.0, 0.0,
-
-	//	//	// ...
-	//	//	+0.0,   +0.5, 0.0, 0.0, 1.0,
-	//	//	-0.55f, -0.5, 1.0, 1.0, 0.0,
-	//	//	-0.05f, +0.5, 1.0, 0.0, 1.0,
-	//	//	-0.55f, +0.5, 0.0, 1.0, 1.0
-	//	//};
-	//	//int vertexCount = static_cast<int>(vertexData.size() / 5);
-
-	//	//VertexBuffer* vertexBuffer = new VertexBuffer(vertexData, vertexCount); // vertexData.size()* sizeof(float)
-	//	//vertexBuffer->addVertexAttrib("Position", 0, VertexFormat::Float32x2, 0);
-	//	//vertexBuffer->addVertexAttrib("Color", 1, VertexFormat::Float32x3, 2 * sizeof(float)); // offset = sizeof(Position)
-	//	//vertexBuffer->setAttribsStride(5 * sizeof(float));
-	//	//Mesh* mesh = new Mesh();
-	//	//mesh->addVertexBuffer(vertexBuffer);
-
-
-	//	MeshManager::getInstance().add("twoTriangles", mesh);
-	//}
-
-
-	//void addColoredPlane() {
-	//	std::vector<float> pointData = {
-	//		// x,   y,     r,   g,   b
-	//		-0.5, -0.5,   1.0, 0.0, 0.0,
-	//		+0.5, -0.5,   0.0, 1.0, 0.0,
-	//		+0.5, +0.5,   0.0, 0.0, 1.0,
-	//		-0.5, +0.5,   1.0, 1.0, 0.0
-	//	};
-
-	//	std::vector<uint16_t> indexData = {
-	//	0, 1, 2, // Triangle #0
-	//	0, 2, 3  // Triangle #1
-	//	};
-
-	//	int indexCount = static_cast<int>(indexData.size());
-	//	int vertexCount = static_cast<int>(pointData.size() / 5);
-
-	//	VertexBuffer* vertexBuffer = new VertexBuffer(pointData.data(), pointData.size() * sizeof(float), vertexCount);
-	//	vertexBuffer->addVertexAttrib("Position", 0, VertexFormat::Float32x2, 0);
-	//	vertexBuffer->addVertexAttrib("Color", 1, VertexFormat::Float32x3, 2 * sizeof(float)); // offset = sizeof(Position)
-	//	vertexBuffer->setAttribsStride(5 * sizeof(float));
-
-	//	IndexBuffer* indexBuffer = new IndexBuffer(indexData.data(), indexData.size(), indexCount);
-	//	Mesh* mesh = new Mesh();
-	//	mesh->addVertexBuffer(vertexBuffer);
-	//	mesh->addIndexBuffer(indexBuffer);
-	//	MeshManager::getInstance().add("ColoredPlane", mesh);
-	//}
-
-	//void addPyramid()
-	//{
-	//	std::vector<float> pointData = {
-	//		-0.5f, -0.5f, -0.3f,    1.0f, 1.0f, 1.0f,
-	//		+0.5f, -0.5f, -0.3f,    1.0f, 1.0f, 1.0f,
-	//		+0.5f, +0.5f, -0.3f,    1.0f, 1.0f, 1.0f,
-	//		-0.5f, +0.5f, -0.3f,    1.0f, 1.0f, 1.0f,
-	//		+0.0f, +0.0f, +0.5f,    0.5f, 0.5f, 0.5f,
-	//	};
-	//	std::vector<uint16_t> indexData = {
-	//		0,  1,  2,
-	//		0,  2,  3,
-	//		0,  1,  4,
-	//		1,  2,  4,
-	//		2,  3,  4,
-	//		3,  0,  4,
-	//	};
-
-	//	int indexCount = static_cast<int>(indexData.size());
-	//	int vertexCount = static_cast<int>(pointData.size() / 6);
-
-	//	VertexBuffer* vertexBuffer = new VertexBuffer(pointData.data(), pointData.size() * sizeof(float), vertexCount);
-	//	vertexBuffer->addVertexAttrib("Position", 0, VertexFormat::Float32x3, 0);
-	//	vertexBuffer->addVertexAttrib("Color", 1, VertexFormat::Float32x3, 3 * sizeof(float)); // offset = sizeof(Position)
-	//	vertexBuffer->setAttribsStride(6 * sizeof(float));
-
-	//	IndexBuffer* indexBuffer = new IndexBuffer(indexData.data(), indexData.size(), indexCount);
-	//	Mesh* mesh = new Mesh();
-	//	mesh->addVertexBuffer(vertexBuffer);
-	//	mesh->addIndexBuffer(indexBuffer);
-	//	MeshManager::getInstance().add("Pyramid", mesh);
-	//}
-
-	/*struct VertexAttributes {
-		vec3 position;
-		vec3 normal;
-		vec3 color;
-		vec2 uv;
-	};*/
-
-	/*struct Vertex {
-		vec3 position = vec3(0.0, 0.0, 0.0);
-		vec3 normal = vec3(0.0, 0.0, 0.0);;
-		vec3 tangent = vec3(0.0, 0.0, 0.0);;
-		vec2 uv = vec2(0.0, 0.0);;
-	};*/
-
 	bool loadGeometryFromObj(const fs::path& path) {
 		//std::vector<VertexAttributes> vertexData;
 		tinyobj::attrib_t attrib;
@@ -208,16 +74,6 @@ namespace Utils
 				vertices.push_back(vertex);
 			}
 		}
-
-		/*int indexCount = static_cast<int>(vertices.size());
-		int vertexCount = static_cast<int>(vertices.size());
-		auto* data = vertices.data();
-		VertexBuffer* vertexBuffer = new VertexBuffer(vertices.data(), vertices.size() * sizeof(Vertex), vertexCount);
-		vertexBuffer->addVertexAttrib("Position", 0, VertexFormat::Float32x3, 0);
-		vertexBuffer->addVertexAttrib("Normal", 1, VertexFormat::Float32x3, 3 * sizeof(float));
-		vertexBuffer->addVertexAttrib("Tangent", 2, VertexFormat::Float32x3, 6 * sizeof(float));
-		vertexBuffer->addVertexAttrib("TexCoord", 3, VertexFormat::Float32x2, 9 * sizeof(float));
-		vertexBuffer->setAttribsStride(11 * sizeof(float));*/
 
 
 		Mesh* mesh = new Mesh();
@@ -297,7 +153,7 @@ namespace Utils
 		else { uint32_t w = 0; while (m >>= 1) ++w; return w; }
 	}
 
-	Texture loadTexture(const fs::path& path, TextureView* pTextureView) {
+	Texture loadTexture(const fs::path& path, TextureView* pTextureView = nullptr) {
 		int width, height, channels;
 		unsigned char* pixelData = stbi_load(path.string().c_str(), &width, &height, &channels, 4 /* force 4 channels */);
 		// If data is null, loading failed.
@@ -413,5 +269,227 @@ namespace Utils
 		samplerDesc.compare = CompareFunction::Undefined;
 		samplerDesc.maxAnisotropy = 1;
 		return Context::getInstance().getDevice().createSampler(samplerDesc);
+	}
+
+	/*wgpu::TextureView LoadTexture(const tinygltf::Image& image) {
+		wgpu::TextureDescriptor textureDesc = {};
+		textureDesc.usage = wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst;
+		textureDesc.size.width = image.width;
+		textureDesc.size.height = image.height;
+		textureDesc.size.depthOrArrayLayers = 1;
+		textureDesc.format = wgpu::TextureFormat::RGBA8Unorm;
+		textureDesc.mipLevelCount = 1;
+		textureDesc.sampleCount = 1;
+		textureDesc.dimension = wgpu::TextureDimension::_2D;
+
+		wgpu::Texture texture = Context::getInstance().getDevice().createTexture(textureDesc);
+
+		TextureViewDescriptor textureViewDesc;
+		textureViewDesc.aspect = TextureAspect::All;
+		textureViewDesc.baseArrayLayer = 0;
+		textureViewDesc.arrayLayerCount = 1;
+		textureViewDesc.baseMipLevel = 0;
+		textureViewDesc.mipLevelCount = textureDesc.mipLevelCount;
+		textureViewDesc.dimension = TextureViewDimension::_2D;
+		textureViewDesc.format = textureDesc.format;
+		TextureView textureView = texture.createView(textureViewDesc);
+
+		wgpu::BufferDescriptor bufferDesc = {};
+		bufferDesc.usage = wgpu::BufferUsage::CopySrc;
+		bufferDesc.size = image.image.size();
+		bufferDesc.mappedAtCreation = true;
+
+		wgpu::Buffer stagingBuffer = Context::getInstance().getDevice().createBuffer(bufferDesc);
+		void* data = stagingBuffer.getMappedRange(0, image.image.size());
+		memcpy(data, image.image.data(), image.image.size());
+		stagingBuffer.unmap();
+
+		CommandEncoderDescriptor commandEncoderDesc;
+		CommandEncoder encoder = Context::getInstance().getDevice().createCommandEncoder(commandEncoderDesc);
+
+		wgpu::ImageCopyBuffer imageCopyBuffer = {};
+		imageCopyBuffer.buffer = stagingBuffer;
+		imageCopyBuffer.layout.bytesPerRow = image.width * 4;
+		imageCopyBuffer.layout.rowsPerImage = image.height;
+
+		wgpu::ImageCopyTexture imageCopyTexture = {};
+		imageCopyTexture.texture = texture;
+
+		wgpu::Extent3D extent = {};
+		extent.width = image.width;
+		extent.height = image.height;
+		extent.depthOrArrayLayers = 1;
+
+		encoder.copyBufferToTexture(imageCopyBuffer, imageCopyTexture, extent);
+
+		CommandBufferDescriptor cmdBufferDescriptor;
+		wgpu::CommandBuffer commandBuffer = encoder.finish(cmdBufferDescriptor);
+		Context::getInstance().getDevice().getQueue().submit(1, &commandBuffer);
+
+		return textureView;
+	}*/
+
+	struct Material {
+		glm::vec4 baseColorFactor;
+		std::string baseColorTexture;
+		// Add other material properties as needed
+	};
+
+	Mesh* LoadGLTF(const std::string& filepath) {
+		std::vector<Vertex> vertices;
+		std::vector<uint16_t> indices;
+		std::unordered_map<int, Material> materials;
+
+		tinygltf::Model model;
+		tinygltf::TinyGLTF loader;
+		std::string err;
+		std::string warn;
+
+		bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, filepath);
+		if (!warn.empty()) {
+			std::cout << "WARN: " << warn << std::endl;
+		}
+
+		if (!err.empty()) {
+			std::cerr << "ERR: " << err << std::endl;
+		}
+
+		if (!ret) {
+			return false;
+		}
+
+		// Load materials
+		//for (size_t i = 0; i < model.materials.size(); ++i) {
+		//	const tinygltf::Material& gltfMaterial = model.materials[i];
+		//	Material material = {};
+
+		//	if (gltfMaterial.values.find("baseColorFactor") != gltfMaterial.values.end()) {
+		//		const auto& colorFactor = gltfMaterial.values.at("baseColorFactor").ColorFactor();
+		//		material.baseColorFactor = glm::vec4(colorFactor[0], colorFactor[1], colorFactor[2], colorFactor[3]);
+		//	}
+		//	else {
+		//		material.baseColorFactor = glm::vec4(1.0f); // Default to white if not specified
+		//	}
+
+		//	if (gltfMaterial.values.find("baseColorTexture") != gltfMaterial.values.end()) {
+		//		int textureIndex = gltfMaterial.values.at("baseColorTexture").TextureIndex();
+		//		const tinygltf::Texture& texture = model.textures[textureIndex];
+		//		const tinygltf::Image& image = model.images[texture.source];
+		//		// Load the image data into a texture view (you need to implement this part)
+		//		TextureManager().getInstance().add("baseColorTexture", &LoadTexture(image));
+		//		material.baseColorTexture = "baseColorTexture";
+		//	}
+
+		//	materials[i] = material;
+		//}
+
+		for (auto& mesh : model.meshes)
+		{
+			//const tinygltf::Mesh& mesh = model.meshes[0];
+			for (const auto& primitive : mesh.primitives) {
+				// Process vertex attributes
+				const tinygltf::Accessor& posAccessor = model.accessors[primitive.attributes.find("POSITION")->second];
+				if (posAccessor.bufferView == -1) return nullptr;
+				const tinygltf::BufferView& posBufferView = model.bufferViews[posAccessor.bufferView];
+				const tinygltf::Buffer& posBuffer = model.buffers[posBufferView.buffer];
+
+				const tinygltf::Accessor* normAccessor = nullptr;
+				const tinygltf::BufferView* normBufferView = nullptr;
+				const tinygltf::Buffer* normBuffer = nullptr;
+
+				const tinygltf::Accessor* uvAccessor = nullptr;
+				const tinygltf::BufferView* uvBufferView = nullptr;
+				const tinygltf::Buffer* uvBuffer = nullptr;
+
+				const tinygltf::Accessor* tangentAccessor = nullptr;
+				const tinygltf::BufferView* tangentBufferView = nullptr;
+				const tinygltf::Buffer* tangentBuffer = nullptr;
+
+				if (primitive.attributes.find("NORMAL") != primitive.attributes.end()) {
+					normAccessor = &model.accessors[primitive.attributes.find("NORMAL")->second];
+					normBufferView = &model.bufferViews[normAccessor->bufferView];
+					normBuffer = &model.buffers[normBufferView->buffer];
+				}
+
+				if (primitive.attributes.find("TEXCOORD_0") != primitive.attributes.end()) {
+					uvAccessor = &model.accessors[primitive.attributes.find("TEXCOORD_0")->second];
+					uvBufferView = &model.bufferViews[uvAccessor->bufferView];
+					uvBuffer = &model.buffers[uvBufferView->buffer];
+				}
+
+				if (primitive.attributes.find("TANGENT") != primitive.attributes.end()) {
+					tangentAccessor = &model.accessors[primitive.attributes.find("TANGENT")->second];
+					tangentBufferView = &model.bufferViews[tangentAccessor->bufferView];
+					tangentBuffer = &model.buffers[tangentBufferView->buffer];
+				}
+
+				for (size_t i = 0; i < posAccessor.count; ++i) {
+					Vertex vertex = {};
+
+					size_t posIndex = i * posAccessor.ByteStride(posBufferView) + posAccessor.byteOffset + posBufferView.byteOffset;
+					vertex.position = glm::vec3(
+						*reinterpret_cast<const float*>(&posBuffer.data[posIndex + 0 * sizeof(float)]),
+						*reinterpret_cast<const float*>(&posBuffer.data[posIndex + 1 * sizeof(float)]),
+						*reinterpret_cast<const float*>(&posBuffer.data[posIndex + 2 * sizeof(float)]));
+
+					if (normAccessor) {
+						size_t normIndex = i * normAccessor->ByteStride(*normBufferView) + normAccessor->byteOffset + normBufferView->byteOffset;
+						vertex.normal = glm::vec3(
+							*reinterpret_cast<const float*>(&normBuffer->data[normIndex + 0 * sizeof(float)]),
+							*reinterpret_cast<const float*>(&normBuffer->data[normIndex + 1 * sizeof(float)]),
+							*reinterpret_cast<const float*>(&normBuffer->data[normIndex + 2 * sizeof(float)]));
+					}
+
+					if (uvAccessor) {
+						size_t uvIndex = i * uvAccessor->ByteStride(*uvBufferView) + uvAccessor->byteOffset + uvBufferView->byteOffset;
+						vertex.uv = glm::vec2(
+							*reinterpret_cast<const float*>(&uvBuffer->data[uvIndex + 0 * sizeof(float)]),
+							*reinterpret_cast<const float*>(&uvBuffer->data[uvIndex + 1 * sizeof(float)]));
+					}
+
+					if (tangentAccessor) {
+						size_t tangentIndex = i * tangentAccessor->ByteStride(*tangentBufferView) + tangentAccessor->byteOffset + tangentBufferView->byteOffset;
+						vertex.tangent = glm::vec3(
+							*reinterpret_cast<const float*>(&tangentBuffer->data[tangentIndex + 0 * sizeof(float)]),
+							*reinterpret_cast<const float*>(&tangentBuffer->data[tangentIndex + 1 * sizeof(float)]),
+							*reinterpret_cast<const float*>(&tangentBuffer->data[tangentIndex + 2 * sizeof(float)]));
+					}
+
+					vertices.push_back(vertex);
+				}
+
+
+				// Process indices
+				const tinygltf::Accessor& indexAccessor = model.accessors[primitive.indices];
+				const tinygltf::BufferView& indexBufferView = model.bufferViews[indexAccessor.bufferView];
+				const tinygltf::Buffer& indexBuffer = model.buffers[indexBufferView.buffer];
+
+				for (size_t i = 0; i < indexAccessor.count; ++i) {
+					size_t index = i * indexAccessor.ByteStride(indexBufferView) + indexAccessor.byteOffset + indexBufferView.byteOffset;
+					uint32_t indexValue;
+					switch (indexAccessor.componentType) {
+					case TINYGLTF_COMPONENT_TYPE_UNSIGNED_BYTE:
+						indexValue = *reinterpret_cast<const uint8_t*>(&indexBuffer.data[index]);
+						break;
+					case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT:
+						indexValue = *reinterpret_cast<const uint16_t*>(&indexBuffer.data[index]);
+						break;
+					case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+						indexValue = *reinterpret_cast<const uint32_t*>(&indexBuffer.data[index]);
+						break;
+					default:
+						throw std::runtime_error("Unsupported index component type");
+					}
+					indices.push_back(indexValue);
+				}
+			}
+
+			Mesh* myMesh = new Mesh();
+			myMesh->setVertices(vertices);
+			myMesh->setIndices(indices);
+			static int meshId = 0;
+			MeshManager::getInstance().add(filepath + std::to_string(meshId++), myMesh);
+		}
+		return nullptr;
 	}
 }

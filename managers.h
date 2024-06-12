@@ -15,6 +15,15 @@ public:
 	};
 
 	bool add(const std::string& id, Mesh* mesh) { m_meshes[id] = mesh; return true; }
+	bool remove(const std::string& id) {
+		m_meshes.erase(id); 
+		return true; 
+	}
+	bool clear()
+	{
+		m_meshes.clear();
+		return true;
+	}
 	Mesh* get(const std::string& id) { return  m_meshes[id]; }
 	std::unordered_map<std::string, Mesh*> getAll() { return m_meshes; }
 private:
@@ -53,9 +62,13 @@ public:
 		return textureManager;
 	};
 
-	bool add(const std::string& id, wgpu::TextureView* textureView) { m_textures[id] = textureView; return true; }
-	wgpu::TextureView* getTextureView(const std::string& id) { return  m_textures[id]; }
-	std::unordered_map<std::string, wgpu::TextureView*>& getAll() { return m_textures; }
+	bool add(const std::string& id, TextureView textureView) {
+		m_textures[id] = std::make_shared<wgpu::TextureView>(textureView);
+		return true; }
+	TextureView getTextureView(const std::string& id) {
+		return  *m_textures[id].get(); 
+	}
+	std::unordered_map<std::string, std::shared_ptr<TextureView>>& getAll() { return m_textures; }
 private:
-	std::unordered_map<std::string, wgpu::TextureView*> m_textures{};
+	std::unordered_map<std::string, std::shared_ptr<TextureView>> m_textures{};
 };

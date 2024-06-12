@@ -7,7 +7,7 @@ project(
 
 
 
-add_executable(App main.cpp webgpu-utils.h webgpu-utils.cpp tiny_obj_loader.h stb_image.h context.h shader.h pipeline.h pass.h managers.h imgui_wrapper.h utils.h renderer.h mesh.h)
+add_executable(App main.cpp webgpu-utils.h webgpu-utils.cpp tiny_obj_loader.h context.h shader.h pipeline.h pass.h managers.h imgui_wrapper.h utils.h renderer.h mesh.h)
 
 set_target_properties(App PROPERTIES
     CXX_STANDARD 17
@@ -27,9 +27,10 @@ add_subdirectory(ext/webgpu)
 add_subdirectory(ext/glfw3webgpu)
 add_subdirectory(ext/glm)
 add_subdirectory(ext/imgui)
+add_subdirectory(ext/tinygltf)
 
 
-target_link_libraries(App PRIVATE webgpu glfw glfw3webgpu glm imgui)
+target_link_libraries(App PRIVATE webgpu glfw glfw3webgpu glm imgui tinygltf)
 
 
 target_compile_definitions(App PRIVATE
