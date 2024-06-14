@@ -4,6 +4,8 @@
 #include <webgpu/webgpu.hpp>
 
 #include "context.h"
+#include "node.h"
+
 
 
 class Renderer
@@ -39,18 +41,24 @@ public:
 
 			RenderPassEncoder renderPass = encoder.beginRenderPass(renderPassDesc);
 			renderPass.pushDebugGroup("Render Pass");
-			for (auto [meshId, mesh] : MeshManager::getInstance().getAll())
+			auto pipeline = pass.getPipeline()->getRenderPipeline();
+			renderPass.setPipeline(pipeline);
+			renderPass.setBindGroup(0, pass.getShader()->getBindGroup(), 0, nullptr);
+			for(auto& node : m_scene)
 			{
-				renderPass.setPipeline(pass.getPipeline()->getRenderPipeline());
-				renderPass.setBindGroup(0, pass.getShader()->getBindGroup(), 0, nullptr);
-				renderPass.setVertexBuffer(0, mesh->getVertexBuffer()->getBuffer(), 0, mesh->getVertexBuffer()->getSize());
-				if (mesh->getIndexBuffer() != nullptr)
+				Mesh* mesh = MeshManager::getInstance().get(node.meshId);
+				if (mesh)
 				{
-					renderPass.setIndexBuffer(mesh->getIndexBuffer()->getBuffer(), IndexFormat::Uint16, 0, mesh->getIndexBuffer()->getSize());
-					renderPass.drawIndexed(mesh->getIndexBuffer()->getCount(), 1, 0, 0, 0);
+					renderPass.setBindGroup(1, node.getBindGroup(pipeline.getBindGroupLayout(1)), 0, nullptr);
+					renderPass.setVertexBuffer(0, mesh->getVertexBuffer()->getBuffer(), 0, mesh->getVertexBuffer()->getSize());
+					if (mesh->getIndexBuffer() != nullptr)
+					{
+						renderPass.setIndexBuffer(mesh->getIndexBuffer()->getBuffer(), IndexFormat::Uint16, 0, mesh->getIndexBuffer()->getSize());
+						renderPass.drawIndexed(mesh->getIndexBuffer()->getCount(), 1, 0, 0, 0);
+					}
+					else
+						renderPass.draw(mesh->getVertexCount(), 1, 0, 0);
 				}
-				else
-					renderPass.draw(mesh->getVertexCount(), 1, 0, 0);
 			}
 
 			// Build UI
@@ -80,8 +88,32 @@ public:
 		m_passes.push_back(pass);
 	}
 
+	void setScene(std::vector<Issam::Node>& scene) {
+		std::vector<Issam::Node> flatNodes;
+		for (const auto& rootNode : scene) {
+			flattenNodes(rootNode, glm::mat4(1.0f), flatNodes);
+		}
+		for (auto node : flatNodes)
+		{
+			node.updateModelUniform();
+		}
+		m_scene = flatNodes;
+	}
+
 
 private:
+	void flattenNodes(const Issam::Node& node, glm::mat4 parentTransform, std::vector<Issam::Node>& flatNodes) {
+		glm::mat4 globalTransform = parentTransform * node.transform;
+		Issam::Node flatNode = node;
+		flatNode.transform = globalTransform;
+		flatNode.children.clear();
+		flatNodes.push_back(flatNode);
+
+		for (const auto& child : node.children) {
+			flattenNodes(child, globalTransform, flatNodes);
+		}
+	}
 	Queue m_queue{ nullptr };
 	std::vector<Pass> m_passes;
+	std::vector<Issam::Node> m_scene;
 };

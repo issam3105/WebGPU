@@ -107,8 +107,8 @@ public:
 		// Pipeline layout
 		// Create the pipeline layout
 		PipelineLayoutDescriptor layoutDesc{};
-		layoutDesc.bindGroupLayoutCount = 1;
-		layoutDesc.bindGroupLayouts = (WGPUBindGroupLayout*)&shader->getBindGroupLayout();
+		layoutDesc.bindGroupLayoutCount = shader->getBindGroupLayout().size();
+		layoutDesc.bindGroupLayouts = (WGPUBindGroupLayout*)shader->getBindGroupLayout().data();
 		PipelineLayout layout = Context::getInstance().getDevice().createPipelineLayout(layoutDesc);
 		pipelineDesc.layout = layout;
 

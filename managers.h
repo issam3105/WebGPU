@@ -68,6 +68,10 @@ public:
 	TextureView getTextureView(const std::string& id) {
 		return  *m_textures[id].get(); 
 	}
+	void clear()
+	{
+		m_textures.clear();
+	}
 	std::unordered_map<std::string, std::shared_ptr<TextureView>>& getAll() { return m_textures; }
 private:
 	std::unordered_map<std::string, std::shared_ptr<TextureView>> m_textures{};

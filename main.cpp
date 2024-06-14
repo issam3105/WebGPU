@@ -57,6 +57,8 @@
 #include "utils.h"
 #include "renderer.h"
 
+#include <glm/gtc/matrix_transform.hpp>
+
 using namespace wgpu;
 namespace fs = std::filesystem;
 
@@ -128,6 +130,13 @@ std::vector<std::string> GetFiles(const std::string& directoryPath, std::string 
 	return gltfFiles;
 }
 
+glm::mat4 computeRotationMatrix(const glm::vec3& rotation) {
+	glm::mat4 rx = glm::rotate(glm::mat4(1.0f), rotation.x, glm::vec3(1.0f, 0.0f, 0.0f));
+	glm::mat4 ry = glm::rotate(glm::mat4(1.0f), rotation.y, glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::mat4 rz = glm::rotate(glm::mat4(1.0f), rotation.z, glm::vec3(0.0f, 0.0f, 1.0f));
+	return rz * ry * rx;
+}
+
 
 int main(int, char**) {
 	if (!glfwInit()) {
@@ -163,7 +172,6 @@ int main(int, char**) {
 	TextureManager().getInstance().add("whiteTex", whiteTextureView);
 
 	// Create a sampler
-
 	Sampler defaultSampler = Utils::createDefaultSampler();
     
 	std::string userCode = Utils::loadFile(DATA_DIR  "/sahder_1.wgsl");
@@ -182,7 +190,7 @@ int main(int, char**) {
 	shader_1->addUniform("time", 0.0f); 
     shader_1->addUniform("projection", glm::mat4x4(1.0f));
     shader_1->addUniform("view", glm::mat4x4(1.0f));
-	shader_1->addUniform("model", glm::mat4x4(1.0f));
+//	shader_1->addUniform("model", glm::mat4x4(1.0f));
 
 	shader_1->addTexture("baseColorTexture", whiteTextureView);
 	shader_1->addSampler("defaultSampler", defaultSampler);
@@ -199,11 +207,11 @@ int main(int, char**) {
 	float ratio = 640.0f / 480.0f;
 	float focalLength = 2.0;
 	float nearPlane = 0.01f;
-	float farPlane = 100.0f;
+	float farPlane = 300.0f;
 	float fov = 2 * glm::atan(1 / focalLength);
 	mat4x4 proj = glm::perspective(fov, ratio, nearPlane, farPlane);
 	shader_1->setUniform("projection", proj);
-	shader_1->setUniform("model", glm::mat4(1.0f));
+	//shader_1->setUniform("model", glm::mat4(1.0f));
 
 	glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos) {
 		if (m_drag.active) {
@@ -243,7 +251,7 @@ int main(int, char**) {
 
 	glfwSetScrollCallback(window, [](GLFWwindow* window, double xoffset, double yoffset) {
 		m_cameraState.zoom += m_drag.scrollSensitivity * static_cast<float>(yoffset);
-		m_cameraState.zoom = glm::clamp(m_cameraState.zoom, -2.0f, 2.0f);
+		m_cameraState.zoom = glm::clamp(m_cameraState.zoom, -20.0f, 20.0f);
 	});
 
 	glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -291,8 +299,9 @@ int main(int, char**) {
 						if (selectedGLTFIndex != -1)
 							MeshManager::getInstance().clear();//MeshManager::getInstance().remove(gltfFiles[selectedGLTFIndex]);
 						selectedGLTFIndex = i;
-						Mesh* myMesh = Utils::LoadGLTF(gltfFiles[i]);
-						
+						std::vector<Issam::Node> scene = Utils::LoadGLTF(gltfFiles[i]);
+						renderer.setScene(scene);
+
 					}
 					if (isSelected) {
 						ImGui::SetItemDefaultFocus();
@@ -325,7 +334,18 @@ int main(int, char**) {
 					}
 					ImGui::EndCombo();
 				}
-		    }
+			}
+			/*static float translation[3] = { 0.0, 0.0, 0.0 };
+			static float rotation[3] = { 0.0, 0.0, 0.0 };
+			static float scale[3] = { 1.0, 1.0, 1.0 };
+			ImGui::InputFloat3("Translation", translation);
+			ImGui::InputFloat3("Rotation", rotation);
+			ImGui::InputFloat3("Scale", scale);
+			glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), glm::make_vec3(translation));
+			glm::mat4 rotationMatrix = computeRotationMatrix(glm::make_vec3(rotation));
+			glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), glm::make_vec3(scale));
+			glm::mat4 transformation = translationMatrix * rotationMatrix * scaleMatrix;
+			shader->setUniform("model", transformation);*/
 
 			ImGuiIO& io = ImGui::GetIO();
 			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);

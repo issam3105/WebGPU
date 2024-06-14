@@ -9,6 +9,7 @@
 #include <webgpu/webgpu.hpp>
 
 #include "context.h"
+#include "node.h"
 
 #include "tiny_gltf.h"
 
@@ -271,194 +272,87 @@ namespace Utils
 		return Context::getInstance().getDevice().createSampler(samplerDesc);
 	}
 
-	/*wgpu::TextureView LoadTexture(const tinygltf::Image& image) {
-		wgpu::TextureDescriptor textureDesc = {};
-		textureDesc.usage = wgpu::TextureUsage::TextureBinding | wgpu::TextureUsage::CopyDst;
-		textureDesc.size.width = image.width;
-		textureDesc.size.height = image.height;
-		textureDesc.size.depthOrArrayLayers = 1;
-		textureDesc.format = wgpu::TextureFormat::RGBA8Unorm;
-		textureDesc.mipLevelCount = 1;
-		textureDesc.sampleCount = 1;
-		textureDesc.dimension = wgpu::TextureDimension::_2D;
 
-		wgpu::Texture texture = Context::getInstance().getDevice().createTexture(textureDesc);
+	void loadMesh(const tinygltf::Model& model, const tinygltf::Mesh& mesh, Issam::Node& node)
+	{
+		for (const auto& primitive : mesh.primitives) {
+			std::vector<Vertex> vertices;
+			std::vector<uint16_t> indices;
+			// Process vertex attributes
+			const tinygltf::Accessor& posAccessor = model.accessors[primitive.attributes.find("POSITION")->second];
+			//if (posAccessor.bufferView == -1) return nullptr;
+			const tinygltf::BufferView& posBufferView = model.bufferViews[posAccessor.bufferView];
+			const tinygltf::Buffer& posBuffer = model.buffers[posBufferView.buffer];
 
-		TextureViewDescriptor textureViewDesc;
-		textureViewDesc.aspect = TextureAspect::All;
-		textureViewDesc.baseArrayLayer = 0;
-		textureViewDesc.arrayLayerCount = 1;
-		textureViewDesc.baseMipLevel = 0;
-		textureViewDesc.mipLevelCount = textureDesc.mipLevelCount;
-		textureViewDesc.dimension = TextureViewDimension::_2D;
-		textureViewDesc.format = textureDesc.format;
-		TextureView textureView = texture.createView(textureViewDesc);
+			const tinygltf::Accessor* normAccessor = nullptr;
+			const tinygltf::BufferView* normBufferView = nullptr;
+			const tinygltf::Buffer* normBuffer = nullptr;
 
-		wgpu::BufferDescriptor bufferDesc = {};
-		bufferDesc.usage = wgpu::BufferUsage::CopySrc;
-		bufferDesc.size = image.image.size();
-		bufferDesc.mappedAtCreation = true;
+			const tinygltf::Accessor* uvAccessor = nullptr;
+			const tinygltf::BufferView* uvBufferView = nullptr;
+			const tinygltf::Buffer* uvBuffer = nullptr;
 
-		wgpu::Buffer stagingBuffer = Context::getInstance().getDevice().createBuffer(bufferDesc);
-		void* data = stagingBuffer.getMappedRange(0, image.image.size());
-		memcpy(data, image.image.data(), image.image.size());
-		stagingBuffer.unmap();
+			const tinygltf::Accessor* tangentAccessor = nullptr;
+			const tinygltf::BufferView* tangentBufferView = nullptr;
+			const tinygltf::Buffer* tangentBuffer = nullptr;
 
-		CommandEncoderDescriptor commandEncoderDesc;
-		CommandEncoder encoder = Context::getInstance().getDevice().createCommandEncoder(commandEncoderDesc);
+			if (primitive.attributes.find("NORMAL") != primitive.attributes.end()) {
+				normAccessor = &model.accessors[primitive.attributes.find("NORMAL")->second];
+				normBufferView = &model.bufferViews[normAccessor->bufferView];
+				normBuffer = &model.buffers[normBufferView->buffer];
+			}
 
-		wgpu::ImageCopyBuffer imageCopyBuffer = {};
-		imageCopyBuffer.buffer = stagingBuffer;
-		imageCopyBuffer.layout.bytesPerRow = image.width * 4;
-		imageCopyBuffer.layout.rowsPerImage = image.height;
+			if (primitive.attributes.find("TEXCOORD_0") != primitive.attributes.end()) {
+				uvAccessor = &model.accessors[primitive.attributes.find("TEXCOORD_0")->second];
+				uvBufferView = &model.bufferViews[uvAccessor->bufferView];
+				uvBuffer = &model.buffers[uvBufferView->buffer];
+			}
 
-		wgpu::ImageCopyTexture imageCopyTexture = {};
-		imageCopyTexture.texture = texture;
+			if (primitive.attributes.find("TANGENT") != primitive.attributes.end()) {
+				tangentAccessor = &model.accessors[primitive.attributes.find("TANGENT")->second];
+				tangentBufferView = &model.bufferViews[tangentAccessor->bufferView];
+				tangentBuffer = &model.buffers[tangentBufferView->buffer];
+			}
 
-		wgpu::Extent3D extent = {};
-		extent.width = image.width;
-		extent.height = image.height;
-		extent.depthOrArrayLayers = 1;
+			for (size_t i = 0; i < posAccessor.count; ++i) {
+				Vertex vertex = {};
 
-		encoder.copyBufferToTexture(imageCopyBuffer, imageCopyTexture, extent);
+				size_t posIndex = i * posAccessor.ByteStride(posBufferView) + posAccessor.byteOffset + posBufferView.byteOffset;
+				vertex.position = glm::vec3(
+					*reinterpret_cast<const float*>(&posBuffer.data[posIndex + 0 * sizeof(float)]),
+					*reinterpret_cast<const float*>(&posBuffer.data[posIndex + 1 * sizeof(float)]),
+					*reinterpret_cast<const float*>(&posBuffer.data[posIndex + 2 * sizeof(float)]));
 
-		CommandBufferDescriptor cmdBufferDescriptor;
-		wgpu::CommandBuffer commandBuffer = encoder.finish(cmdBufferDescriptor);
-		Context::getInstance().getDevice().getQueue().submit(1, &commandBuffer);
-
-		return textureView;
-	}*/
-
-	struct Material {
-		glm::vec4 baseColorFactor;
-		std::string baseColorTexture;
-		// Add other material properties as needed
-	};
-
-	Mesh* LoadGLTF(const std::string& filepath) {
-		std::vector<Vertex> vertices;
-		std::vector<uint16_t> indices;
-		std::unordered_map<int, Material> materials;
-
-		tinygltf::Model model;
-		tinygltf::TinyGLTF loader;
-		std::string err;
-		std::string warn;
-
-		bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, filepath);
-		if (!warn.empty()) {
-			std::cout << "WARN: " << warn << std::endl;
-		}
-
-		if (!err.empty()) {
-			std::cerr << "ERR: " << err << std::endl;
-		}
-
-		if (!ret) {
-			return false;
-		}
-
-		// Load materials
-		//for (size_t i = 0; i < model.materials.size(); ++i) {
-		//	const tinygltf::Material& gltfMaterial = model.materials[i];
-		//	Material material = {};
-
-		//	if (gltfMaterial.values.find("baseColorFactor") != gltfMaterial.values.end()) {
-		//		const auto& colorFactor = gltfMaterial.values.at("baseColorFactor").ColorFactor();
-		//		material.baseColorFactor = glm::vec4(colorFactor[0], colorFactor[1], colorFactor[2], colorFactor[3]);
-		//	}
-		//	else {
-		//		material.baseColorFactor = glm::vec4(1.0f); // Default to white if not specified
-		//	}
-
-		//	if (gltfMaterial.values.find("baseColorTexture") != gltfMaterial.values.end()) {
-		//		int textureIndex = gltfMaterial.values.at("baseColorTexture").TextureIndex();
-		//		const tinygltf::Texture& texture = model.textures[textureIndex];
-		//		const tinygltf::Image& image = model.images[texture.source];
-		//		// Load the image data into a texture view (you need to implement this part)
-		//		TextureManager().getInstance().add("baseColorTexture", &LoadTexture(image));
-		//		material.baseColorTexture = "baseColorTexture";
-		//	}
-
-		//	materials[i] = material;
-		//}
-
-		for (auto& mesh : model.meshes)
-		{
-			//const tinygltf::Mesh& mesh = model.meshes[0];
-			for (const auto& primitive : mesh.primitives) {
-				// Process vertex attributes
-				const tinygltf::Accessor& posAccessor = model.accessors[primitive.attributes.find("POSITION")->second];
-				if (posAccessor.bufferView == -1) return nullptr;
-				const tinygltf::BufferView& posBufferView = model.bufferViews[posAccessor.bufferView];
-				const tinygltf::Buffer& posBuffer = model.buffers[posBufferView.buffer];
-
-				const tinygltf::Accessor* normAccessor = nullptr;
-				const tinygltf::BufferView* normBufferView = nullptr;
-				const tinygltf::Buffer* normBuffer = nullptr;
-
-				const tinygltf::Accessor* uvAccessor = nullptr;
-				const tinygltf::BufferView* uvBufferView = nullptr;
-				const tinygltf::Buffer* uvBuffer = nullptr;
-
-				const tinygltf::Accessor* tangentAccessor = nullptr;
-				const tinygltf::BufferView* tangentBufferView = nullptr;
-				const tinygltf::Buffer* tangentBuffer = nullptr;
-
-				if (primitive.attributes.find("NORMAL") != primitive.attributes.end()) {
-					normAccessor = &model.accessors[primitive.attributes.find("NORMAL")->second];
-					normBufferView = &model.bufferViews[normAccessor->bufferView];
-					normBuffer = &model.buffers[normBufferView->buffer];
+				if (normAccessor) {
+					size_t normIndex = i * normAccessor->ByteStride(*normBufferView) + normAccessor->byteOffset + normBufferView->byteOffset;
+					vertex.normal = glm::vec3(
+						*reinterpret_cast<const float*>(&normBuffer->data[normIndex + 0 * sizeof(float)]),
+						*reinterpret_cast<const float*>(&normBuffer->data[normIndex + 1 * sizeof(float)]),
+						*reinterpret_cast<const float*>(&normBuffer->data[normIndex + 2 * sizeof(float)]));
 				}
 
-				if (primitive.attributes.find("TEXCOORD_0") != primitive.attributes.end()) {
-					uvAccessor = &model.accessors[primitive.attributes.find("TEXCOORD_0")->second];
-					uvBufferView = &model.bufferViews[uvAccessor->bufferView];
-					uvBuffer = &model.buffers[uvBufferView->buffer];
+				if (uvAccessor) {
+					size_t uvIndex = i * uvAccessor->ByteStride(*uvBufferView) + uvAccessor->byteOffset + uvBufferView->byteOffset;
+					vertex.uv = glm::vec2(
+						*reinterpret_cast<const float*>(&uvBuffer->data[uvIndex + 0 * sizeof(float)]),
+						*reinterpret_cast<const float*>(&uvBuffer->data[uvIndex + 1 * sizeof(float)]));
 				}
 
-				if (primitive.attributes.find("TANGENT") != primitive.attributes.end()) {
-					tangentAccessor = &model.accessors[primitive.attributes.find("TANGENT")->second];
-					tangentBufferView = &model.bufferViews[tangentAccessor->bufferView];
-					tangentBuffer = &model.buffers[tangentBufferView->buffer];
+				if (tangentAccessor) {
+					size_t tangentIndex = i * tangentAccessor->ByteStride(*tangentBufferView) + tangentAccessor->byteOffset + tangentBufferView->byteOffset;
+					vertex.tangent = glm::vec3(
+						*reinterpret_cast<const float*>(&tangentBuffer->data[tangentIndex + 0 * sizeof(float)]),
+						*reinterpret_cast<const float*>(&tangentBuffer->data[tangentIndex + 1 * sizeof(float)]),
+						*reinterpret_cast<const float*>(&tangentBuffer->data[tangentIndex + 2 * sizeof(float)]));
 				}
 
-				for (size_t i = 0; i < posAccessor.count; ++i) {
-					Vertex vertex = {};
+				vertices.push_back(vertex);
+			}
+			Mesh* myMesh = new Mesh();
+			myMesh->setVertices(vertices);
 
-					size_t posIndex = i * posAccessor.ByteStride(posBufferView) + posAccessor.byteOffset + posBufferView.byteOffset;
-					vertex.position = glm::vec3(
-						*reinterpret_cast<const float*>(&posBuffer.data[posIndex + 0 * sizeof(float)]),
-						*reinterpret_cast<const float*>(&posBuffer.data[posIndex + 1 * sizeof(float)]),
-						*reinterpret_cast<const float*>(&posBuffer.data[posIndex + 2 * sizeof(float)]));
-
-					if (normAccessor) {
-						size_t normIndex = i * normAccessor->ByteStride(*normBufferView) + normAccessor->byteOffset + normBufferView->byteOffset;
-						vertex.normal = glm::vec3(
-							*reinterpret_cast<const float*>(&normBuffer->data[normIndex + 0 * sizeof(float)]),
-							*reinterpret_cast<const float*>(&normBuffer->data[normIndex + 1 * sizeof(float)]),
-							*reinterpret_cast<const float*>(&normBuffer->data[normIndex + 2 * sizeof(float)]));
-					}
-
-					if (uvAccessor) {
-						size_t uvIndex = i * uvAccessor->ByteStride(*uvBufferView) + uvAccessor->byteOffset + uvBufferView->byteOffset;
-						vertex.uv = glm::vec2(
-							*reinterpret_cast<const float*>(&uvBuffer->data[uvIndex + 0 * sizeof(float)]),
-							*reinterpret_cast<const float*>(&uvBuffer->data[uvIndex + 1 * sizeof(float)]));
-					}
-
-					if (tangentAccessor) {
-						size_t tangentIndex = i * tangentAccessor->ByteStride(*tangentBufferView) + tangentAccessor->byteOffset + tangentBufferView->byteOffset;
-						vertex.tangent = glm::vec3(
-							*reinterpret_cast<const float*>(&tangentBuffer->data[tangentIndex + 0 * sizeof(float)]),
-							*reinterpret_cast<const float*>(&tangentBuffer->data[tangentIndex + 1 * sizeof(float)]),
-							*reinterpret_cast<const float*>(&tangentBuffer->data[tangentIndex + 2 * sizeof(float)]));
-					}
-
-					vertices.push_back(vertex);
-				}
-
-
+			if (primitive.indices != -1)
+			{
 				// Process indices
 				const tinygltf::Accessor& indexAccessor = model.accessors[primitive.indices];
 				const tinygltf::BufferView& indexBufferView = model.bufferViews[indexAccessor.bufferView];
@@ -475,6 +369,7 @@ namespace Utils
 						indexValue = *reinterpret_cast<const uint16_t*>(&indexBuffer.data[index]);
 						break;
 					case TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT:
+						assert(false); //NOT SUPPORTED
 						indexValue = *reinterpret_cast<const uint32_t*>(&indexBuffer.data[index]);
 						break;
 					default:
@@ -482,14 +377,96 @@ namespace Utils
 					}
 					indices.push_back(indexValue);
 				}
+				myMesh->setIndices(indices);
 			}
 
-			Mesh* myMesh = new Mesh();
-			myMesh->setVertices(vertices);
-			myMesh->setIndices(indices);
 			static int meshId = 0;
-			MeshManager::getInstance().add(filepath + std::to_string(meshId++), myMesh);
+			node.meshId = "mesh_" + std::to_string(meshId++);
+			MeshManager::getInstance().add(node.meshId, myMesh);
+			
 		}
-		return nullptr;
+	}
+
+	void loadNode(const tinygltf::Model& model, const tinygltf::Node& gltfNode, Issam::Node& node) {
+		node.name = gltfNode.name;
+		/*node.transform = glm::mat4(1.0f);
+		if (!gltfNode.translation.empty()) {
+			node.transform = glm::translate(node.transform, glm::vec3(gltfNode.translation[0], gltfNode.translation[1], gltfNode.translation[2]));
+		}
+		if (!gltfNode.rotation.empty()) {
+			glm::quat quatRotation = glm::quat(gltfNode.rotation[3], gltfNode.rotation[0], gltfNode.rotation[1], gltfNode.rotation[2]);
+			node.transform *= glm::mat4_cast(quatRotation);
+		}
+		if (!gltfNode.scale.empty()) {
+			node.transform = glm::scale(node.transform, glm::vec3(gltfNode.scale[0], gltfNode.scale[1], gltfNode.scale[2]));
+		}*/
+		
+
+		const glm::vec3 T =
+			gltfNode.translation.empty()
+			? glm::vec3(0.0)
+			: glm::make_vec3(gltfNode.translation.data());
+
+		const glm::quat R =
+			gltfNode.rotation.empty()
+			? glm::quat()
+			: glm::make_quat(gltfNode.rotation.data());
+
+		const glm::vec3 S =
+			gltfNode.scale.empty()
+			? glm::vec3(1.0)
+			: glm::make_vec3(gltfNode.scale.data());
+
+		node.transform = glm::translate(glm::mat4(1.0), T) * glm::mat4_cast(R) * glm::scale(glm::mat4(1.0), S);
+		
+		if (!gltfNode.matrix.empty()) {
+			/*glm::mat4 mat;
+			for (int i = 0; i < 16; ++i) {
+				mat[i / 4][i % 4] = static_cast<float>(gltfNode.matrix[i]);
+			}*/
+			node.transform = glm::make_mat4(gltfNode.matrix.data());;
+		}
+
+		if (gltfNode.mesh >= 0) {
+			loadMesh(model, model.meshes[gltfNode.mesh], node);
+		}
+
+		for (int childIndex : gltfNode.children) {
+			Issam::Node childNode;
+			loadNode(model, model.nodes[childIndex], childNode);
+			node.children.push_back(childNode);
+		}
+	}
+
+
+
+	std::vector<Issam::Node> LoadGLTF(const std::string& filepath) {
+		std::vector<Issam::Node> scene;
+		tinygltf::Model model;
+		tinygltf::TinyGLTF loader;
+		std::string err;
+		std::string warn;
+
+		bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, filepath);
+		if (!warn.empty()) {
+			std::cout << "WARN: " << warn << std::endl;
+		}
+
+		if (!err.empty()) {
+			std::cerr << "ERR: " << err << std::endl;
+		}
+
+		if (!ret) {
+			return scene;
+		}
+
+		
+		for (const auto& sceneNodeIndex : model.scenes[model.defaultScene].nodes) {
+			Issam::Node rootNode;
+			loadNode(model, model.nodes[sceneNodeIndex], rootNode);
+			scene.push_back(rootNode);
+		}
+
+		return scene;
 	}
 }
