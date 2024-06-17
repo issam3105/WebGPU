@@ -11,6 +11,7 @@ namespace Issam {
 	struct NodeProperties {
 		glm::mat4 transform{ glm::mat4(1) };
 	};
+
 	class Node {
 	public:
 		Node() {
@@ -24,7 +25,6 @@ namespace Issam {
 
 		};
 
-		void updateUniformBuffer() { Context::getInstance().getDevice().getQueue().writeBuffer(nodeUniformBuffer, 0, &nodeProperties, sizeof(NodeProperties)); }
 
 		BindGroup getBindGroup(BindGroupLayout bindGroupLayout) {
 			if (!dirtyBindGroup)
@@ -45,10 +45,21 @@ namespace Issam {
 			return bindGroup;
 		}
 
+		void setTransform(glm::mat4 in_transform) { 
+			nodeProperties.transform = in_transform;
+			updateUniformBuffer();
+		}
+		glm::mat4& getTransform() {
+			return nodeProperties.transform;
+		}
 		std::string name;
-		NodeProperties nodeProperties;
 		std::vector<Node> children;
 		std::string meshId;
+
+	private:
+		void updateUniformBuffer() { Context::getInstance().getDevice().getQueue().writeBuffer(nodeUniformBuffer, 0, &nodeProperties, sizeof(NodeProperties)); }
+
+		NodeProperties nodeProperties;
 		Buffer nodeUniformBuffer{ nullptr };
 		BindGroup bindGroup{ nullptr };
 		bool dirtyBindGroup = true;
@@ -105,5 +116,41 @@ namespace Issam {
 		Buffer cameraUniformBuffer{ nullptr };
 		BindGroup bindGroup{ nullptr };
 		bool dirtyBindGroup = true;
+	};
+
+	class Scene {
+	public:
+		
+
+		void setNodes(std::vector<Issam::Node> nodes) {
+			std::vector<Issam::Node> flatNodes;
+			for (auto& rootNode : nodes) {
+				flattenNodes(rootNode, glm::mat4(1.0f), flatNodes);
+			}
+			m_nodes = flatNodes;
+		}
+
+		void setCamera(Camera* in_camera)
+		{
+			m_camera = in_camera;
+		}
+
+		Issam::Camera* getCamera() { return m_camera; }
+		std::vector<Issam::Node>& getNodes() { return m_nodes; }
+	private:
+		void flattenNodes(Issam::Node& node, glm::mat4 parentTransform, std::vector<Issam::Node>& flatNodes) {
+			glm::mat4 globalTransform = parentTransform * node.getTransform();
+			Issam::Node flatNode = node;
+			flatNode.setTransform(globalTransform);
+			flatNode.children.clear();
+			flatNodes.push_back(flatNode);
+
+			for (auto& child : node.children) {
+				flattenNodes(child, globalTransform, flatNodes);
+			}
+		}
+
+		std::vector<Issam::Node> m_nodes;
+		Issam::Camera* m_camera;
 	};
 }

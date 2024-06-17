@@ -43,9 +43,9 @@ public:
 			renderPass.pushDebugGroup("Render Pass");
 			auto pipeline = pass.getPipeline()->getRenderPipeline();
 			renderPass.setPipeline(pipeline);
-			renderPass.setBindGroup(2, m_camera->getBindGroup(pipeline.getBindGroupLayout(2)), 0, nullptr); //Camera
+			renderPass.setBindGroup(2, m_scene->getCamera()->getBindGroup(pipeline.getBindGroupLayout(2)), 0, nullptr); //Camera
 			renderPass.setBindGroup(0, pass.getShader()->getBindGroup(), 0, nullptr); //Global uniforms: light ...
-			for(auto& node : m_scene)
+			for(auto& node : m_scene->getNodes())
 			{
 				Mesh* mesh = MeshManager::getInstance().get(node.meshId);
 				if (mesh)
@@ -89,34 +89,12 @@ public:
 		m_passes.push_back(pass);
 	}
 
-	void setScene(std::vector<Issam::Node>& scene) {
-		std::vector<Issam::Node> flatNodes;
-		for (const auto& rootNode : scene) {
-			flattenNodes(rootNode, glm::mat4(1.0f), flatNodes);
-		}
-		for (auto node : flatNodes)
-		{
-			node.updateUniformBuffer();
-		}
-		m_scene = flatNodes;
-	}
-
-	void setCamera(Issam::Camera* camera) { m_camera = camera; }
-	Issam::Camera* getCamera() { return m_camera; }
+	void setScene(Issam::Scene* scene) { m_scene = scene; }
+	//void setCamera(Issam::Camera* camera) { m_scene->camera = camera; }
+	//Issam::Camera* getCamera() { return m_scene->camera; }
 private:
-	void flattenNodes(const Issam::Node& node, glm::mat4 parentTransform, std::vector<Issam::Node>& flatNodes) {
-		glm::mat4 globalTransform = parentTransform * node.nodeProperties.transform;
-		Issam::Node flatNode = node;
-		flatNode.nodeProperties.transform = globalTransform;
-		flatNode.children.clear();
-		flatNodes.push_back(flatNode);
-
-		for (const auto& child : node.children) {
-			flattenNodes(child, globalTransform, flatNodes);
-		}
-	}
+	
 	Queue m_queue{ nullptr };
 	std::vector<Pass> m_passes;
-	std::vector<Issam::Node> m_scene;
-	Issam::Camera* m_camera;
+	Issam::Scene* m_scene;
 };

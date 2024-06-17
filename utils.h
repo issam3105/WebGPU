@@ -417,14 +417,14 @@ namespace Utils
 			? glm::vec3(1.0)
 			: glm::make_vec3(gltfNode.scale.data());
 
-		node.nodeProperties.transform = glm::translate(glm::mat4(1.0), T) * glm::mat4_cast(R) * glm::scale(glm::mat4(1.0), S);
+		node.setTransform(glm::translate(glm::mat4(1.0), T) * glm::mat4_cast(R) * glm::scale(glm::mat4(1.0), S));
 		
 		if (!gltfNode.matrix.empty()) {
 			/*glm::mat4 mat;
 			for (int i = 0; i < 16; ++i) {
 				mat[i / 4][i % 4] = static_cast<float>(gltfNode.matrix[i]);
 			}*/
-			node.nodeProperties.transform = glm::make_mat4(gltfNode.matrix.data());;
+			node.setTransform(glm::make_mat4(gltfNode.matrix.data()));
 		}
 
 		if (gltfNode.mesh >= 0) {

@@ -278,7 +278,10 @@ int main(int, char**) {
 
 	Renderer renderer;
 	renderer.addPass(pass1);
-	renderer.setCamera(camera);
+	//renderer.setCamera(camera);
+	Issam::Scene* scene = new Issam::Scene();
+	scene->setCamera(camera);
+	renderer.setScene(scene);
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -301,8 +304,8 @@ int main(int, char**) {
 						if (selectedGLTFIndex != -1)
 							MeshManager::getInstance().clear();//MeshManager::getInstance().remove(gltfFiles[selectedGLTFIndex]);
 						selectedGLTFIndex = i;
-						std::vector<Issam::Node> scene = Utils::LoadGLTF(gltfFiles[i]);
-						renderer.setScene(scene);
+						std::vector<Issam::Node> nodes = Utils::LoadGLTF(gltfFiles[i]);
+						scene->setNodes(nodes);
 
 					}
 					if (isSelected) {
