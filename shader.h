@@ -10,6 +10,7 @@
 #include <glm/ext.hpp>
 
 #include "context.h"
+#include "node.h"
 
 using namespace wgpu;
 using namespace glm;
@@ -162,6 +163,7 @@ public:
 			m_bindGroupLayouts.push_back(Context::getInstance().getDevice().createBindGroupLayout(bindGroupLayoutDesc));
 		}
 
+		//Model matrix Uniform
 		{
 			std::vector<BindGroupLayoutEntry> bindingLayoutEntries{};
 
@@ -171,7 +173,27 @@ public:
 			// The stage that needs to access this resource
 			uniformsBindingLayout.visibility = ShaderStage::Vertex;
 			uniformsBindingLayout.buffer.type = BufferBindingType::Uniform;
-			uniformsBindingLayout.buffer.minBindingSize = sizeof(glm::mat4);
+			uniformsBindingLayout.buffer.minBindingSize = sizeof(Issam::NodeProperties);
+			bindingLayoutEntries.push_back(uniformsBindingLayout);
+
+			// Create a bind group layout
+			BindGroupLayoutDescriptor bindGroupLayoutDesc{};
+			bindGroupLayoutDesc.entryCount = (uint32_t)bindingLayoutEntries.size();;
+			bindGroupLayoutDesc.entries = bindingLayoutEntries.data();
+			m_bindGroupLayouts.push_back(Context::getInstance().getDevice().createBindGroupLayout(bindGroupLayoutDesc));
+		}
+
+		//Camera Uniforms
+		{
+			std::vector<BindGroupLayoutEntry> bindingLayoutEntries{};
+
+			BindGroupLayoutEntry uniformsBindingLayout = Default;
+			// The binding index as used in the @binding attribute in the shader
+			uniformsBindingLayout.binding = 0;
+			// The stage that needs to access this resource
+			uniformsBindingLayout.visibility = ShaderStage::Vertex;
+			uniformsBindingLayout.buffer.type = BufferBindingType::Uniform;
+			uniformsBindingLayout.buffer.minBindingSize = sizeof(Issam::CameraProperties);
 			bindingLayoutEntries.push_back(uniformsBindingLayout);
 
 			// Create a bind group layout
@@ -234,6 +256,14 @@ public:
 		}
 
 		vertexUniformsStr += "@group(1) @binding(0) var<uniform> u_model: mat4x4f;\n";
+
+
+		std::string cameraStructStr = "struct Camera { \n";
+		cameraStructStr += "    view: mat4x4f, \n";
+		cameraStructStr += "    projection: mat4x4f, \n";
+		cameraStructStr += "}; \n \n";
+		vertexUniformsStr += cameraStructStr;
+		vertexUniformsStr += "@group(2) @binding(0) var<uniform> u_camera: Camera;\n";
 
 		m_shaderSource = vertexInputOutputStr + vertexUniformsStr + m_shaderSource;
 

@@ -107,14 +107,14 @@ struct DragState {
 DragState m_drag;
 CameraState m_cameraState;
 
-void updateViewMatrix(Shader* shader) {
+void updateViewMatrix(Issam::Camera* camera) {
 	float cx = cos(m_cameraState.angles.x);
 	float sx = sin(m_cameraState.angles.x);
 	float cy = cos(m_cameraState.angles.y);
 	float sy = sin(m_cameraState.angles.y);
 	vec3 position = vec3(cx * cy, sx * cy, sy) * std::exp(-m_cameraState.zoom);
 	mat4x4 viewMatrix = glm::lookAt(position, vec3(0.0f), vec3(0, 0, 1));
-	shader->setUniform("view", viewMatrix);
+	camera->setView(viewMatrix);
 
 }
 
@@ -136,6 +136,8 @@ glm::mat4 computeRotationMatrix(const glm::vec3& rotation) {
 	glm::mat4 rz = glm::rotate(glm::mat4(1.0f), rotation.z, glm::vec3(0.0f, 0.0f, 1.0f));
 	return rz * ry * rx;
 }
+
+
 
 
 int main(int, char**) {
@@ -188,30 +190,13 @@ int main(int, char**) {
 
 	shader_1->addUniform("baseColorFactor", glm::vec4(1.0f));
 	shader_1->addUniform("time", 0.0f); 
-    shader_1->addUniform("projection", glm::mat4x4(1.0f));
-    shader_1->addUniform("view", glm::mat4x4(1.0f));
-//	shader_1->addUniform("model", glm::mat4x4(1.0f));
 
 	shader_1->addTexture("baseColorTexture", whiteTextureView);
 	shader_1->addSampler("defaultSampler", defaultSampler);
 
 	ShaderManager::getInstance().add("shader1", shader_1);
 	
-	vec3 focalPoint(0.0, 0.0, -2.0);
-	float angle2 = 3.0f * PI / 4.0f;
-	mat4x4 V(1.0);
-	V = glm::translate(V, -focalPoint);
-	V = glm::rotate(V, -angle2, vec3(1.0, 0.0, 0.0));
-	shader_1->setUniform("view", V);
-
-	float ratio = 640.0f / 480.0f;
-	float focalLength = 2.0;
-	float nearPlane = 0.01f;
-	float farPlane = 300.0f;
-	float fov = 2 * glm::atan(1 / focalLength);
-	mat4x4 proj = glm::perspective(fov, ratio, nearPlane, farPlane);
-	shader_1->setUniform("projection", proj);
-	//shader_1->setUniform("model", glm::mat4(1.0f));
+	
 
 	glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos) {
 		if (m_drag.active) {
@@ -275,13 +260,30 @@ int main(int, char**) {
 	pass1.addDepthBuffer(m_winWidth, m_winHeight, depthTextureFormat);
 	pass1.setImGuiWrapper(imgui);
 
+	vec3 focalPoint(0.0, 0.0, -2.0);
+	float angle2 = 3.0f * PI / 4.0f;
+	mat4x4 V(1.0);
+	V = glm::translate(V, -focalPoint);
+	V = glm::rotate(V, -angle2, vec3(1.0, 0.0, 0.0));
+
+	float ratio = 640.0f / 480.0f;
+	float focalLength = 2.0;
+	float nearPlane = 0.01f;
+	float farPlane = 300.0f;
+	float fov = 2 * glm::atan(1 / focalLength);
+	mat4x4 proj = glm::perspective(fov, ratio, nearPlane, farPlane);
+	Issam::Camera* camera = new Issam::Camera;
+	camera->setView(V);
+	camera->setProjection(proj);
+
 	Renderer renderer;
 	renderer.addPass(pass1);
+	renderer.setCamera(camera);
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
 		
-	 	updateViewMatrix(shader_1);
+	 	updateViewMatrix(camera);
 
 		{
 			imgui->begin();

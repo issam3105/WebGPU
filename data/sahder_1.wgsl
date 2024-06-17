@@ -1,7 +1,7 @@
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
 	var out: VertexOutput;
-	out.position = u_uniforms.projection * u_uniforms.view * u_model * vec4f(in.position, 1.0);
+	out.position = u_camera.projection * u_camera.view * u_model * vec4f(in.position, 1.0);
 	out.color = in.color;
 	out.normal = in.normal;
 	out.uv = in.uv;

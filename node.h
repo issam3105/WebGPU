@@ -8,19 +8,23 @@
 #include "context.h"
 
 namespace Issam {
-	struct Node {
+	struct NodeProperties {
+		glm::mat4 transform{ glm::mat4(1) };
+	};
+	class Node {
+	public:
 		Node() {
 			BufferDescriptor bufferDesc;
 			bufferDesc.label = name.c_str();
 			bufferDesc.mappedAtCreation = false;
 			bufferDesc.usage = BufferUsage::Uniform | BufferUsage::CopyDst;
-			bufferDesc.size = sizeof(glm::mat4);
-			uniformBuffer = Context::getInstance().getDevice().createBuffer(bufferDesc);
-			Context::getInstance().getDevice().getQueue().writeBuffer(uniformBuffer, 0, &transform, sizeof(glm::mat4));
+			bufferDesc.size = sizeof(NodeProperties);
+			nodeUniformBuffer = Context::getInstance().getDevice().createBuffer(bufferDesc);
+			Context::getInstance().getDevice().getQueue().writeBuffer(nodeUniformBuffer, 0, &nodeProperties, sizeof(NodeProperties));
 
 		};
 
-		void updateModelUniform() { Context::getInstance().getDevice().getQueue().writeBuffer(uniformBuffer, 0, &transform, sizeof(glm::mat4)); }
+		void updateUniformBuffer() { Context::getInstance().getDevice().getQueue().writeBuffer(nodeUniformBuffer, 0, &nodeProperties, sizeof(NodeProperties)); }
 
 		BindGroup getBindGroup(BindGroupLayout bindGroupLayout) {
 			if (!dirtyBindGroup)
@@ -28,8 +32,8 @@ namespace Issam {
 			// Bind Group
 			std::vector<BindGroupEntry> bindGroupEntries(1, Default);
 			bindGroupEntries[0].binding = 0;
-			bindGroupEntries[0].buffer = uniformBuffer;
-			bindGroupEntries[0].size = sizeof(glm::mat4);
+			bindGroupEntries[0].buffer = nodeUniformBuffer;
+			bindGroupEntries[0].size = sizeof(NodeProperties);
 
 			BindGroupDescriptor bindGroupDesc;
 			bindGroupDesc.label = name.c_str();
@@ -42,14 +46,64 @@ namespace Issam {
 		}
 
 		std::string name;
-		glm::mat4 transform{ glm::mat4(1) };
+		NodeProperties nodeProperties;
 		std::vector<Node> children;
 		std::string meshId;
-		Buffer uniformBuffer{ nullptr };
+		Buffer nodeUniformBuffer{ nullptr };
 		BindGroup bindGroup{ nullptr };
 		bool dirtyBindGroup = true;
-		//std::vector<Vertex> vertices;
-		//std::vector<uint32_t> indices;
 
+	};
+
+	struct CameraProperties
+	{
+		glm::mat4 view{ glm::mat4(1.0) };
+		glm::mat4 projection{ glm::mat4(1.0) };
+	};
+
+	class Camera {
+	public:
+		Camera() {
+			BufferDescriptor bufferDesc;
+			bufferDesc.label = "camera";
+			bufferDesc.mappedAtCreation = false;
+			bufferDesc.usage = BufferUsage::Uniform | BufferUsage::CopyDst;
+			bufferDesc.size = sizeof(CameraProperties);
+			cameraUniformBuffer = Context::getInstance().getDevice().createBuffer(bufferDesc);
+			Context::getInstance().getDevice().getQueue().writeBuffer(cameraUniformBuffer, 0, &cameraProperties, sizeof(CameraProperties));
+		}
+		void setView(glm::mat4 in_view) { 
+			cameraProperties.view = in_view; 
+		    updateUniformBuffer();
+		}
+		void setProjection(glm::mat4 in_projection) { 
+			cameraProperties.projection = in_projection;
+			updateUniformBuffer();
+		}	
+
+		BindGroup getBindGroup(BindGroupLayout bindGroupLayout) {
+			if (!dirtyBindGroup)
+				return bindGroup;
+			// Bind Group
+			std::vector<BindGroupEntry> bindGroupEntries(1, Default);
+			bindGroupEntries[0].binding = 0;
+			bindGroupEntries[0].buffer = cameraUniformBuffer;
+			bindGroupEntries[0].size = sizeof(CameraProperties);
+
+			BindGroupDescriptor bindGroupDesc;
+			bindGroupDesc.label = "camera";
+			bindGroupDesc.entryCount = static_cast<uint32_t>(bindGroupEntries.size());
+			bindGroupDesc.entries = bindGroupEntries.data();
+			bindGroupDesc.layout = bindGroupLayout;
+			bindGroup = Context::getInstance().getDevice().createBindGroup(bindGroupDesc);
+			dirtyBindGroup = false;
+			return bindGroup;
+		}
+	private:
+		void updateUniformBuffer() { Context::getInstance().getDevice().getQueue().writeBuffer(cameraUniformBuffer, 0, &cameraProperties, sizeof(CameraProperties)); }
+		CameraProperties cameraProperties;
+		Buffer cameraUniformBuffer{ nullptr };
+		BindGroup bindGroup{ nullptr };
+		bool dirtyBindGroup = true;
 	};
 }
