@@ -1,29 +1,3 @@
-/**
- * This file is part of the "Learn WebGPU for C++" book.
- *   https://eliemichel.github.io/LearnWebGPU
- *
- * MIT License
- * Copyright (c) 2022-2023 Elie Michel
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
-
 #include <glfw3webgpu.h>
 #include <GLFW/glfw3.h>
 
@@ -31,9 +5,6 @@
 #define GLM_FORCE_LEFT_HANDED
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
-
-#define WEBGPU_CPP_IMPLEMENTATION
-#include <webgpu/webgpu.hpp>
 
 #define TINYOBJLOADER_IMPLEMENTATION // add this to exactly 1 of your C++ files
 #include "tiny_obj_loader.h"
@@ -189,7 +160,7 @@ int main(int, char**) {
 	shader_1->addVertexOutput("normal", 1, VertexFormat::Float32x3);
 	shader_1->addVertexOutput("uv", 2, VertexFormat::Float32x2);
 
-	Issam::Material* materialPbr = new Issam::Material();
+	Material* materialPbr = new Material();
 
 	materialPbr->addUniform("baseColorFactor", glm::vec4(1.0f));
 	materialPbr->addUniform("time", 0.0f);
@@ -199,7 +170,7 @@ int main(int, char**) {
 
 	shader_1->setMaterial(materialPbr);
 
-	ShaderManager::getInstance().add("shader1", shader_1);
+//	ShaderManager::getInstance().add("shader1", shader_1);
 	
 	
 
@@ -348,7 +319,7 @@ int main(int, char**) {
 
 			if (selectedNode && selectedNode->material)
 			{
-				Issam::Material* selectedMaterial = selectedNode->material;
+				Material* selectedMaterial = selectedNode->material;
 				glm::vec4 baseColorFactor = std::get<glm::vec4>(selectedMaterial->getUniform("baseColorFactor").value);
 				ImGui::ColorEdit4("BaseColorFactor", (float*)&baseColorFactor);
 				selectedMaterial->setUniform("baseColorFactor", baseColorFactor);

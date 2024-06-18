@@ -1,9 +1,10 @@
 #pragma once
 
-#define WEBGPU_CPP_IMPLEMENTATION
 #include <webgpu/webgpu.hpp>
 
 #include "context.h"
+#include "mesh.h"
+#include "shader.h"
 
 class MeshManager
 {
@@ -30,26 +31,8 @@ private:
 	std::unordered_map<std::string, Mesh*> m_meshes;
 };
 
-class ShaderManager
-{
-public:
-	ShaderManager() = default;
-	~ShaderManager() = default;
 
-	static ShaderManager& getInstance() {
-		static ShaderManager shaderManager;
-		return shaderManager;
-	};
 
-	bool add(const std::string& id, Shader* shader) {
-		m_shaders[id] = shader;
-		shader->build();
-		return true;
-	}
-	Shader* getShader(const std::string& id) { return  m_shaders[id]; }
-private:
-	std::unordered_map<std::string, Shader*> m_shaders{};
-};
 
 class TextureManager
 {
@@ -103,3 +86,4 @@ public:
 private:
 	std::unordered_map<std::string, std::shared_ptr<Sampler>> m_samplers{};
 };
+

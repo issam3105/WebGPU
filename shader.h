@@ -1,8 +1,6 @@
 #pragma once
 
-
-
-#define WEBGPU_CPP_IMPLEMENTATION
+//#define WEBGPU_CPP_IMPLEMENTATION
 #include <webgpu/webgpu.hpp>
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -11,7 +9,10 @@
 #include <glm/ext.hpp>
 
 #include "context.h"
+#include "material.h"
+#include "uniformsBuffer.h"
 #include "node.h"
+
 
 using namespace wgpu;
 using namespace glm;
@@ -29,93 +30,35 @@ public:
 	void setUserCode(std::string userCode)
 	{
 		m_shaderSource = userCode;
+		m_dirtyShaderModule = true;
 	}
 
-	void build()
-	{	
-		{
-			int binding = 0;
-			std::vector<BindGroupLayoutEntry> bindingLayoutEntries{};
 
-			BindGroupLayoutEntry uniformsBindingLayout = Default;
-			// The binding index as used in the @binding attribute in the shader
-			uniformsBindingLayout.binding = binding++;
-			// The stage that needs to access this resource
-			uniformsBindingLayout.visibility = ShaderStage::Vertex | ShaderStage::Fragment;
-			uniformsBindingLayout.buffer.type = BufferBindingType::Uniform;
-			uniformsBindingLayout.buffer.minBindingSize = sizeof(std::array<vec4, UNIFORMS_MAX>);
-			bindingLayoutEntries.push_back(uniformsBindingLayout);
+	struct VertexAttr
+	{
+		std::string name;
+		int location;
+		VertexFormat format;
+	};
 
-			for (const auto& texture : m_material->getTextures())
-			{
-				// The texture binding
-				BindGroupLayoutEntry textureBindingLayout = Default;
-				textureBindingLayout.binding = binding++;
-				textureBindingLayout.visibility = ShaderStage::Fragment;
-				textureBindingLayout.texture.sampleType = TextureSampleType::Float;
-				textureBindingLayout.texture.viewDimension = TextureViewDimension::_2D;
-				bindingLayoutEntries.push_back(textureBindingLayout);
-			}
+	void addVertexInput(const std::string& inputName, int location, VertexFormat format)
+	{
+		m_vertexInputs.push_back({ inputName , location,format });
+		m_dirtyBindGroupLayouts = true;
+		m_dirtyShaderModule = true;
+	}
 
-			for (const auto& sampler : m_material->getSamplers())
-			{
-				// The texture sampler binding
-				BindGroupLayoutEntry samplerBindingLayout = Default;
-				samplerBindingLayout.binding = binding++;
-				samplerBindingLayout.visibility = ShaderStage::Fragment;
-				samplerBindingLayout.sampler.type = SamplerBindingType::Filtering;
-				bindingLayoutEntries.push_back(samplerBindingLayout);
-			}
+	void addVertexOutput(const std::string& inputName, int location, VertexFormat format)
+	{
+		m_vertexOutputs.push_back({ inputName , location,format });
+		m_dirtyBindGroupLayouts = true;
+		m_dirtyShaderModule = true;
+	}
 
+	ShaderModule getShaderModule() { 
+		if (!m_dirtyShaderModule)
+			return m_shaderModule;
 
-			// Create a bind group layout
-			BindGroupLayoutDescriptor bindGroupLayoutDesc{};
-			bindGroupLayoutDesc.entryCount = (uint32_t)bindingLayoutEntries.size();;
-			bindGroupLayoutDesc.entries = bindingLayoutEntries.data();
-			m_bindGroupLayouts.push_back(Context::getInstance().getDevice().createBindGroupLayout(bindGroupLayoutDesc));
-		}
-
-		//Model matrix Uniform
-		{
-			std::vector<BindGroupLayoutEntry> bindingLayoutEntries{};
-
-			BindGroupLayoutEntry uniformsBindingLayout = Default;
-			// The binding index as used in the @binding attribute in the shader
-			uniformsBindingLayout.binding = 0;
-			// The stage that needs to access this resource
-			uniformsBindingLayout.visibility = ShaderStage::Vertex;
-			uniformsBindingLayout.buffer.type = BufferBindingType::Uniform;
-			uniformsBindingLayout.buffer.minBindingSize = sizeof(Issam::NodeProperties);
-			bindingLayoutEntries.push_back(uniformsBindingLayout);
-
-			// Create a bind group layout
-			BindGroupLayoutDescriptor bindGroupLayoutDesc{};
-			bindGroupLayoutDesc.entryCount = (uint32_t)bindingLayoutEntries.size();;
-			bindGroupLayoutDesc.entries = bindingLayoutEntries.data();
-			m_bindGroupLayouts.push_back(Context::getInstance().getDevice().createBindGroupLayout(bindGroupLayoutDesc));
-		}
-
-		//Camera Uniforms
-		{
-			std::vector<BindGroupLayoutEntry> bindingLayoutEntries{};
-
-			BindGroupLayoutEntry uniformsBindingLayout = Default;
-			// The binding index as used in the @binding attribute in the shader
-			uniformsBindingLayout.binding = 0;
-			// The stage that needs to access this resource
-			uniformsBindingLayout.visibility = ShaderStage::Vertex;
-			uniformsBindingLayout.buffer.type = BufferBindingType::Uniform;
-			uniformsBindingLayout.buffer.minBindingSize = sizeof(Issam::CameraProperties);
-			bindingLayoutEntries.push_back(uniformsBindingLayout);
-
-			// Create a bind group layout
-			BindGroupLayoutDescriptor bindGroupLayoutDesc{};
-			bindGroupLayoutDesc.entryCount = (uint32_t)bindingLayoutEntries.size();;
-			bindGroupLayoutDesc.entries = bindingLayoutEntries.data();
-			m_bindGroupLayouts.push_back(Context::getInstance().getDevice().createBindGroupLayout(bindGroupLayoutDesc));
-		}
-
-	
 		//ShaderModule
 		ShaderModuleDescriptor shaderDesc;
 #ifdef WEBGPU_BACKEND_WGPU
@@ -198,56 +141,105 @@ public:
 			}
 		});
 		assert(m_shaderModule);
-	}
-
-	VertexState getVertexState()
-	{
-		VertexState vertexState;
-		vertexState.module = m_shaderModule;
-		vertexState.entryPoint = "vs_main";
-		vertexState.constantCount = 0;
-		vertexState.constants = nullptr;
-		return vertexState;
-	}
-
-	FragmentState getFragmentState()
-	{
-		FragmentState fragmentState;
-		fragmentState.module = m_shaderModule;
-		fragmentState.entryPoint = "fs_main";
-		fragmentState.constantCount = 0;
-		fragmentState.constants = nullptr;
-		return fragmentState;
+		m_dirtyShaderModule = false;
+		return m_shaderModule; 
 	}
 
 
-	struct VertexAttr
-	{
-		std::string name;
-		int location;
-		VertexFormat format;
-	};
+	const std::vector<BindGroupLayout>& getBindGroupLayouts()  { 
+		if (!m_dirtyBindGroupLayouts)
+			return m_bindGroupLayouts;
 
-	void addVertexInput(const std::string& inputName, int location, VertexFormat format)
-	{
-		m_vertexInputs.push_back({ inputName , location,format });
+		{
+			int binding = 0;
+			std::vector<BindGroupLayoutEntry> bindingLayoutEntries{};
+
+			BindGroupLayoutEntry uniformsBindingLayout = Default;
+			// The binding index as used in the @binding attribute in the shader
+			uniformsBindingLayout.binding = binding++;
+			// The stage that needs to access this resource
+			uniformsBindingLayout.visibility = ShaderStage::Vertex | ShaderStage::Fragment;
+			uniformsBindingLayout.buffer.type = BufferBindingType::Uniform;
+			uniformsBindingLayout.buffer.minBindingSize = sizeof(std::array<vec4, UNIFORMS_MAX>);
+			bindingLayoutEntries.push_back(uniformsBindingLayout);
+
+			for (const auto& texture : m_material->getTextures())
+			{
+				// The texture binding
+				BindGroupLayoutEntry textureBindingLayout = Default;
+				textureBindingLayout.binding = binding++;
+				textureBindingLayout.visibility = ShaderStage::Fragment;
+				textureBindingLayout.texture.sampleType = TextureSampleType::Float;
+				textureBindingLayout.texture.viewDimension = TextureViewDimension::_2D;
+				bindingLayoutEntries.push_back(textureBindingLayout);
+			}
+
+			for (const auto& sampler : m_material->getSamplers())
+			{
+				// The texture sampler binding
+				BindGroupLayoutEntry samplerBindingLayout = Default;
+				samplerBindingLayout.binding = binding++;
+				samplerBindingLayout.visibility = ShaderStage::Fragment;
+				samplerBindingLayout.sampler.type = SamplerBindingType::Filtering;
+				bindingLayoutEntries.push_back(samplerBindingLayout);
+			}
+
+
+			// Create a bind group layout
+			BindGroupLayoutDescriptor bindGroupLayoutDesc{};
+			bindGroupLayoutDesc.entryCount = (uint32_t)bindingLayoutEntries.size();;
+			bindGroupLayoutDesc.entries = bindingLayoutEntries.data();
+			m_bindGroupLayouts.push_back(Context::getInstance().getDevice().createBindGroupLayout(bindGroupLayoutDesc));
+		}
+
+		//Model matrix Uniform
+		{
+			std::vector<BindGroupLayoutEntry> bindingLayoutEntries{};
+
+			BindGroupLayoutEntry uniformsBindingLayout = Default;
+			// The binding index as used in the @binding attribute in the shader
+			uniformsBindingLayout.binding = 0;
+			// The stage that needs to access this resource
+			uniformsBindingLayout.visibility = ShaderStage::Vertex;
+			uniformsBindingLayout.buffer.type = BufferBindingType::Uniform;
+			uniformsBindingLayout.buffer.minBindingSize = sizeof(Issam::NodeProperties);
+			bindingLayoutEntries.push_back(uniformsBindingLayout);
+
+			// Create a bind group layout
+			BindGroupLayoutDescriptor bindGroupLayoutDesc{};
+			bindGroupLayoutDesc.entryCount = (uint32_t)bindingLayoutEntries.size();;
+			bindGroupLayoutDesc.entries = bindingLayoutEntries.data();
+			m_bindGroupLayouts.push_back(Context::getInstance().getDevice().createBindGroupLayout(bindGroupLayoutDesc));
+		}
+
+		//Camera Uniforms
+		{
+			std::vector<BindGroupLayoutEntry> bindingLayoutEntries{};
+
+			BindGroupLayoutEntry uniformsBindingLayout = Default;
+			// The binding index as used in the @binding attribute in the shader
+			uniformsBindingLayout.binding = 0;
+			// The stage that needs to access this resource
+			uniformsBindingLayout.visibility = ShaderStage::Vertex;
+			uniformsBindingLayout.buffer.type = BufferBindingType::Uniform;
+			uniformsBindingLayout.buffer.minBindingSize = sizeof(Issam::CameraProperties);
+			bindingLayoutEntries.push_back(uniformsBindingLayout);
+
+			// Create a bind group layout
+			BindGroupLayoutDescriptor bindGroupLayoutDesc{};
+			bindGroupLayoutDesc.entryCount = (uint32_t)bindingLayoutEntries.size();;
+			bindGroupLayoutDesc.entries = bindingLayoutEntries.data();
+			m_bindGroupLayouts.push_back(Context::getInstance().getDevice().createBindGroupLayout(bindGroupLayoutDesc));
+		}
+		m_dirtyBindGroupLayouts = true;
+		return m_bindGroupLayouts;
 	}
-
-	void addVertexOutput(const std::string& inputName, int location, VertexFormat format)
-	{
-		m_vertexOutputs.push_back({ inputName , location,format });
-	}
-
-	
-
-
-	const std::vector<BindGroupLayout>& getBindGroupLayout() const { return m_bindGroupLayouts; }
-	void setMaterial(Issam::Material* material) { m_material = material; }
-	Issam::Material* m_material{ nullptr };
+	void setMaterial(Material* material) { m_material = material; }
+	Material* m_material{ nullptr };
 private:
 
 	std::vector<BindGroupLayout> m_bindGroupLayouts{};
-	
+	bool m_dirtyBindGroupLayouts = true;
 
 	std::string toString(VertexFormat format)
 	{
@@ -265,7 +257,28 @@ private:
 	std::vector<VertexAttr> m_vertexInputs{};
 	std::vector<VertexAttr> m_vertexOutputs{};
 	ShaderModule m_shaderModule{ nullptr };
-	
+	bool m_dirtyShaderModule = true;
 	
 	std::string m_shaderSource;
 };
+
+//class ShaderManager
+//{
+//public:
+//	ShaderManager() = default;
+//	~ShaderManager() = default;
+//
+//	static ShaderManager& getInstance() {
+//		static ShaderManager shaderManager;
+//		return shaderManager;
+//	};
+//
+//	bool add(const std::string& id, Shader* shader) {
+//		m_shaders[id] = shader;
+//		shader->build();
+//		return true;
+//	}
+//	Shader* getShader(const std::string& id) { return  m_shaders[id]; }
+//private:
+//	std::unordered_map<std::string, Shader*> m_shaders{};
+//};

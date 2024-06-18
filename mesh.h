@@ -1,9 +1,17 @@
 #pragma once
 
-#define WEBGPU_CPP_IMPLEMENTATION
+//#define WEBGPU_CPP_IMPLEMENTATION
 #include <webgpu/webgpu.hpp>
 
 #include "context.h"
+
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_FORCE_LEFT_HANDED
+#include <glm/glm.hpp>
+#include <glm/ext.hpp>
+
+using namespace wgpu;
+using namespace glm;
 
 class VertexBuffer
 {

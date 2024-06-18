@@ -1,6 +1,5 @@
 #pragma once
 
-#pragma once
 #define WEBGPU_CPP_IMPLEMENTATION
 #include <webgpu/webgpu.hpp>
 
@@ -13,7 +12,6 @@ public:
 	Pass(Shader* shader) :
 		m_shader(shader)
 	{
-		//	m_shader->build();
 	};
 	~Pass() {
 		m_depthTextureView.release();

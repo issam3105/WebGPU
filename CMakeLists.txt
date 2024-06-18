@@ -5,9 +5,29 @@ project(
     LANGUAGES CXX C 
 )
 
+list(APPEND sources
+   main.cpp 
+   webgpu-utils.cpp
+   uniformsBuffer.cpp
+)
 
+list(APPEND sources
+    tiny_obj_loader.h 
+    context.h 
+	shader.h 
+	pipeline.h 
+	pass.h 
+	managers.h 
+	imgui_wrapper.h 
+	utils.h 
+	renderer.h 
+	mesh.h 
+	node.h
+	uniformsBuffer.h
+	material.h
+)
 
-add_executable(App main.cpp webgpu-utils.h webgpu-utils.cpp tiny_obj_loader.h context.h shader.h pipeline.h pass.h managers.h imgui_wrapper.h utils.h renderer.h mesh.h node.h)
+add_executable(App ${sources})
 
 set_target_properties(App PROPERTIES
     CXX_STANDARD 17

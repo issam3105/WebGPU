@@ -45,7 +45,14 @@ public:
 		// == Common to attributes from the same buffer ==
 		vertexBufferLayout.arrayStride = 11 * sizeof(float);
 		vertexBufferLayout.stepMode = VertexStepMode::Vertex;
-		pipelineDesc.vertex = shader->getVertexState();
+		
+		VertexState vertexState;
+		vertexState.module = shader->getShaderModule();
+		vertexState.entryPoint = "vs_main";
+		vertexState.constantCount = 0;
+		vertexState.constants = nullptr;
+
+		pipelineDesc.vertex = vertexState;
 		pipelineDesc.vertex.bufferCount = 1;
 		pipelineDesc.vertex.buffers = &vertexBufferLayout;
 
@@ -56,7 +63,11 @@ public:
 		pipelineDesc.primitive.cullMode = CullMode::None;
 
 		// Fragment shader
-		FragmentState fragmentState = shader->getFragmentState();
+		FragmentState fragmentState;
+		fragmentState.module = shader->getShaderModule();
+		fragmentState.entryPoint = "fs_main";
+		fragmentState.constantCount = 0;
+		fragmentState.constants = nullptr;
 		pipelineDesc.fragment = &fragmentState;
 
 
@@ -107,8 +118,8 @@ public:
 		// Pipeline layout
 		// Create the pipeline layout
 		PipelineLayoutDescriptor layoutDesc{};
-		layoutDesc.bindGroupLayoutCount = shader->getBindGroupLayout().size();
-		layoutDesc.bindGroupLayouts = (WGPUBindGroupLayout*)shader->getBindGroupLayout().data();
+		layoutDesc.bindGroupLayoutCount = shader->getBindGroupLayouts().size();
+		layoutDesc.bindGroupLayouts = (WGPUBindGroupLayout*)shader->getBindGroupLayouts().data();
 		PipelineLayout layout = Context::getInstance().getDevice().createPipelineLayout(layoutDesc);
 		pipelineDesc.layout = layout;
 
