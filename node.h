@@ -16,74 +16,7 @@
 using namespace glm;
 
 namespace Issam {
-	//TODO: supprimer d'ici
-	wgpu::Texture createWhiteTexture(TextureView* pTextureView) {
 
-		wgpu::Extent3D textureSize = { 1, 1, 1 };
-		// Define the texture descriptor
-		wgpu::TextureDescriptor textureDesc = {};
-		textureDesc.size = textureSize;
-		textureDesc.format = wgpu::TextureFormat::RGBA8Unorm;
-		textureDesc.usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding;
-		textureDesc.dimension = wgpu::TextureDimension::_2D;
-		textureDesc.mipLevelCount = 1;
-		textureDesc.sampleCount = 1;
-
-		// Create the texture
-		Texture texture = Context::getInstance().getDevice().createTexture(textureDesc);
-
-		// Define the white pixel data
-		uint8_t whitePixel[4] = { 255, 255, 255, 255 };
-
-		// Define the texture data layout
-		wgpu::TextureDataLayout textureDataLayout = {};
-		textureDataLayout.offset = 0;
-		textureDataLayout.bytesPerRow = 4;
-		textureDataLayout.rowsPerImage = 1;
-
-		// Define the texture copy view
-		wgpu::ImageCopyTexture imageCopyTexture = {};
-		imageCopyTexture.texture = texture;
-		imageCopyTexture.origin = { 0, 0, 0 };
-		imageCopyTexture.mipLevel = 0;
-
-		// Write the white pixel data to the texture
-
-		Context::getInstance().getDevice().getQueue().writeTexture(imageCopyTexture, whitePixel, sizeof(whitePixel), textureDataLayout, textureSize);
-
-		if (pTextureView) {
-			TextureViewDescriptor textureViewDesc;
-			textureViewDesc.aspect = TextureAspect::All;
-			textureViewDesc.baseArrayLayer = 0;
-			textureViewDesc.arrayLayerCount = 1;
-			textureViewDesc.baseMipLevel = 0;
-			textureViewDesc.mipLevelCount = textureDesc.mipLevelCount;
-			textureViewDesc.dimension = TextureViewDimension::_2D;
-			textureViewDesc.format = textureDesc.format;
-			*pTextureView = texture.createView(textureViewDesc);
-		}
-
-		return texture;
-	}
-
-	Sampler createDefaultSampler()
-	{
-		SamplerDescriptor samplerDesc;
-		samplerDesc.addressModeU = AddressMode::Repeat;
-		samplerDesc.addressModeV = AddressMode::Repeat;
-		samplerDesc.addressModeW = AddressMode::Repeat;
-		samplerDesc.magFilter = FilterMode::Linear;
-		samplerDesc.minFilter = FilterMode::Linear;
-		samplerDesc.mipmapFilter = MipmapFilterMode::Linear;
-		samplerDesc.lodMinClamp = 0.0f;
-		samplerDesc.lodMaxClamp = 8.0f;
-		samplerDesc.compare = CompareFunction::Undefined;
-		samplerDesc.maxAnisotropy = 1;
-		return Context::getInstance().getDevice().createSampler(samplerDesc);
-	}
-	//-------------------------------------------------------------------
-
-	
 	struct NodeProperties {
 		glm::mat4 transform{ glm::mat4(1) };
 	};
