@@ -44,13 +44,13 @@ public:
 			auto pipeline = pass.getPipeline()->getRenderPipeline();
 			renderPass.setPipeline(pipeline);
 			renderPass.setBindGroup(2, m_scene->getCamera()->getBindGroup(pipeline.getBindGroupLayout(2)), 0, nullptr); //Camera
-			renderPass.setBindGroup(0, pass.getShader()->getBindGroup(), 0, nullptr); //Global uniforms: light ...
 			for(auto& node : m_scene->getNodes())
 			{
-				Mesh* mesh = MeshManager::getInstance().get(node.meshId);
+				Mesh* mesh = MeshManager::getInstance().get(node->meshId);
 				if (mesh)
 				{
-					renderPass.setBindGroup(1, node.getBindGroup(pipeline.getBindGroupLayout(1)), 0, nullptr); //Node model
+					renderPass.setBindGroup(0, node->material->getBindGroup(pipeline.getBindGroupLayout(0)), 0, nullptr); //Material
+					renderPass.setBindGroup(1, node->getBindGroup(pipeline.getBindGroupLayout(1)), 0, nullptr); //Node model
 					renderPass.setVertexBuffer(0, mesh->getVertexBuffer()->getBuffer(), 0, mesh->getVertexBuffer()->getSize());
 					if (mesh->getIndexBuffer() != nullptr)
 					{

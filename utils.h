@@ -273,14 +273,14 @@ namespace Utils
 	}
 
 
-	void loadMesh(const tinygltf::Model& model, const tinygltf::Mesh& mesh, Issam::Node& node)
+	void loadMesh(const tinygltf::Model& model, const tinygltf::Mesh& mesh, Issam::Node* node)
 	{
 		for (const auto& primitive : mesh.primitives) {
 			std::vector<Vertex> vertices;
 			std::vector<uint16_t> indices;
 			// Process vertex attributes
 			const tinygltf::Accessor& posAccessor = model.accessors[primitive.attributes.find("POSITION")->second];
-			//if (posAccessor.bufferView == -1) return nullptr;
+			if (posAccessor.bufferView == -1) return ;
 			const tinygltf::BufferView& posBufferView = model.bufferViews[posAccessor.bufferView];
 			const tinygltf::Buffer& posBuffer = model.buffers[posBufferView.buffer];
 
@@ -381,26 +381,39 @@ namespace Utils
 			}
 
 			static int meshId = 0;
-			node.meshId = "mesh_" + std::to_string(meshId++);
-			MeshManager::getInstance().add(node.meshId, myMesh);
+			node->meshId = "mesh_" + std::to_string(meshId++);
+			MeshManager::getInstance().add(node->meshId, myMesh);
 			
+			if (primitive.material != -1)
+			{
+				auto& gltfMaterial = model.materials[primitive.material];
+				auto& baseColorFactor = gltfMaterial.pbrMetallicRoughness.baseColorFactor;
+				node->material->setUniform("baseColorFactor", glm::make_vec4(baseColorFactor.data()));
+
+				int baseColorTextureIndex = gltfMaterial.pbrMetallicRoughness.baseColorTexture.index;
+				if (baseColorTextureIndex >= 0 && baseColorTextureIndex < model.textures.size())
+				{
+					const tinygltf::Texture& gltfTexture = model.textures[baseColorTextureIndex];
+					const tinygltf::Image& gltfImage = model.images[gltfTexture.source];
+					node->material->setTexture("baseColorTexture", TextureManager::getInstance().getTextureView(gltfImage.uri));
+				}
+			}
 		}
 	}
 
-	void loadNode(const tinygltf::Model& model, const tinygltf::Node& gltfNode, Issam::Node& node) {
-		node.name = gltfNode.name;
-		/*node.transform = glm::mat4(1.0f);
-		if (!gltfNode.translation.empty()) {
-			node.transform = glm::translate(node.transform, glm::vec3(gltfNode.translation[0], gltfNode.translation[1], gltfNode.translation[2]));
-		}
-		if (!gltfNode.rotation.empty()) {
-			glm::quat quatRotation = glm::quat(gltfNode.rotation[3], gltfNode.rotation[0], gltfNode.rotation[1], gltfNode.rotation[2]);
-			node.transform *= glm::mat4_cast(quatRotation);
-		}
-		if (!gltfNode.scale.empty()) {
-			node.transform = glm::scale(node.transform, glm::vec3(gltfNode.scale[0], gltfNode.scale[1], gltfNode.scale[2]));
-		}*/
-		
+	std::string GetBaseDir(const std::string& filepath) {
+		if (filepath.find_last_of("/\\") != std::string::npos)
+			return filepath.substr(0, filepath.find_last_of("/\\") + 1);
+		return "";
+	}
+
+	void loadNode(const tinygltf::Model& model, const tinygltf::Node& gltfNode, Issam::Node* node) {
+		static int nodeId = 0;
+		std::string nodeName = gltfNode.name;
+		if (nodeName.empty())
+			nodeName = "node_" + std::to_string(nodeId++);
+
+		node->name = nodeName;
 
 		const glm::vec3 T =
 			gltfNode.translation.empty()
@@ -417,14 +430,10 @@ namespace Utils
 			? glm::vec3(1.0)
 			: glm::make_vec3(gltfNode.scale.data());
 
-		node.setTransform(glm::translate(glm::mat4(1.0), T) * glm::mat4_cast(R) * glm::scale(glm::mat4(1.0), S));
+		node->setTransform(glm::translate(glm::mat4(1.0), T) * glm::mat4_cast(R) * glm::scale(glm::mat4(1.0), S));
 		
 		if (!gltfNode.matrix.empty()) {
-			/*glm::mat4 mat;
-			for (int i = 0; i < 16; ++i) {
-				mat[i / 4][i % 4] = static_cast<float>(gltfNode.matrix[i]);
-			}*/
-			node.setTransform(glm::make_mat4(gltfNode.matrix.data()));
+			node->setTransform(glm::make_mat4(gltfNode.matrix.data()));
 		}
 
 		if (gltfNode.mesh >= 0) {
@@ -432,16 +441,16 @@ namespace Utils
 		}
 
 		for (int childIndex : gltfNode.children) {
-			Issam::Node childNode;
+			Issam::Node* childNode = new Issam::Node();
 			loadNode(model, model.nodes[childIndex], childNode);
-			node.children.push_back(childNode);
+			node->children.push_back(childNode);
 		}
 	}
 
 
 
-	std::vector<Issam::Node> LoadGLTF(const std::string& filepath) {
-		std::vector<Issam::Node> scene;
+	std::vector<Issam::Node*> LoadGLTF(const std::string& filepath) {
+		std::vector<Issam::Node*> scene;
 		tinygltf::Model model;
 		tinygltf::TinyGLTF loader;
 		std::string err;
@@ -460,13 +469,22 @@ namespace Utils
 			return scene;
 		}
 
+		std::string baseDir = GetBaseDir(filepath);
+		for (auto& gltfTexture : model.textures)
+		{
+			const tinygltf::Image& gltfImage = model.images[gltfTexture.source];
+			std::string texturePath = baseDir + "/" + gltfImage.uri;
+			TextureView textureView = nullptr;
+			Texture gltfTexture = Utils::loadTexture(texturePath, &textureView);
+			TextureManager().getInstance().add(gltfImage.uri, textureView);
+		}
 		
 		for (const auto& sceneNodeIndex : model.scenes[model.defaultScene].nodes) {
-			Issam::Node rootNode;
+			Issam::Node* rootNode = new Issam::Node();
 			loadNode(model, model.nodes[sceneNodeIndex], rootNode);
 			scene.push_back(rootNode);
 		}
-
+		
 		return scene;
 	}
 }

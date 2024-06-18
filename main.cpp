@@ -175,6 +175,7 @@ int main(int, char**) {
 
 	// Create a sampler
 	Sampler defaultSampler = Utils::createDefaultSampler();
+	SamplerManager().getInstance().add("defaultSampler", defaultSampler);
     
 	std::string userCode = Utils::loadFile(DATA_DIR  "/sahder_1.wgsl");
 	Shader* shader_1 = new Shader();
@@ -188,11 +189,15 @@ int main(int, char**) {
 	shader_1->addVertexOutput("normal", 1, VertexFormat::Float32x3);
 	shader_1->addVertexOutput("uv", 2, VertexFormat::Float32x2);
 
-	shader_1->addUniform("baseColorFactor", glm::vec4(1.0f));
-	shader_1->addUniform("time", 0.0f); 
+	Issam::Material* materialPbr = new Issam::Material();
 
-	shader_1->addTexture("baseColorTexture", whiteTextureView);
-	shader_1->addSampler("defaultSampler", defaultSampler);
+	materialPbr->addUniform("baseColorFactor", glm::vec4(1.0f));
+	materialPbr->addUniform("time", 0.0f);
+
+	materialPbr->addTexture("baseColorTexture", whiteTextureView);
+	materialPbr->addSampler("defaultSampler", defaultSampler);
+
+	shader_1->setMaterial(materialPbr);
 
 	ShaderManager::getInstance().add("shader1", shader_1);
 	
@@ -241,15 +246,15 @@ int main(int, char**) {
 
 	glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scancode, int action, int mods)
 	{
-		auto shader = ShaderManager::getInstance().getShader("shader1");
-		if (key == GLFW_KEY_E && action == GLFW_PRESS)
-			shader->setTexture("baseColorTexture", TextureManager::getInstance().getTextureView("whiteTex"));
+	//	auto shader = ShaderManager::getInstance().getShader("shader1");
+	/*	if (key == GLFW_KEY_E && action == GLFW_PRESS)
+			material->setTexture("baseColorTexture", TextureManager::getInstance().getTextureView("whiteTex"));
 		if (key == GLFW_KEY_R && action == GLFW_PRESS)
-			shader->setTexture("baseColorTexture", TextureManager::getInstance().getTextureView("fourareen2K_albedo"));
+			material->setTexture("baseColorTexture", TextureManager::getInstance().getTextureView("fourareen2K_albedo"));
 		if(key == GLFW_KEY_D && action == GLFW_PRESS)
-			shader->setUniform("baseColorFactor", glm::vec4(1.0f));
+			material->setUniform("baseColorFactor", glm::vec4(1.0f));
 		if (key == GLFW_KEY_F && action == GLFW_PRESS)
-			shader->setUniform("baseColorFactor", glm::vec4(1.0f, 0.0, 0.0, 1.0));
+			material->setUniform("baseColorFactor", glm::vec4(1.0f, 0.0, 0.0, 1.0));*/
 	});
 
 	ImGUIWrapper* imgui = new ImGUIWrapper(window, swapChainFormat, depthTextureFormat); //After glfw callbacks
@@ -283,6 +288,8 @@ int main(int, char**) {
 	scene->setCamera(camera);
 	renderer.setScene(scene);
 
+	Issam::Node* selectedNode = nullptr;
+
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
 		
@@ -290,54 +297,82 @@ int main(int, char**) {
 
 		{
 			imgui->begin();
-			static ImVec4 clear_color = ImVec4(1.0f, 1.0f, 1.0f, 1.00f);
+			
 
 			ImGui::Begin("Material Editor");
-			static int selectedGLTFIndex = -1;
-			//std::vector<std::string> gltfFiles = GetFiles(DATA_DIR, ".gltf");
-			std::vector<std::string> gltfFiles = GetFiles("C:/Dev/glTF-Sample-Models/2.0", ".gltf");
-
-			if (ImGui::BeginCombo("GLTF Files", selectedGLTFIndex == -1 ? "Select a GLTF" : gltfFiles[selectedGLTFIndex].c_str())) {
-				for (int i = 0; i < gltfFiles.size(); i++) {
-					bool isSelected = (selectedGLTFIndex == i);
-					if (ImGui::Selectable(gltfFiles[i].c_str(), isSelected)) {
-						if (selectedGLTFIndex != -1)
-							MeshManager::getInstance().clear();//MeshManager::getInstance().remove(gltfFiles[selectedGLTFIndex]);
-						selectedGLTFIndex = i;
-						std::vector<Issam::Node> nodes = Utils::LoadGLTF(gltfFiles[i]);
-						scene->setNodes(nodes);
-
-					}
-					if (isSelected) {
-						ImGui::SetItemDefaultFocus();
-					}
-				}
-				ImGui::EndCombo();
-			}
-
-			ImGui::ColorEdit4("BaseColorFactor", (float*)&clear_color);
-			auto shader = ShaderManager::getInstance().getShader("shader1");
-			shader->setUniform("baseColorFactor", glm::vec4(clear_color.x, clear_color.y, clear_color.z, clear_color.w));
 			{
-				static int selectedTextureIndex = -1;
-				std::vector<std::string> textureNames;
-				for (const auto& texturePair : TextureManager::getInstance().getAll()) {
-					textureNames.push_back(texturePair.first);
-				}
+				std::vector<std::string> gltfFiles = GetFiles("C:/Dev/glTF-Sample-Models/2.0", ".gltf");
+				static int selectedGLTFIndex = -1;
+				if (ImGui::BeginCombo("GLTF Files", selectedGLTFIndex == -1 ? "Select a GLTF" : gltfFiles[selectedGLTFIndex].c_str())) {
+					for (int i = 0; i < gltfFiles.size(); i++) {
+						bool isSelected = (selectedGLTFIndex == i);
+						if (ImGui::Selectable(gltfFiles[i].c_str(), isSelected)) {
+							if (selectedGLTFIndex != -1)
+								MeshManager::getInstance().clear();//MeshManager::getInstance().remove(gltfFiles[selectedGLTFIndex]);
+							selectedGLTFIndex = i;
+							std::vector<Issam::Node*> nodes = Utils::LoadGLTF(gltfFiles[i]);
+							scene->setNodes(nodes);
 
-				if (ImGui::BeginCombo("BaseColorTexture", selectedTextureIndex == -1 ? "Select a texture" : textureNames[selectedTextureIndex].c_str())) {
-					for (int i = 0; i < textureNames.size(); i++) {
-						bool isSelected = (selectedTextureIndex == i);
-						if (ImGui::Selectable(textureNames[i].c_str(), isSelected)) {
-							selectedTextureIndex = i;
-							//	std::cout << "Selected texture: " << textureNames[i] << std::endl;
-							shader->setTexture("baseColorTexture", TextureManager::getInstance().getTextureView(textureNames[i]));
 						}
 						if (isSelected) {
 							ImGui::SetItemDefaultFocus();
 						}
 					}
 					ImGui::EndCombo();
+				}
+			}
+			
+			{
+				std::vector<std::string> nodesNames;
+				for (auto node : scene->getNodes()) {
+					nodesNames.push_back(node->name);
+				}
+				static int nodeIndex = -1;
+
+				if (ImGui::BeginCombo("Nodes", nodeIndex == -1 ? "Select a Node" : nodesNames[nodeIndex].c_str())) {
+					for (int i = 0; i < nodesNames.size(); i++) {
+						bool isSelected = (nodeIndex == i);
+						if (ImGui::Selectable(nodesNames[i].c_str(), isSelected)) {
+
+							nodeIndex = i;
+							selectedNode = scene->getNodes()[nodeIndex];
+							std::cout << nodesNames[i].c_str() << " selected !" << std::endl;
+						}
+						if (isSelected) {
+							ImGui::SetItemDefaultFocus();
+						}
+					}
+					ImGui::EndCombo();
+				}
+			}
+
+			if (selectedNode && selectedNode->material)
+			{
+				Issam::Material* selectedMaterial = selectedNode->material;
+				glm::vec4 baseColorFactor = std::get<glm::vec4>(selectedMaterial->getUniform("baseColorFactor").value);
+				ImGui::ColorEdit4("BaseColorFactor", (float*)&baseColorFactor);
+				selectedMaterial->setUniform("baseColorFactor", baseColorFactor);
+				{
+					static int selectedTextureIndex = -1;
+					std::vector<std::string> textureNames;
+					for (const auto& texturePair : TextureManager::getInstance().getAll()) {
+						textureNames.push_back(texturePair.first);
+					}
+
+					if (ImGui::BeginCombo("BaseColorTexture", selectedTextureIndex == -1 ? "Select a texture" : textureNames[selectedTextureIndex].c_str())) {
+						for (int i = 0; i < textureNames.size(); i++) {
+							bool isSelected = (selectedTextureIndex == i);
+							if (ImGui::Selectable(textureNames[i].c_str(), isSelected)) {
+								selectedTextureIndex = i;
+								//	std::cout << "Selected texture: " << textureNames[i] << std::endl;
+								selectedMaterial->setTexture("baseColorTexture", TextureManager::getInstance().getTextureView(textureNames[i]));
+							}
+							if (isSelected) {
+								ImGui::SetItemDefaultFocus();
+							}
+						}
+						ImGui::EndCombo();
+					}
 				}
 			}
 			/*static float translation[3] = { 0.0, 0.0, 0.0 };

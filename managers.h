@@ -76,3 +76,30 @@ public:
 private:
 	std::unordered_map<std::string, std::shared_ptr<TextureView>> m_textures{};
 };
+
+class SamplerManager
+{
+public:
+	SamplerManager() = default;
+	~SamplerManager() = default;
+
+	static SamplerManager& getInstance() {
+		static SamplerManager samplerManager;
+		return samplerManager;
+	};
+
+	bool add(const std::string& id, Sampler textureView) {
+		m_samplers[id] = std::make_shared<wgpu::Sampler>(textureView);
+		return true;
+	}
+	Sampler getSampler(const std::string& id) {
+		return  *m_samplers[id].get();
+	}
+	void clear()
+	{
+		m_samplers.clear();
+	}
+	std::unordered_map<std::string, std::shared_ptr<Sampler>>& getAll() { return m_samplers; }
+private:
+	std::unordered_map<std::string, std::shared_ptr<Sampler>> m_samplers{};
+};
