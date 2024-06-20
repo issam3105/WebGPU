@@ -162,7 +162,7 @@ public:
 			// The stage that needs to access this resource
 			uniformsBindingLayout.visibility = ShaderStage::Vertex | ShaderStage::Fragment;
 			uniformsBindingLayout.buffer.type = BufferBindingType::Uniform;
-			uniformsBindingLayout.buffer.minBindingSize = sizeof(std::array<vec4, UNIFORMS_MAX>);
+			uniformsBindingLayout.buffer.minBindingSize = sizeof(UniformsData);
 			bindingLayoutEntries.push_back(uniformsBindingLayout);
 
 			for (const auto& texture : m_materialModule->getTextures())

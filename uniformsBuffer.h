@@ -16,7 +16,7 @@
 using namespace wgpu;
 
 using Value = std::variant<float, glm::vec4, glm::mat4>;
-
+using UniformsData = std::array<glm::vec4, UNIFORMS_MAX>;
 
 class UniformsBuffer
 {
@@ -33,7 +33,7 @@ public:
 	Buffer getBuffer() { return m_uniformBuffer; }
 
 private:
-	std::array<glm::vec4, UNIFORMS_MAX> m_uniformsData{};
+	UniformsData m_uniformsData{};
 	uint16_t m_uniformIndex = 0;
 	Buffer m_uniformBuffer{ nullptr };
 };

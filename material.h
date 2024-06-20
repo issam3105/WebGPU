@@ -121,7 +121,7 @@ private:
 			// multiple uniform blocks.
 			uniformBinding.offset = 0;
 			// And we specify again the size of the buffer.
-			uniformBinding.size = sizeof(std::array<vec4, UNIFORMS_MAX>);
+			uniformBinding.size = sizeof(UniformsData);
 			bindings.push_back(uniformBinding);
 		}
 

@@ -63,8 +63,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	let N = normalize(in.normal);
 	//let L = normalize(lightPositions[i] - WorldPos);
 	//let lightPosition = vec3f(0.5, -0.9, 0.1);
-	let L = normalize(lightDirection - in.worldPosition.xyz);
-	//let L = normalize(lightDirection);
+	//let L = normalize(lightDirection - in.worldPosition.xyz);
+	let L = lightDirection;
 	let H = normalize(V + L);
 	
 	let baseColor = textureSample(baseColorTexture, defaultSampler, in.uv) * u_uniforms.baseColorFactor;

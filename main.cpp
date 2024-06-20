@@ -352,12 +352,17 @@ int main(int, char**) {
 						ImGui::EndCombo();
 					}
 				}
-
+				float metallicFactor = std::get<float>(selectedMaterial->getUniform("metallicFactor").value);
+				ImGui::SliderFloat("MetallicFactor", &metallicFactor, 0.0 , 1.0);
+				selectedMaterial->setUniform("metallicFactor", metallicFactor);
 				
+				float roughnessFactor = std::get<float>(selectedMaterial->getUniform("roughnessFactor").value);
+				ImGui::SliderFloat("RoughnessFactor", &roughnessFactor, 0.0, 1.0);
+				selectedMaterial->setUniform("roughnessFactor", roughnessFactor);
 			}
 
 			static glm::vec4 lightDirection = glm::vec4(1.0);
-			ImGui::SliderFloat3("lightDirection", (float*)&lightDirection, -100.0, 100.0);
+			ImGui::SliderFloat3("lightDirection", (float*)&lightDirection, -1.0, 1.0);
 			camera->setLightDirection(lightDirection);
 			
 			/*static float translation[3] = { 0.0, 0.0, 0.0 };

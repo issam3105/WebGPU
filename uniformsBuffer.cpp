@@ -7,13 +7,13 @@ using namespace glm;
 UniformsBuffer::UniformsBuffer()
 {
 	BufferDescriptor bufferDesc;
-	bufferDesc.size = sizeof(std::array<glm::vec4, UNIFORMS_MAX>);
+	bufferDesc.size = sizeof(UniformsData);
 	// Make sure to flag the buffer as BufferUsage::Uniform
 	bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Uniform;
 	bufferDesc.mappedAtCreation = false;
 	m_uniformBuffer = Context::getInstance().getDevice().createBuffer(bufferDesc);
 
-	Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, 0, &m_uniformsData, sizeof(std::array<vec4, UNIFORMS_MAX>));
+	Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, 0, &m_uniformsData, sizeof(UniformsData));
 };
 
 uint16_t UniformsBuffer::allocateVec4() {
@@ -49,5 +49,5 @@ void UniformsBuffer::set(uint16_t handle, const Value& value)
 	}
 	else
 		assert(false);
-	Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, 0, &m_uniformsData, sizeof(std::array<vec4, UNIFORMS_MAX>)); //TODO envoyer que la partie modifie
+	Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, 0, &m_uniformsData, sizeof(UniformsData)); //TODO envoyer que la partie modifie
 }
