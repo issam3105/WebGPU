@@ -397,6 +397,20 @@ namespace Utils
 					const tinygltf::Image& gltfImage = model.images[gltfTexture.source];
 					node->material->setTexture("baseColorTexture", TextureManager::getInstance().getTextureView(gltfImage.uri));
 				}
+
+				int metallicRoughnessIndex = gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index;
+				if (metallicRoughnessIndex >= 0 && metallicRoughnessIndex < model.textures.size())
+				{
+					const tinygltf::Texture& gltfTexture = model.textures[metallicRoughnessIndex];
+					const tinygltf::Image& gltfImage = model.images[gltfTexture.source];
+					node->material->setTexture("metallicRoughnessTexture", TextureManager::getInstance().getTextureView(gltfImage.uri));
+				}
+
+				auto& metallicFactor = gltfMaterial.pbrMetallicRoughness.metallicFactor;
+				node->material->setUniform("metallicFactor", (float) metallicFactor);
+
+				auto& roughnessFactor = gltfMaterial.pbrMetallicRoughness.roughnessFactor;
+				node->material->setUniform("roughnessFactor", (float)roughnessFactor);
 			}
 		}
 	}

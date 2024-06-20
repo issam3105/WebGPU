@@ -32,19 +32,8 @@ namespace Issam {
 			nodeUniformBuffer = Context::getInstance().getDevice().createBuffer(bufferDesc);
 			Context::getInstance().getDevice().getQueue().writeBuffer(nodeUniformBuffer, 0, &nodeProperties, sizeof(NodeProperties));
 
-			//TextureView whiteTextureView = nullptr;
-			//Texture  whiteTexture = Issam::createWhiteTexture(&whiteTextureView);
-			////TextureManager().getInstance().add("whiteTex", whiteTextureView);
-
-			//// Create a sampler
-			//Sampler defaultSampler = Issam::createDefaultSampler();
-
-			material = new Material();
-			material->addUniform("baseColorFactor", glm::vec4(1.0f));
-			material->addUniform("time", 0.0f);
-
-			material->addTexture("baseColorTexture", TextureManager().getInstance().getTextureView("whiteTex"));
-			material->addSampler("defaultSampler", SamplerManager().getInstance().getSampler("defaultSampler"));
+			MaterialModule pbrMaterialModule = MaterialModuleManager::getInstance().getMaterialModule("pbrMat");
+			material = new Material(pbrMaterialModule);
 		};
 
 
@@ -102,6 +91,8 @@ namespace Issam {
 	{
 		glm::mat4 view{ glm::mat4(1.0) };
 		glm::mat4 projection{ glm::mat4(1.0) };
+		glm::vec4 position{ glm::vec4(0.0) };
+		glm::vec4 lightDirection{ glm::vec4(1.0) };
 	};
 
 	class Camera {
@@ -122,7 +113,17 @@ namespace Issam {
 		void setProjection(glm::mat4 in_projection) { 
 			cameraProperties.projection = in_projection;
 			updateUniformBuffer();
-		}	
+		}
+
+		void setPosition(glm::vec4 in_position) {
+			cameraProperties.position = in_position;
+			updateUniformBuffer();
+		}
+
+		void setLightDirection(glm::vec4 in_lightDirection) {
+			cameraProperties.lightDirection = in_lightDirection;
+			updateUniformBuffer();
+		}
 
 		BindGroup getBindGroup(BindGroupLayout bindGroupLayout) {
 			if (!dirtyBindGroup)

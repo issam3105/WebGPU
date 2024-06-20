@@ -86,7 +86,7 @@ void updateViewMatrix(Issam::Camera* camera) {
 	vec3 position = vec3(cx * cy, sx * cy, sy) * std::exp(-m_cameraState.zoom);
 	mat4x4 viewMatrix = glm::lookAt(position, vec3(0.0f), vec3(0, 0, 1));
 	camera->setView(viewMatrix);
-
+	camera->setPosition(vec4(position,0.0));
 }
 
 std::vector<std::string> GetFiles(const std::string& directoryPath, std::string extension) {
@@ -160,20 +160,25 @@ int main(int, char**) {
 	shader_1->addVertexOutput("normal", 1, VertexFormat::Float32x3);
 	shader_1->addVertexOutput("uv", 2, VertexFormat::Float32x2);
 
-	Material* materialPbr = new Material();
+	shader_1->addVertexOutput("worldPosition", 3, VertexFormat::Float32x4);
 
-	materialPbr->addUniform("baseColorFactor", glm::vec4(1.0f));
-	materialPbr->addUniform("time", 0.0f);
+	MaterialModule* materialPbrModule = new MaterialModule();
 
-	materialPbr->addTexture("baseColorTexture", whiteTextureView);
-	materialPbr->addSampler("defaultSampler", defaultSampler);
+	materialPbrModule->addUniform("baseColorFactor", glm::vec4(1.0f));
+	materialPbrModule->addUniform("metallicFactor", 0.5f);
+	materialPbrModule->addUniform("roughnessFactor", 0.5f);
 
-	shader_1->setMaterial(materialPbr);
+	materialPbrModule->addTexture("baseColorTexture", whiteTextureView);
+	materialPbrModule->addTexture("metallicRoughnessTexture", whiteTextureView);
+	materialPbrModule->addSampler("defaultSampler", defaultSampler);
+
+	shader_1->setMaterialModule(materialPbrModule);
+
+	MaterialModuleManager::getInstance().add("pbrMat", *materialPbrModule);
 
 //	ShaderManager::getInstance().add("shader1", shader_1);
 	
 	
-
 	glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos) {
 		if (m_drag.active) {
 			vec2 currentMouse = vec2((float)xpos, (float)ypos);
@@ -249,8 +254,10 @@ int main(int, char**) {
 	float fov = 2 * glm::atan(1 / focalLength);
 	mat4x4 proj = glm::perspective(fov, ratio, nearPlane, farPlane);
 	Issam::Camera* camera = new Issam::Camera;
+	camera->setPosition(vec4(focalPoint, 0.0));
 	camera->setView(V);
 	camera->setProjection(proj);
+	camera->setLightDirection(vec4(vec3(0.5, -0.9, 0.1),0.0));
 
 	Renderer renderer;
 	renderer.addPass(pass1);
@@ -345,7 +352,14 @@ int main(int, char**) {
 						ImGui::EndCombo();
 					}
 				}
+
+				
 			}
+
+			static glm::vec4 lightDirection = glm::vec4(1.0);
+			ImGui::SliderFloat3("lightDirection", (float*)&lightDirection, -100.0, 100.0);
+			camera->setLightDirection(lightDirection);
+			
 			/*static float translation[3] = { 0.0, 0.0, 0.0 };
 			static float rotation[3] = { 0.0, 0.0, 0.0 };
 			static float scale[3] = { 1.0, 1.0, 1.0 };

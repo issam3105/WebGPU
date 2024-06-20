@@ -20,57 +20,74 @@ struct Uniform {
 	bool isMatrix() const { return std::holds_alternative< glm::mat4>(value); }
 };
 
+class MaterialModule
+{
+public:
+	MaterialModule() = default;
+	~MaterialModule() = default;
+	void addTexture(const std::string& name, TextureView defaultTextureView) { m_textures.push_back({ name, defaultTextureView }); }
+	void addSampler(const std::string& name, Sampler defaultSampler) { m_samplers.push_back({ name, defaultSampler }); }
+	void addUniform(std::string name, const Value& defaultValue) {
+		
+		m_uniforms.push_back({ name, -1, defaultValue });
+	};
+
+	std::vector<Uniform>& getUniforms() { return m_uniforms; }
+	std::vector<std::pair<std::string, TextureView> >& getTextures() { return m_textures; }
+	std::vector<std::pair<std::string, Sampler>>& getSamplers() { return m_samplers; }
+	
+private:
+	std::vector<Uniform> m_uniforms{};
+	std::vector<std::pair<std::string, TextureView> > m_textures{};
+	std::vector<std::pair<std::string, Sampler>> m_samplers{};
+	
+};
+
 class Material {
 public:
-	Material() = default;
-	~Material() = default;
-	void addTexture(const std::string& name, TextureView defaultTextureView) { m_textures.push_back({ name, defaultTextureView }); }
+	Material(MaterialModule materialModule)
+	{
+		m_materialModule = materialModule;
+		for (auto& uniform : m_materialModule.getUniforms())
+		{
+			if (std::holds_alternative< glm::vec4>(uniform.value) || std::holds_alternative< float>(uniform.value))
+				uniform.handle = m_uniformsBuffer.allocateVec4();
+			else if (std::holds_alternative< glm::mat4x4>(uniform.value))
+				uniform.handle = m_uniformsBuffer.allocateMat4();
+			else
+				assert(false);
+			m_uniformsBuffer.set(uniform.handle, uniform.value);
+		}
+	};
+	~Material() = default;	
 
 	void setTexture(const std::string& name, TextureView textureView)
 	{
-		auto it = std::find_if(m_textures.begin(), m_textures.end(), [name](const std::pair<std::string, TextureView>& obj) {
+		auto it = std::find_if(m_materialModule.getTextures().begin(), m_materialModule.getTextures().end(), [name](const std::pair<std::string, TextureView>& obj) {
 			return obj.first == name;
 		});
-		assert(it != m_textures.end());
+		assert(it != m_materialModule.getTextures().end());
 		it->second = textureView;
 		m_dirtyBindGroup = true;
-	}
-
-
-	void addSampler(const std::string& name, Sampler defaultSampler) { m_samplers.push_back({ name, defaultSampler }); }
+	}	
 
 	void setSampler(const std::string& name, Sampler sampler)
 	{
-		auto it = std::find_if(m_samplers.begin(), m_samplers.end(), [name](const std::pair<std::string, Sampler>& obj) {
+		auto it = std::find_if(m_materialModule.getSamplers().begin(), m_materialModule.getSamplers().end(), [name](const std::pair<std::string, Sampler>& obj) {
 			return obj.first == name;
 		});
-		assert(it != m_samplers.end());
+		assert(it != m_materialModule.getSamplers().end());
 		it->second = sampler;
 		m_dirtyBindGroup = true;
 	}
 
-
-	void addUniform(std::string name, const Value& defaultValue) {
-		uint16_t handle = -1;
-		if (std::holds_alternative< glm::vec4>(defaultValue) || std::holds_alternative< float>(defaultValue))
-			handle = m_uniformsBuffer.allocateVec4();
-		else if (std::holds_alternative< glm::mat4x4>(defaultValue))
-			handle = m_uniformsBuffer.allocateMat4();
-		else
-			assert(false);
-		m_uniformsBuffer.set(handle, defaultValue);
-		m_uniforms.push_back({ name, handle, defaultValue });
-	};
-
-
 	Uniform& getUniform(std::string name) {
-		auto it = std::find_if(m_uniforms.begin(), m_uniforms.end(), [name](const Uniform& obj) {
+		auto it = std::find_if(m_materialModule.getUniforms().begin(), m_materialModule.getUniforms().end(), [name](const Uniform& obj) {
 			return obj.name == name;
 		});
-		assert(it != m_uniforms.end());
+		assert(it != m_materialModule.getUniforms().end());
 		return *it;
 	}
-
 
 	void setUniform(std::string name, const Value& value)
 	{
@@ -84,12 +101,8 @@ public:
 		if (m_dirtyBindGroup)
 			refreshBinding(bindGroupLayout);
 		return m_bindGroup;
-	}
-
-	std::vector<Uniform>& getUniforms() { return m_uniforms; }
-	std::vector<std::pair<std::string, TextureView> >& getTextures() { return m_textures; }
-	std::vector<std::pair<std::string, Sampler>>& getSamplers() { return m_samplers; }
-
+	}	
+	//UniformsBuffer getUniformsBuffer() { return m_uniformsBuffer; }
 private:
 
 	void refreshBinding(BindGroupLayout bindGroupLayout)
@@ -112,7 +125,7 @@ private:
 			bindings.push_back(uniformBinding);
 		}
 
-		for (const auto& texture : m_textures)
+		for (const auto& texture : m_materialModule.getTextures())
 		{
 			BindGroupEntry textureBinding{};
 			// The index of the binding (the entries in bindGroupDesc can be in any order)
@@ -122,7 +135,7 @@ private:
 			bindings.push_back(textureBinding);
 		}
 
-		for (const auto& sampler : m_samplers)
+		for (const auto& sampler : m_materialModule.getSamplers())
 		{
 			BindGroupEntry samplerBinding{};
 			// The index of the binding (the entries in bindGroupDesc can be in any order)
@@ -144,12 +157,34 @@ private:
 	}
 
 	bool m_dirtyBindGroup = true;
-
 	BindGroup m_bindGroup{ nullptr };
-
-	std::vector<Uniform> m_uniforms{};
-	std::vector<std::pair<std::string, TextureView> > m_textures{};
-	std::vector<std::pair<std::string, Sampler>> m_samplers{};
 	UniformsBuffer m_uniformsBuffer{};
+	MaterialModule m_materialModule;
+};
 
+class MaterialModuleManager
+{
+public:
+	MaterialModuleManager() = default;
+	~MaterialModuleManager() = default;
+
+	static MaterialModuleManager& getInstance() {
+		static MaterialModuleManager materialModuleManager;
+		return materialModuleManager;
+	};
+
+	bool add(const std::string& id, MaterialModule materialModule) {
+		m_materialModules[id] = std::make_shared<MaterialModule>(materialModule);
+		return true;
+	}
+	MaterialModule getMaterialModule(const std::string& id) {
+		return  *m_materialModules[id].get();
+	}
+	void clear()
+	{
+		m_materialModules.clear();
+	}
+	std::unordered_map<std::string, std::shared_ptr<MaterialModule>>& getAll() { return m_materialModules; }
+private:
+	std::unordered_map<std::string, std::shared_ptr<MaterialModule>> m_materialModules{};
 };

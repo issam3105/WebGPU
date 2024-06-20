@@ -90,7 +90,7 @@ public:
 		vertexInputOutputStr += "}; \n \n";
 
 		std::string vertexUniformsStr = "struct Uniforms { \n";
-		for (const auto& uniform : m_material->getUniforms())
+		for (const auto& uniform : m_materialModule->getUniforms())
 		{
 			vertexUniformsStr += "    " + uniform.name + ": " + (uniform.isMatrix() ? "mat4x4f" : "vec4f") + ", \n";
 		}
@@ -99,11 +99,11 @@ public:
 		{
 			vertexUniformsStr += "@group(0) @binding(0) var<uniform> u_uniforms: Uniforms;\n";
 			int binding = 1; //0 used for uniforms
-			for (const auto& texture : m_material->getTextures())
+			for (const auto& texture : m_materialModule->getTextures())
 			{
 				vertexUniformsStr += "@group(0) @binding(" + std::to_string(binding++) + ") var " + texture.first + " : texture_2d<f32>;\n";
 			}
-			for (const auto& sampler : m_material->getSamplers())
+			for (const auto& sampler : m_materialModule->getSamplers())
 			{
 				vertexUniformsStr += "@group(0) @binding(" + std::to_string(binding++) + ") var " + sampler.first + " : sampler;\n";
 			}
@@ -116,6 +116,8 @@ public:
 		std::string cameraStructStr = "struct Camera { \n";
 		cameraStructStr += "    view: mat4x4f, \n";
 		cameraStructStr += "    projection: mat4x4f, \n";
+		cameraStructStr += "    position: vec4f, \n";
+	    cameraStructStr += "    lightDirection: vec4f, \n";
 		cameraStructStr += "}; \n \n";
 		vertexUniformsStr += cameraStructStr;
 		vertexUniformsStr += "@group(2) @binding(0) var<uniform> u_camera: Camera;\n";
@@ -163,7 +165,7 @@ public:
 			uniformsBindingLayout.buffer.minBindingSize = sizeof(std::array<vec4, UNIFORMS_MAX>);
 			bindingLayoutEntries.push_back(uniformsBindingLayout);
 
-			for (const auto& texture : m_material->getTextures())
+			for (const auto& texture : m_materialModule->getTextures())
 			{
 				// The texture binding
 				BindGroupLayoutEntry textureBindingLayout = Default;
@@ -174,7 +176,7 @@ public:
 				bindingLayoutEntries.push_back(textureBindingLayout);
 			}
 
-			for (const auto& sampler : m_material->getSamplers())
+			for (const auto& sampler : m_materialModule->getSamplers())
 			{
 				// The texture sampler binding
 				BindGroupLayoutEntry samplerBindingLayout = Default;
@@ -220,7 +222,7 @@ public:
 			// The binding index as used in the @binding attribute in the shader
 			uniformsBindingLayout.binding = 0;
 			// The stage that needs to access this resource
-			uniformsBindingLayout.visibility = ShaderStage::Vertex;
+			uniformsBindingLayout.visibility = ShaderStage::Vertex | ShaderStage::Fragment;
 			uniformsBindingLayout.buffer.type = BufferBindingType::Uniform;
 			uniformsBindingLayout.buffer.minBindingSize = sizeof(Issam::CameraProperties);
 			bindingLayoutEntries.push_back(uniformsBindingLayout);
@@ -234,8 +236,8 @@ public:
 		m_dirtyBindGroupLayouts = true;
 		return m_bindGroupLayouts;
 	}
-	void setMaterial(Material* material) { m_material = material; }
-	Material* m_material{ nullptr };
+	void setMaterialModule(MaterialModule* material) { m_materialModule = material; }
+	MaterialModule* m_materialModule{ nullptr };
 private:
 
 	std::vector<BindGroupLayout> m_bindGroupLayouts{};
