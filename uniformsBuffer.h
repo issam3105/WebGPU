@@ -18,6 +18,13 @@ using namespace wgpu;
 using Value = std::variant<float, glm::vec4, glm::mat4>;
 using UniformsData = std::array<glm::vec4, UNIFORMS_MAX>;
 
+struct Uniform {
+	std::string name;
+	int handle;
+	Value value;
+	bool isMatrix() const { return std::holds_alternative< glm::mat4>(value); }
+};
+
 class UniformsBuffer
 {
 public:

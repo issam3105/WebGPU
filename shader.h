@@ -110,17 +110,20 @@ public:
 			vertexUniformsStr += "\n \n";
 		}
 
-		vertexUniformsStr += "@group(1) @binding(0) var<uniform> u_model: mat4x4f;\n";
+		vertexUniformsStr += "@group(1) @binding(0) var<uniform> u_model: mat4x4f;\n \n";
 
 
-		std::string cameraStructStr = "struct Camera { \n";
-		cameraStructStr += "    view: mat4x4f, \n";
-		cameraStructStr += "    projection: mat4x4f, \n";
-		cameraStructStr += "    position: vec4f, \n";
-	    cameraStructStr += "    lightDirection: vec4f, \n";
-		cameraStructStr += "}; \n \n";
-		vertexUniformsStr += cameraStructStr;
-		vertexUniformsStr += "@group(2) @binding(0) var<uniform> u_camera: Camera;\n";
+		if (m_scene)
+		{
+			std::string sceneStructStr = "struct Scene { \n";
+			for (const auto& uniform : m_scene->getUniforms())
+			{
+				sceneStructStr += "    " + uniform.name + ": " + (uniform.isMatrix() ? "mat4x4f" : "vec4f") + ", \n";
+			}
+			sceneStructStr += "}; \n \n";
+			vertexUniformsStr += sceneStructStr;
+			vertexUniformsStr += "@group(2) @binding(0) var<uniform> u_scene: Scene;\n";
+		}
 
 		m_shaderSource = vertexInputOutputStr + vertexUniformsStr + m_shaderSource;
 
@@ -214,7 +217,7 @@ public:
 			m_bindGroupLayouts.push_back(Context::getInstance().getDevice().createBindGroupLayout(bindGroupLayoutDesc));
 		}
 
-		//Camera Uniforms
+		//Scene Uniforms
 		{
 			std::vector<BindGroupLayoutEntry> bindingLayoutEntries{};
 
@@ -224,7 +227,7 @@ public:
 			// The stage that needs to access this resource
 			uniformsBindingLayout.visibility = ShaderStage::Vertex | ShaderStage::Fragment;
 			uniformsBindingLayout.buffer.type = BufferBindingType::Uniform;
-			uniformsBindingLayout.buffer.minBindingSize = sizeof(Issam::CameraProperties);
+			uniformsBindingLayout.buffer.minBindingSize = sizeof(UniformsData);
 			bindingLayoutEntries.push_back(uniformsBindingLayout);
 
 			// Create a bind group layout
@@ -237,6 +240,7 @@ public:
 		return m_bindGroupLayouts;
 	}
 	void setMaterialModule(MaterialModule* material) { m_materialModule = material; }
+	void setScene(Issam::Scene* scene) { m_scene = scene; }
 	MaterialModule* m_materialModule{ nullptr };
 private:
 
@@ -259,6 +263,7 @@ private:
 	std::vector<VertexAttr> m_vertexInputs{};
 	std::vector<VertexAttr> m_vertexOutputs{};
 	ShaderModule m_shaderModule{ nullptr };
+	Issam::Scene* m_scene{ nullptr };
 	bool m_dirtyShaderModule = true;
 	
 	std::string m_shaderSource;

@@ -78,15 +78,15 @@ struct DragState {
 DragState m_drag;
 CameraState m_cameraState;
 
-void updateViewMatrix(Issam::Camera* camera) {
+void updateViewMatrix(Issam::Scene* scene) {
 	float cx = cos(m_cameraState.angles.x);
 	float sx = sin(m_cameraState.angles.x);
 	float cy = cos(m_cameraState.angles.y);
 	float sy = sin(m_cameraState.angles.y);
 	vec3 position = vec3(cx * cy, sx * cy, sy) * std::exp(-m_cameraState.zoom);
 	mat4x4 viewMatrix = glm::lookAt(position, vec3(0.0f), vec3(0, 0, 1));
-	camera->setView(viewMatrix);
-	camera->setPosition(vec4(position,0.0));
+	scene->setUniform("view", viewMatrix);
+	scene->setUniform("cameraPosition", vec4(position, 0.0));
 }
 
 std::vector<std::string> GetFiles(const std::string& directoryPath, std::string extension) {
@@ -174,10 +174,7 @@ int main(int, char**) {
 
 	shader_1->setMaterialModule(materialPbrModule);
 
-	MaterialModuleManager::getInstance().add("pbrMat", *materialPbrModule);
-
-//	ShaderManager::getInstance().add("shader1", shader_1);
-	
+	MaterialModuleManager::getInstance().add("pbrMat", *materialPbrModule);	
 	
 	glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos) {
 		if (m_drag.active) {
@@ -222,18 +219,16 @@ int main(int, char**) {
 
 	glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scancode, int action, int mods)
 	{
-	//	auto shader = ShaderManager::getInstance().getShader("shader1");
-	/*	if (key == GLFW_KEY_E && action == GLFW_PRESS)
-			material->setTexture("baseColorTexture", TextureManager::getInstance().getTextureView("whiteTex"));
-		if (key == GLFW_KEY_R && action == GLFW_PRESS)
-			material->setTexture("baseColorTexture", TextureManager::getInstance().getTextureView("fourareen2K_albedo"));
-		if(key == GLFW_KEY_D && action == GLFW_PRESS)
-			material->setUniform("baseColorFactor", glm::vec4(1.0f));
-		if (key == GLFW_KEY_F && action == GLFW_PRESS)
-			material->setUniform("baseColorFactor", glm::vec4(1.0f, 0.0, 0.0, 1.0));*/
 	});
 
 	ImGUIWrapper* imgui = new ImGUIWrapper(window, swapChainFormat, depthTextureFormat); //After glfw callbacks
+	
+	Issam::Scene* scene = new Issam::Scene();
+	scene->addUniform("view", mat4(1.0));
+	scene->addUniform("projection", mat4(1.0));
+	scene->addUniform("cameraPosition", vec4(0.0));
+	scene->addUniform("lightDirection", vec4(1.0));
+	shader_1->setScene(scene);
 
 	Pass pass1(shader_1);
 	Pipeline* pipeline = new Pipeline(shader_1, swapChainFormat, depthTextureFormat);
@@ -253,17 +248,14 @@ int main(int, char**) {
 	float farPlane = 300.0f;
 	float fov = 2 * glm::atan(1 / focalLength);
 	mat4x4 proj = glm::perspective(fov, ratio, nearPlane, farPlane);
-	Issam::Camera* camera = new Issam::Camera;
-	camera->setPosition(vec4(focalPoint, 0.0));
-	camera->setView(V);
-	camera->setProjection(proj);
-	camera->setLightDirection(vec4(vec3(0.5, -0.9, 0.1),0.0));
+	
+	scene->setUniform("cameraPosition", vec4(focalPoint, 0.0));
+	scene->setUniform("view", V);
+	scene->setUniform("projection", proj);
+	scene->setUniform("lightDirection", vec4(vec3(0.5, -0.9, 0.1), 0.0));
 
 	Renderer renderer;
 	renderer.addPass(pass1);
-	//renderer.setCamera(camera);
-	Issam::Scene* scene = new Issam::Scene();
-	scene->setCamera(camera);
 	renderer.setScene(scene);
 
 	Issam::Node* selectedNode = nullptr;
@@ -271,7 +263,7 @@ int main(int, char**) {
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
 		
-	 	updateViewMatrix(camera);
+	 	updateViewMatrix(scene);
 
 		{
 			imgui->begin();
@@ -363,7 +355,7 @@ int main(int, char**) {
 
 			static glm::vec4 lightDirection = glm::vec4(1.0);
 			ImGui::SliderFloat3("lightDirection", (float*)&lightDirection, -1.0, 1.0);
-			camera->setLightDirection(lightDirection);
+			scene->setUniform("lightDirection", lightDirection);
 			
 			/*static float translation[3] = { 0.0, 0.0, 0.0 };
 			static float rotation[3] = { 0.0, 0.0, 0.0 };

@@ -4,7 +4,7 @@ const PI = 3.14159265359;
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
 	var out: VertexOutput;
-	out.position = u_camera.projection * u_camera.view * u_model * vec4f(in.position, 1.0);
+	out.position = u_scene.projection * u_scene.view * u_model * vec4f(in.position, 1.0);
 	out.color = in.color;
 	out.normal = in.normal;
 	out.uv = in.uv;
@@ -57,9 +57,9 @@ fn fresnelSchlick(cosTheta : f32, F0 : vec3f) -> vec3f
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //let lightDirection = vec3f(0.5, -0.9, 0.1);
-	let lightDirection = u_camera.lightDirection.xyz;
+	let lightDirection = u_scene.lightDirection.xyz;
 	
-    let V = normalize(u_camera.position.xyz - in.worldPosition.xyz);
+    let V = normalize(u_scene.cameraPosition.xyz - in.worldPosition.xyz);
 	let N = normalize(in.normal);
 	//let L = normalize(lightPositions[i] - WorldPos);
 	//let lightPosition = vec3f(0.5, -0.9, 0.1);
