@@ -176,19 +176,19 @@ int main(int, char**) {
 
 	shader_1->addUniform("model", mat4(1.0), Shader::Binding::Node);
 
-	MaterialModule* materialPbrModule = new MaterialModule();
+	//MaterialModule* materialPbrModule = new MaterialModule();
 
-	materialPbrModule->addUniform("baseColorFactor", glm::vec4(1.0f));
-	materialPbrModule->addUniform("metallicFactor", 0.5f);
-	materialPbrModule->addUniform("roughnessFactor", 0.5f);
+	//materialPbrModule->addUniform("baseColorFactor", glm::vec4(1.0f));
+	//materialPbrModule->addUniform("metallicFactor", 0.5f);
+	//materialPbrModule->addUniform("roughnessFactor", 0.5f);
 
-	materialPbrModule->addTexture("baseColorTexture", whiteTextureView);
-	materialPbrModule->addTexture("metallicRoughnessTexture", whiteTextureView);
-	materialPbrModule->addSampler("defaultSampler", defaultSampler);
+	//materialPbrModule->addTexture("baseColorTexture", whiteTextureView);
+	//materialPbrModule->addTexture("metallicRoughnessTexture", whiteTextureView);
+	//materialPbrModule->addSampler("defaultSampler", defaultSampler);
 
 	//shader_1->setMaterialModule(materialPbrModule);
 
-	MaterialModuleManager::getInstance().add("pbrMat", *materialPbrModule);	
+	//MaterialModuleManager::getInstance().add("pbrMat", *materialPbrModule);	
 	
 	glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos) {
 		if (m_drag.active) {
@@ -238,11 +238,6 @@ int main(int, char**) {
 	ImGUIWrapper* imgui = new ImGUIWrapper(window, swapChainFormat, depthTextureFormat); //After glfw callbacks
 	
 	Issam::Scene* scene = new Issam::Scene();
-	scene->addAttribute("view", mat4(1.0));
-	scene->addAttribute("projection", mat4(1.0));
-	scene->addAttribute("cameraPosition", vec4(0.0));
-	scene->addAttribute("lightDirection", vec4(1.0));
-	//shader_1->setScene(scene);
 
 	Pass pass1(shader_1);
 	Pipeline* pipeline = new Pipeline(shader_1, swapChainFormat, depthTextureFormat);
@@ -333,9 +328,9 @@ int main(int, char**) {
 			if (selectedNode && selectedNode->material)
 			{
 				Material* selectedMaterial = selectedNode->material;
-				glm::vec4 baseColorFactor = std::get<glm::vec4>(selectedMaterial->getUniform("baseColorFactor").value);
+				glm::vec4 baseColorFactor = std::get<glm::vec4>(selectedMaterial->getAttribute("baseColorFactor").value);
 				ImGui::ColorEdit4("BaseColorFactor", (float*)&baseColorFactor);
-				selectedMaterial->setUniform("baseColorFactor", baseColorFactor);
+				selectedMaterial->setAttribute("baseColorFactor", baseColorFactor);
 				{
 					static int selectedTextureIndex = -1;
 					std::vector<std::string> textureNames;
@@ -358,13 +353,13 @@ int main(int, char**) {
 						ImGui::EndCombo();
 					}
 				}
-				float metallicFactor = std::get<float>(selectedMaterial->getUniform("metallicFactor").value);
+				float metallicFactor = std::get<float>(selectedMaterial->getAttribute("metallicFactor").value);
 				ImGui::SliderFloat("MetallicFactor", &metallicFactor, 0.0 , 1.0);
-				selectedMaterial->setUniform("metallicFactor", metallicFactor);
+				selectedMaterial->setAttribute("metallicFactor", metallicFactor);
 				
-				float roughnessFactor = std::get<float>(selectedMaterial->getUniform("roughnessFactor").value);
+				float roughnessFactor = std::get<float>(selectedMaterial->getAttribute("roughnessFactor").value);
 				ImGui::SliderFloat("RoughnessFactor", &roughnessFactor, 0.0, 1.0);
-				selectedMaterial->setUniform("roughnessFactor", roughnessFactor);
+				selectedMaterial->setAttribute("roughnessFactor", roughnessFactor);
 			}
 
 			static glm::vec4 lightDirection = glm::vec4(1.0);

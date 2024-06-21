@@ -389,7 +389,7 @@ namespace Utils
 			{
 				auto& gltfMaterial = model.materials[primitive.material];
 				auto& baseColorFactor = gltfMaterial.pbrMetallicRoughness.baseColorFactor;
-				node->material->setUniform("baseColorFactor", glm::make_vec4(baseColorFactor.data()));
+				node->material->setAttribute("baseColorFactor", glm::make_vec4(baseColorFactor.data()));
 
 				int baseColorTextureIndex = gltfMaterial.pbrMetallicRoughness.baseColorTexture.index;
 				if (baseColorTextureIndex >= 0 && baseColorTextureIndex < model.textures.size())
@@ -408,10 +408,10 @@ namespace Utils
 				}
 
 				auto& metallicFactor = gltfMaterial.pbrMetallicRoughness.metallicFactor;
-				node->material->setUniform("metallicFactor", (float) metallicFactor);
+				node->material->setAttribute("metallicFactor", (float) metallicFactor);
 
 				auto& roughnessFactor = gltfMaterial.pbrMetallicRoughness.roughnessFactor;
-				node->material->setUniform("roughnessFactor", (float)roughnessFactor);
+				node->material->setAttribute("roughnessFactor", (float)roughnessFactor);
 			}
 		}
 	}

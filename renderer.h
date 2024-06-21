@@ -44,16 +44,16 @@ public:
 			auto pipeline = pass.getPipeline()->getRenderPipeline();
 			renderPass.setPipeline(pipeline);
 			Shader* shader = pass.getShader();
-			m_scene->updateUniforms(shader);
-
-			renderPass.setBindGroup(2, shader->getBindGroup(Shader::Binding::Scene), 0, nullptr); //Scene uniforms
+			auto& layouts = shader->getBindGroupLayouts();
+			renderPass.setBindGroup(2, m_scene->getBindGroup( layouts[static_cast<int>(Shader::Binding::Scene)]), 0, nullptr); //Scene uniforms
 			for(auto& node : m_scene->getNodes())
 			{
 				Mesh* mesh = MeshManager::getInstance().get(node->meshId);
 				if (mesh)
 				{
-					renderPass.setBindGroup(0, node->material->getBindGroup(pipeline.getBindGroupLayout(0)), 0, nullptr); //Material
-					renderPass.setBindGroup(1, node->getBindGroup(pipeline.getBindGroupLayout(1)), 0, nullptr); //Node model
+					
+					renderPass.setBindGroup(0, node->material->getBindGroup(layouts[static_cast<int>(Shader::Binding::Material)]), 0, nullptr); //Material
+					renderPass.setBindGroup(1, node->getBindGroup(layouts[static_cast<int>(Shader::Binding::Node)]), 0, nullptr); //Node model
 					renderPass.setVertexBuffer(0, mesh->getVertexBuffer()->getBuffer(), 0, mesh->getVertexBuffer()->getSize());
 					if (mesh->getIndexBuffer() != nullptr)
 					{

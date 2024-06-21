@@ -7,10 +7,10 @@
 #include <glm/ext.hpp>
 
 #include "context.h"
-//#include "uniformsBuffer.h"
-//#include "managers.h"
+
 #include "shader.h"
 #include "material.h"
+#include "attributed.h"
 
 #include <array>
 
@@ -18,61 +18,30 @@
 using namespace glm;
 
 namespace Issam {
-
-	struct NodeProperties {
-		glm::mat4 transform{ glm::mat4(1) };
-	};
-
-	class Node {
+	class Node : public Attributed{
 	public:
 		Node() {
-			BufferDescriptor bufferDesc;
-			bufferDesc.label = name.c_str();
-			bufferDesc.mappedAtCreation = false;
-			bufferDesc.usage = BufferUsage::Uniform | BufferUsage::CopyDst;
-			bufferDesc.size = sizeof(NodeProperties);
-			nodeUniformBuffer = Context::getInstance().getDevice().createBuffer(bufferDesc);
-			Context::getInstance().getDevice().getQueue().writeBuffer(nodeUniformBuffer, 0, &nodeProperties, sizeof(NodeProperties));
-
-			MaterialModule pbrMaterialModule = MaterialModuleManager::getInstance().getMaterialModule("pbrMat");
-			material = new Material(pbrMaterialModule);
+			addAttribute("model", glm::mat4(1.0));
+			material = new Material();
 		};
 
-
-		BindGroup getBindGroup(BindGroupLayout bindGroupLayout) {
-			if (!dirtyBindGroup)
-				return bindGroup;
-			// Bind Group
-			std::vector<BindGroupEntry> bindGroupEntries(1, Default);
-			bindGroupEntries[0].binding = 0;
-			bindGroupEntries[0].buffer = nodeUniformBuffer;
-			bindGroupEntries[0].size = sizeof(NodeProperties);
-
-			BindGroupDescriptor bindGroupDesc;
-			bindGroupDesc.label = name.c_str();
-			bindGroupDesc.entryCount = static_cast<uint32_t>(bindGroupEntries.size());
-			bindGroupDesc.entries = bindGroupEntries.data();
-			bindGroupDesc.layout = bindGroupLayout;
-			bindGroup = Context::getInstance().getDevice().createBindGroup(bindGroupDesc);
-			dirtyBindGroup = false;
-			return bindGroup;
-		}
 
 		Node(const Node& other) {
 			name = other.name;
 			children = other.children;
 			meshId = other.meshId;
 			material = other.material;
-			nodeUniformBuffer = other.nodeUniformBuffer;
+			m_attributes = other.m_attributes;
 		}
 
 		void setTransform(glm::mat4 in_transform) { 
-			nodeProperties.transform = in_transform;
-			updateUniformBuffer();
+			setAttribute("model", in_transform);
 		}
 		glm::mat4& getTransform() {
-			return nodeProperties.transform;
+			return std::get<glm::mat4>( getAttribute("model").value);
 		}
+
+
 		std::string name;
 		std::vector<Node*> children;
 		std::string meshId;
@@ -80,54 +49,21 @@ namespace Issam {
 		Material* material;
 
 	private:
-		void updateUniformBuffer() { Context::getInstance().getDevice().getQueue().writeBuffer(nodeUniformBuffer, 0, &nodeProperties, sizeof(NodeProperties)); }
 
-		NodeProperties nodeProperties;
-		Buffer nodeUniformBuffer{ nullptr };
-		BindGroup bindGroup{ nullptr };
-		bool dirtyBindGroup = true;
 
 	};
 
-	struct Attribute
+	
+
+	class Scene : public Attributed
 	{
-		std::string name;
-		Value value;
-	};
-
-	class Attributed {
-	public:
-		void addAttribute(std::string name, const Value& defaultValue) {
-			m_attributes.push_back({ name , defaultValue });
-			dirty = true;
-		};
-
-		Attribute& getAttribute(std::string name) {
-			auto it = std::find_if(m_attributes.begin(), m_attributes.end(), [name](const Attribute& obj) {
-				return obj.name == name;
-			});
-			assert(it != m_attributes.end());
-			return *it;
-		}
-
-		void setAttribute(std::string name, const Value& value)
-		{
-			auto& attribute = getAttribute(name);
-			attribute.value = value;
-			dirty = true;
-		}
-		std::vector<Attribute>& getAttributes() { return m_attributes; }
-
-	protected:
-		std::vector<Attribute> m_attributes{};
-		bool dirty = true;
-	};
-
-
-	class Scene : public Attributed{
 	public:	
 		Scene()
 		{
+			addAttribute("view", mat4(1.0));
+			addAttribute("projection", mat4(1.0));
+			addAttribute("cameraPosition", vec4(0.0));
+			addAttribute("lightDirection", vec4(1.0));
 		}
 
 		void setNodes(std::vector<Issam::Node*> nodes) {
@@ -139,17 +75,6 @@ namespace Issam {
 		}
 
 		std::vector<Issam::Node*>& getNodes() { return m_nodes; }
-
-		void updateUniforms(Shader* shader)
-		{
-			if (!dirty) return;
-			for (auto& attrib : m_attributes)
-			{
-				if (shader->hasUniform(attrib.name))
-					shader->setUniform(attrib.name, attrib.value, Shader::Binding::Scene);
-			}
-			dirty = false;
-		}
 	private:
 		void flattenNodes(Issam::Node* node, glm::mat4 parentTransform, std::vector<Issam::Node*>& flatNodes) {
 			glm::mat4 globalTransform = parentTransform * node->getTransform();
@@ -163,7 +88,6 @@ namespace Issam {
 			}
 		}
 
-		std::vector<Issam::Node*> m_nodes;
-		
+		std::vector<Issam::Node*> m_nodes;	
 	};
 }

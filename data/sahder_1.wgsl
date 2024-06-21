@@ -4,12 +4,12 @@ const PI = 3.14159265359;
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
 	var out: VertexOutput;
-	out.position = u_scene.projection * u_scene.view * u_model * vec4f(in.position, 1.0);
+	out.position = u_scene.projection * u_scene.view * u_node.model * vec4f(in.position, 1.0);
 	out.color = in.color;
 	out.normal = in.normal;
 	out.uv = in.uv;
 	
-	out.worldPosition = u_model * vec4f(in.position, 1.0);
+	out.worldPosition = u_node.model * vec4f(in.position, 1.0);
 	
 	return out;
 }

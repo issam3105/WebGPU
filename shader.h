@@ -17,11 +17,7 @@
 using namespace wgpu;
 using namespace glm;
 
-//TODO supprimer
-struct NodeProperties {
-	glm::mat4 transform{ glm::mat4(1) };
-};
-//-------------
+
 class Shader
 {
 public:
@@ -59,7 +55,7 @@ public:
 		m_dirtyShaderModule = true;
 	}
 
-	ShaderModule getShaderModule() { 
+	ShaderModule getShaderModule() {
 		if (!m_dirtyShaderModule)
 			return m_shaderModule;
 
@@ -115,11 +111,20 @@ public:
 			vertexUniformsStr += "\n \n";
 		}
 
-		vertexUniformsStr += "@group(1) @binding(0) var<uniform> u_model: mat4x4f;\n \n";
+		std::string nodeUniformsStr = "struct Node { \n";
+		const std::vector<Uniform>& nodeUniforms = getUniformsByBinding(m_uniforms, Binding::Node);
+		for (const auto& uniform : nodeUniforms)
+		{
+			nodeUniformsStr += "    " + uniform.name + ": " + (uniform.isMatrix() ? "mat4x4f" : "vec4f") + ", \n";
+		}
+		nodeUniformsStr += "}; \n \n";
+		nodeUniformsStr += "@group(1) @binding(0) var<uniform> u_node: Node;\n \n";
+
+		vertexUniformsStr += nodeUniformsStr;
 
 		{
 			std::string sceneStructStr = "struct Scene { \n";
-			const std::vector<Uniform>&sceneUniforms = getUniformsByBinding(m_uniforms, Binding::Scene);
+			const std::vector<Uniform>& sceneUniforms = getUniformsByBinding(m_uniforms, Binding::Scene);
 			for (const auto& uniform : sceneUniforms)
 			{
 				sceneStructStr += "    " + uniform.name + ": " + (uniform.isMatrix() ? "mat4x4f" : "vec4f") + ", \n";
@@ -151,14 +156,16 @@ public:
 		});
 		assert(m_shaderModule);
 		m_dirtyShaderModule = false;
-		return m_shaderModule; 
+		return m_shaderModule;
 	}
 
 
-	const std::vector<BindGroupLayout>& getBindGroupLayouts()  { 
+	const std::vector<BindGroupLayout>& getBindGroupLayouts() {
 		if (!m_dirtyBindGroupLayouts)
 			return m_bindGroupLayouts;
 
+		m_bindGroupLayouts.clear();
+		//Material uniforms
 		{
 			int binding = 0;
 			std::vector<BindGroupLayoutEntry> bindingLayoutEntries{};
@@ -201,7 +208,7 @@ public:
 			m_bindGroupLayouts.push_back(Context::getInstance().getDevice().createBindGroupLayout(bindGroupLayoutDesc));
 		}
 
-		//Model matrix Uniform
+		//Node Uniforms
 		{
 			std::vector<BindGroupLayoutEntry> bindingLayoutEntries{};
 
@@ -211,7 +218,7 @@ public:
 			// The stage that needs to access this resource
 			uniformsBindingLayout.visibility = ShaderStage::Vertex;
 			uniformsBindingLayout.buffer.type = BufferBindingType::Uniform;
-			uniformsBindingLayout.buffer.minBindingSize = sizeof(NodeProperties);
+			uniformsBindingLayout.buffer.minBindingSize = sizeof(UniformsData);
 			bindingLayoutEntries.push_back(uniformsBindingLayout);
 
 			// Create a bind group layout
@@ -240,16 +247,15 @@ public:
 			bindGroupLayoutDesc.entries = bindingLayoutEntries.data();
 			m_bindGroupLayouts.push_back(Context::getInstance().getDevice().createBindGroupLayout(bindGroupLayoutDesc));
 		}
-		m_dirtyBindGroupLayouts = true;
+		m_dirtyBindGroupLayouts = false;
 		return m_bindGroupLayouts;
 	}
-//	void setMaterialModule(MaterialModule* material) { m_materialModule = material; }
-//	void setScene(Issam::Scene* scene) { m_scene = scene; }
 	
+
 	enum class Binding : uint8_t
 	{
 		Material = 0,
-		Node ,
+		Node,
 		Scene
 	};
 
@@ -259,23 +265,6 @@ public:
 		Uniform uniform;
 		uniform.name = name;
 		uniform.value = defaultValue;
-		if (std::holds_alternative< glm::vec4>(defaultValue) || std::holds_alternative< float>(defaultValue))
-		{
-			if (binding == Binding::Scene)
-			{
-				uniform.handle = m_sceneUniformsBuffer.allocateVec4();
-			}
-		}
-		else if (std::holds_alternative< glm::mat4x4>(defaultValue))
-		{
-			if (binding == Binding::Scene)
-			{
-				uniform.handle = m_sceneUniformsBuffer.allocateMat4();
-			}
-		}
-		else
-			assert(false);
-
 		m_uniforms.push_back({ uniform, binding });
 	};
 
@@ -298,32 +287,6 @@ public:
 	{
 		auto& uniform = getUniform(name);
 		uniform.value = value;
-		if(binding == Binding::Scene)
-			m_sceneUniformsBuffer.set(uniform.handle, value);
-		//m_uniformsBuffer.set(uniform.handle, value);
-		//m_dirtyBindGroup = true;
-	}
-
-//	MaterialModule* m_materialModule{ nullptr };
-
-	BindGroup getBindGroup(Binding binding) {
-		if (!sceneDirtyBindGroup)
-			return sceneBindGroup;
-		// Bind Group
-		BindGroupLayout bindGroupLayout = m_bindGroupLayouts[static_cast<int>(binding)];
-		std::vector<BindGroupEntry> bindGroupEntries(1, Default);
-		bindGroupEntries[0].binding = 0;
-		bindGroupEntries[0].buffer = m_sceneUniformsBuffer.getBuffer();;
-		bindGroupEntries[0].size = sizeof(UniformsData);
-
-		BindGroupDescriptor bindGroupDesc;
-		bindGroupDesc.label = "Scene uniforms";
-		bindGroupDesc.entryCount = static_cast<uint32_t>(bindGroupEntries.size());
-		bindGroupDesc.entries = bindGroupEntries.data();
-		bindGroupDesc.layout = bindGroupLayout;
-		sceneBindGroup = Context::getInstance().getDevice().createBindGroup(bindGroupDesc);
-		sceneDirtyBindGroup = false;
-		return sceneBindGroup;
 	}
 
 private:
@@ -360,33 +323,11 @@ private:
 	std::vector<VertexAttr> m_vertexInputs{};
 	std::vector<VertexAttr> m_vertexOutputs{};
 	ShaderModule m_shaderModule{ nullptr };
-//	Issam::Scene* m_scene{ nullptr };
 	bool m_dirtyShaderModule = true;
 
-	UniformsBuffer m_sceneUniformsBuffer{};
+//	UniformsBuffer m_uniformsBuffer[3]{};
 	BindGroup sceneBindGroup{ nullptr };
 	bool sceneDirtyBindGroup = true;
 	
 	std::string m_shaderSource;
 };
-
-//class ShaderManager
-//{
-//public:
-//	ShaderManager() = default;
-//	~ShaderManager() = default;
-//
-//	static ShaderManager& getInstance() {
-//		static ShaderManager shaderManager;
-//		return shaderManager;
-//	};
-//
-//	bool add(const std::string& id, Shader* shader) {
-//		m_shaders[id] = shader;
-//		shader->build();
-//		return true;
-//	}
-//	Shader* getShader(const std::string& id) { return  m_shaders[id]; }
-//private:
-//	std::unordered_map<std::string, Shader*> m_shaders{};
-//};

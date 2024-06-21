@@ -25,6 +25,7 @@ list(APPEND sources
 	node.h
 	uniformsBuffer.h
 	material.h
+	attributed.h
 )
 
 add_executable(App ${sources})
