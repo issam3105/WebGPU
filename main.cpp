@@ -27,6 +27,7 @@
 #include "imgui_wrapper.h"
 #include "utils.h"
 #include "renderer.h"
+#include "material.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -85,8 +86,8 @@ void updateViewMatrix(Issam::Scene* scene) {
 	float sy = sin(m_cameraState.angles.y);
 	vec3 position = vec3(cx * cy, sx * cy, sy) * std::exp(-m_cameraState.zoom);
 	mat4x4 viewMatrix = glm::lookAt(position, vec3(0.0f), vec3(0, 0, 1));
-	scene->setUniform("view", viewMatrix);
-	scene->setUniform("cameraPosition", vec4(position, 0.0));
+	scene->setAttribute("view", viewMatrix);
+	scene->setAttribute("cameraPosition", vec4(position, 0.0));
 }
 
 std::vector<std::string> GetFiles(const std::string& directoryPath, std::string extension) {
@@ -159,8 +160,21 @@ int main(int, char**) {
 	shader_1->addVertexOutput("color", 0, VertexFormat::Float32x3);
 	shader_1->addVertexOutput("normal", 1, VertexFormat::Float32x3);
 	shader_1->addVertexOutput("uv", 2, VertexFormat::Float32x2);
-
 	shader_1->addVertexOutput("worldPosition", 3, VertexFormat::Float32x4);
+
+	shader_1->addTexture("baseColorTexture", whiteTextureView, Shader::Binding::Material);
+	shader_1->addUniform("baseColorFactor", glm::vec4(1.0f), Shader::Binding::Material);
+	shader_1->addTexture("metallicRoughnessTexture", whiteTextureView, Shader::Binding::Material);
+	shader_1->addUniform("metallicFactor", 0.5f, Shader::Binding::Material);
+	shader_1->addUniform("roughnessFactor", 0.5f, Shader::Binding::Material);
+	shader_1->addSampler("defaultSampler", defaultSampler, Shader::Binding::Material);
+
+	shader_1->addUniform("view", mat4(1.0), Shader::Binding::Scene);
+	shader_1->addUniform("projection", mat4(1.0), Shader::Binding::Scene);
+	shader_1->addUniform("cameraPosition", vec4(0.0), Shader::Binding::Scene);
+	shader_1->addUniform("lightDirection", vec4(1.0), Shader::Binding::Scene);
+
+	shader_1->addUniform("model", mat4(1.0), Shader::Binding::Node);
 
 	MaterialModule* materialPbrModule = new MaterialModule();
 
@@ -172,7 +186,7 @@ int main(int, char**) {
 	materialPbrModule->addTexture("metallicRoughnessTexture", whiteTextureView);
 	materialPbrModule->addSampler("defaultSampler", defaultSampler);
 
-	shader_1->setMaterialModule(materialPbrModule);
+	//shader_1->setMaterialModule(materialPbrModule);
 
 	MaterialModuleManager::getInstance().add("pbrMat", *materialPbrModule);	
 	
@@ -224,11 +238,11 @@ int main(int, char**) {
 	ImGUIWrapper* imgui = new ImGUIWrapper(window, swapChainFormat, depthTextureFormat); //After glfw callbacks
 	
 	Issam::Scene* scene = new Issam::Scene();
-	scene->addUniform("view", mat4(1.0));
-	scene->addUniform("projection", mat4(1.0));
-	scene->addUniform("cameraPosition", vec4(0.0));
-	scene->addUniform("lightDirection", vec4(1.0));
-	shader_1->setScene(scene);
+	scene->addAttribute("view", mat4(1.0));
+	scene->addAttribute("projection", mat4(1.0));
+	scene->addAttribute("cameraPosition", vec4(0.0));
+	scene->addAttribute("lightDirection", vec4(1.0));
+	//shader_1->setScene(scene);
 
 	Pass pass1(shader_1);
 	Pipeline* pipeline = new Pipeline(shader_1, swapChainFormat, depthTextureFormat);
@@ -249,10 +263,10 @@ int main(int, char**) {
 	float fov = 2 * glm::atan(1 / focalLength);
 	mat4x4 proj = glm::perspective(fov, ratio, nearPlane, farPlane);
 	
-	scene->setUniform("cameraPosition", vec4(focalPoint, 0.0));
-	scene->setUniform("view", V);
-	scene->setUniform("projection", proj);
-	scene->setUniform("lightDirection", vec4(vec3(0.5, -0.9, 0.1), 0.0));
+	scene->setAttribute("cameraPosition", vec4(focalPoint, 0.0));
+	scene->setAttribute("view", V);
+	scene->setAttribute("projection", proj);
+	scene->setAttribute("lightDirection", vec4(vec3(0.5, -0.9, 0.1), 0.0));
 
 	Renderer renderer;
 	renderer.addPass(pass1);
@@ -263,7 +277,7 @@ int main(int, char**) {
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
 		
-	 	updateViewMatrix(scene);
+	 	updateViewMatrix(scene); //TODO l'appeller qu'au besoin
 
 		{
 			imgui->begin();
@@ -355,7 +369,7 @@ int main(int, char**) {
 
 			static glm::vec4 lightDirection = glm::vec4(1.0);
 			ImGui::SliderFloat3("lightDirection", (float*)&lightDirection, -1.0, 1.0);
-			scene->setUniform("lightDirection", lightDirection);
+			scene->setAttribute("lightDirection", lightDirection);
 			
 			/*static float translation[3] = { 0.0, 0.0, 0.0 };
 			static float rotation[3] = { 0.0, 0.0, 0.0 };

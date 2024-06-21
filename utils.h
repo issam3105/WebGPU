@@ -10,6 +10,7 @@
 
 #include "context.h"
 #include "node.h"
+#include "material.h"
 
 #include "tiny_gltf.h"
 

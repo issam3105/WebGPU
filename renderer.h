@@ -43,7 +43,10 @@ public:
 			renderPass.pushDebugGroup("Render Pass");
 			auto pipeline = pass.getPipeline()->getRenderPipeline();
 			renderPass.setPipeline(pipeline);
-			renderPass.setBindGroup(2, m_scene->getBindGroup(pipeline.getBindGroupLayout(2)), 0, nullptr); //Scene uniforms
+			Shader* shader = pass.getShader();
+			m_scene->updateUniforms(shader);
+
+			renderPass.setBindGroup(2, shader->getSceneBindGroup(), 0, nullptr); //Scene uniforms
 			for(auto& node : m_scene->getNodes())
 			{
 				Mesh* mesh = MeshManager::getInstance().get(node->meshId);

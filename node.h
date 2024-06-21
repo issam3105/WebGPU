@@ -7,8 +7,10 @@
 #include <glm/ext.hpp>
 
 #include "context.h"
-#include "uniformsBuffer.h"
-#include "managers.h"
+//#include "uniformsBuffer.h"
+//#include "managers.h"
+#include "shader.h"
+#include "material.h"
 
 #include <array>
 
@@ -87,71 +89,42 @@ namespace Issam {
 
 	};
 
-	//struct CameraProperties
-	//{
-	//	glm::mat4 view{ glm::mat4(1.0) };
-	//	glm::mat4 projection{ glm::mat4(1.0) };
-	//	glm::vec4 position{ glm::vec4(0.0) };
-	//	glm::vec4 lightDirection{ glm::vec4(1.0) };
-	//};
+	struct Attribute
+	{
+		std::string name;
+		Value value;
+	};
 
-	//class Camera {
-	//public:
-	//	Camera() {
-	//		/*BufferDescriptor bufferDesc;
-	//		bufferDesc.label = "camera";
-	//		bufferDesc.mappedAtCreation = false;
-	//		bufferDesc.usage = BufferUsage::Uniform | BufferUsage::CopyDst;
-	//		bufferDesc.size = sizeof(CameraProperties);
-	//		cameraUniformBuffer = Context::getInstance().getDevice().createBuffer(bufferDesc);
-	//		Context::getInstance().getDevice().getQueue().writeBuffer(cameraUniformBuffer, 0, &cameraProperties, sizeof(CameraProperties));*/
-	//	}
-	//	void setView(glm::mat4 in_view) { 
-	//		cameraProperties.view = in_view; 
-	//	   // updateUniformBuffer();
-	//	}
-	//	void setProjection(glm::mat4 in_projection) { 
-	//		cameraProperties.projection = in_projection;
-	//	//	updateUniformBuffer();
-	//	}
+	class Attributed {
+	public:
+		void addAttribute(std::string name, const Value& defaultValue) {
+			m_attributes.push_back({ name , defaultValue });
+			dirty = true;
+		};
 
-	//	void setPosition(glm::vec4 in_position) {
-	//		cameraProperties.position = in_position;
-	//	//	updateUniformBuffer();
-	//	}
+		Attribute& getAttribute(std::string name) {
+			auto it = std::find_if(m_attributes.begin(), m_attributes.end(), [name](const Attribute& obj) {
+				return obj.name == name;
+			});
+			assert(it != m_attributes.end());
+			return *it;
+		}
 
-	//	void setLightDirection(glm::vec4 in_lightDirection) {
-	//		cameraProperties.lightDirection = in_lightDirection;
-	//		//updateUniformBuffer();
-	//	}
+		void setAttribute(std::string name, const Value& value)
+		{
+			auto& attribute = getAttribute(name);
+			attribute.value = value;
+			dirty = true;
+		}
+		std::vector<Attribute>& getAttributes() { return m_attributes; }
 
-	//	//BindGroup getBindGroup(BindGroupLayout bindGroupLayout) {
-	//	//	if (!dirtyBindGroup)
-	//	//		return bindGroup;
-	//	//	// Bind Group
-	//	//	std::vector<BindGroupEntry> bindGroupEntries(1, Default);
-	//	//	bindGroupEntries[0].binding = 0;
-	//	//	bindGroupEntries[0].buffer = cameraUniformBuffer;
-	//	//	bindGroupEntries[0].size = sizeof(CameraProperties);
+	protected:
+		std::vector<Attribute> m_attributes{};
+		bool dirty = true;
+	};
 
-	//	//	BindGroupDescriptor bindGroupDesc;
-	//	//	bindGroupDesc.label = "camera";
-	//	//	bindGroupDesc.entryCount = static_cast<uint32_t>(bindGroupEntries.size());
-	//	//	bindGroupDesc.entries = bindGroupEntries.data();
-	//	//	bindGroupDesc.layout = bindGroupLayout;
-	//	//	bindGroup = Context::getInstance().getDevice().createBindGroup(bindGroupDesc);
-	//	//	dirtyBindGroup = false;
-	//	//	return bindGroup;
-	//	//}
-	////private:
-	//	//void updateUniformBuffer() { Context::getInstance().getDevice().getQueue().writeBuffer(cameraUniformBuffer, 0, &cameraProperties, sizeof(CameraProperties)); }
-	//	CameraProperties cameraProperties;
-	//	//Buffer cameraUniformBuffer{ nullptr };
-	////	BindGroup bindGroup{ nullptr };
-	//	//bool dirtyBindGroup = true;
-	//};
 
-	class Scene {
+	class Scene : public Attributed{
 	public:	
 		Scene()
 		{
@@ -165,88 +138,18 @@ namespace Issam {
 			m_nodes = flatNodes;
 		}
 
-		/*void setCamera(Camera* in_camera)
-		{
-			m_camera = in_camera;
-			int handle = m_uniformsBuffer.allocateVec4();
-			m_uniformsBuffer.set(handle, in_camera->cameraProperties.position);
-		}*/
-
-		void addUniform(std::string name, const Value& defaultValue) {
-			Uniform uniform;
-			uniform.name = name;
-			uniform.value = defaultValue;
-			if (std::holds_alternative< glm::vec4>(defaultValue) || std::holds_alternative< float>(defaultValue))
-				uniform.handle = m_uniformsBuffer.allocateVec4();
-			else if (std::holds_alternative< glm::mat4x4>(defaultValue))
-				uniform.handle = m_uniformsBuffer.allocateMat4();
-			else
-				assert(false);
-
-			m_uniforms.push_back(uniform);
-		};
-
-		Uniform& getUniform(std::string name) {
-			auto it = std::find_if(m_uniforms.begin(), m_uniforms.end(), [name](const Uniform& obj) {
-				return obj.name == name;
-			});
-			assert(it != m_uniforms.end());
-			return *it;
-		}
-
-		void setUniform(std::string name, const Value& value)
-		{
-			auto& uniform = getUniform(name);
-			uniform.value = value;
-			m_uniformsBuffer.set(uniform.handle, value);
-		}
-
-		/*void setView(glm::mat4 in_view) {
-			auto& uniform = getUniform("view");
-			uniform.value = in_view;
-			m_uniformsBuffer.set(uniform.handle, in_view);
-		}
-
-		void setProjection(glm::mat4 in_projection) {
-			auto& uniform = getUniform("projection");
-			uniform.value = in_projection;
-			m_uniformsBuffer.set(uniform.handle, in_projection);
-		}
-
-		void setCameraPosition(glm::vec4 in_position) {
-			auto& uniform = getUniform("cameraPosition");
-			uniform.value = in_position;
-			m_uniformsBuffer.set(uniform.handle, in_position);
-		}
-
-		void setLightDirection(glm::vec4 in_lightDirection) {
-			auto& uniform = getUniform("lightDirection");
-			uniform.value = in_lightDirection;
-			m_uniformsBuffer.set(uniform.handle, in_lightDirection);
-		}*/
-
-		//Issam::Camera* getCamera() { return m_camera; }
-		BindGroup getBindGroup(BindGroupLayout bindGroupLayout) {
-			if (!dirtyBindGroup)
-				return bindGroup;
-			// Bind Group
-			std::vector<BindGroupEntry> bindGroupEntries(1, Default);
-			bindGroupEntries[0].binding = 0;
-			bindGroupEntries[0].buffer = m_uniformsBuffer.getBuffer();;
-			bindGroupEntries[0].size = sizeof(UniformsData);
-
-			BindGroupDescriptor bindGroupDesc;
-			bindGroupDesc.label = "Scene uniforms";
-			bindGroupDesc.entryCount = static_cast<uint32_t>(bindGroupEntries.size());
-			bindGroupDesc.entries = bindGroupEntries.data();
-			bindGroupDesc.layout = bindGroupLayout;
-			bindGroup = Context::getInstance().getDevice().createBindGroup(bindGroupDesc);
-			dirtyBindGroup = false;
-			return bindGroup;
-		}
 		std::vector<Issam::Node*>& getNodes() { return m_nodes; }
 
-		std::vector<Uniform>& getUniforms() { return m_uniforms; }
+		void updateUniforms(Shader* shader)
+		{
+			if (!dirty) return;
+			for (auto& attrib : m_attributes)
+			{
+				if (shader->hasUniform(attrib.name))
+					shader->setUniform(attrib.name, attrib.value, Shader::Binding::Scene);
+			}
+			dirty = false;
+		}
 	private:
 		void flattenNodes(Issam::Node* node, glm::mat4 parentTransform, std::vector<Issam::Node*>& flatNodes) {
 			glm::mat4 globalTransform = parentTransform * node->getTransform();
@@ -261,11 +164,6 @@ namespace Issam {
 		}
 
 		std::vector<Issam::Node*> m_nodes;
-		//Issam::Camera* m_camera;
-
-		std::vector<Uniform> m_uniforms{};
-		UniformsBuffer m_uniformsBuffer{};
-		BindGroup bindGroup{ nullptr };
-		bool dirtyBindGroup = true;
+		
 	};
 }
