@@ -46,7 +46,7 @@ public:
 			Shader* shader = pass.getShader();
 			m_scene->updateUniforms(shader);
 
-			renderPass.setBindGroup(2, shader->getSceneBindGroup(), 0, nullptr); //Scene uniforms
+			renderPass.setBindGroup(2, shader->getBindGroup(Shader::Binding::Scene), 0, nullptr); //Scene uniforms
 			for(auto& node : m_scene->getNodes())
 			{
 				Mesh* mesh = MeshManager::getInstance().get(node->meshId);

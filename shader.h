@@ -248,9 +248,9 @@ public:
 	
 	enum class Binding : uint8_t
 	{
-		Scene = 0,
+		Material = 0,
 		Node ,
-		Material 
+		Scene
 	};
 
 	void addTexture(const std::string& name, TextureView defaultTextureView, Binding binding) { m_textures.push_back({ name, defaultTextureView, binding }); }
@@ -306,11 +306,11 @@ public:
 
 //	MaterialModule* m_materialModule{ nullptr };
 
-	BindGroup getSceneBindGroup() {
+	BindGroup getBindGroup(Binding binding) {
 		if (!sceneDirtyBindGroup)
 			return sceneBindGroup;
 		// Bind Group
-		BindGroupLayout bindGroupLayout = m_bindGroupLayouts[2]; //Scene TODO m_bindGroupLayouts[Scene]
+		BindGroupLayout bindGroupLayout = m_bindGroupLayouts[static_cast<int>(binding)];
 		std::vector<BindGroupEntry> bindGroupEntries(1, Default);
 		bindGroupEntries[0].binding = 0;
 		bindGroupEntries[0].buffer = m_sceneUniformsBuffer.getBuffer();;
