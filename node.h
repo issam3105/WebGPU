@@ -18,11 +18,18 @@
 using namespace glm;
 
 namespace Issam {
+	const std::string c_pbrSceneAttributes = "pbrSceneAttributes";
+	const std::string c_pbrNodeAttributes = "pbrNodeAttributes";
+
 	class Node : public Attributed{
 	public:
 		Node() {
-			addAttribute("model", glm::mat4(1.0));
-			material = new Material();
+			auto materialModel = Issam::AttributedManager::getInstance().get(c_pbrNodeAttributes);
+			m_attributes = materialModel.getAttributes();
+			m_textures = materialModel.getTextures();
+			m_samplers = materialModel.getSamplers();
+			//addAttribute("model", glm::mat4(1.0));
+			material = new Material(c_pbrMaterialAttributes);
 		};
 
 
@@ -32,6 +39,8 @@ namespace Issam {
 			meshId = other.meshId;
 			material = other.material;
 			m_attributes = other.m_attributes;
+			m_textures = other.m_textures;
+			m_samplers = other.m_samplers;
 		}
 
 		void setTransform(glm::mat4 in_transform) { 
@@ -53,17 +62,57 @@ namespace Issam {
 
 	};
 
-	
+
+	/*class SceneModel : public Attributed
+	{
+	public:
+		SceneModel() {
+
+		};
+		~SceneModel() {};
+	};*/
+
+	/*class SceneModelManager
+	{
+	public:
+		SceneModelManager() = default;
+		~SceneModelManager() = default;
+
+		static SceneModelManager& getInstance() {
+			static SceneModelManager sceneModelManager;
+			return sceneModelManager;
+		};
+
+		bool add(const std::string& id, SceneModel SceneModel) {
+			m_sceneModels[id] = SceneModel;
+			return true;
+		}
+		SceneModel get(const std::string& id) {
+			return  m_sceneModels[id];
+		}
+		void clear()
+		{
+			m_sceneModels.clear();
+		}
+		std::unordered_map<std::string, SceneModel>& getAll() { return m_sceneModels; }
+	private:
+		std::unordered_map<std::string, SceneModel> m_sceneModels{};
+	};
+	*/
 
 	class Scene : public Attributed
 	{
 	public:	
 		Scene()
 		{
-			addAttribute("view", mat4(1.0));
+			auto sceneModel = Issam::AttributedManager::getInstance().get(Issam::c_pbrSceneAttributes);
+			m_attributes = sceneModel.getAttributes();
+			m_textures = sceneModel.getTextures();
+			m_samplers = sceneModel.getSamplers();
+			/*addAttribute("view", mat4(1.0));
 			addAttribute("projection", mat4(1.0));
 			addAttribute("cameraPosition", vec4(0.0));
-			addAttribute("lightDirection", vec4(1.0));
+			addAttribute("lightDirection", vec4(1.0));*/
 		}
 
 		void setNodes(std::vector<Issam::Node*> nodes) {

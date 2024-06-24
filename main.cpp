@@ -148,6 +148,29 @@ int main(int, char**) {
 	// Create a sampler
 	Sampler defaultSampler = Utils::createDefaultSampler();
 	SamplerManager().getInstance().add("defaultSampler", defaultSampler);
+
+	Issam::Attributed pbrMaterialAttributes;
+	pbrMaterialAttributes.addAttribute("baseColorFactor", glm::vec4(1.0f));
+	pbrMaterialAttributes.addAttribute("metallicFactor", 0.5f);
+	pbrMaterialAttributes.addAttribute("roughnessFactor", 0.5f);
+
+	pbrMaterialAttributes.addAttribute("baseColorTexture", whiteTextureView);
+	pbrMaterialAttributes.addAttribute("metallicRoughnessTexture", whiteTextureView);
+	pbrMaterialAttributes.addAttribute("defaultSampler", defaultSampler);
+	Issam::AttributedManager::getInstance().add(c_pbrMaterialAttributes, pbrMaterialAttributes);
+
+	Issam::Attributed pbrSceneAttributes;
+	pbrSceneAttributes.addAttribute("view", mat4(1.0));
+	pbrSceneAttributes.addAttribute("projection", mat4(1.0));
+	pbrSceneAttributes.addAttribute("cameraPosition", vec4(0.0));
+	pbrSceneAttributes.addAttribute("lightDirection", vec4(1.0));
+
+	Issam::AttributedManager::getInstance().add(Issam::c_pbrSceneAttributes, pbrSceneAttributes);
+
+	Issam::Attributed pbrNodeAttributes;
+	pbrNodeAttributes.addAttribute("model", mat4(1.0));
+	Issam::AttributedManager::getInstance().add(Issam::c_pbrNodeAttributes, pbrNodeAttributes);
+
     
 	std::string userCode = Utils::loadFile(DATA_DIR  "/sahder_1.wgsl");
 	Shader* shader_1 = new Shader();
@@ -162,33 +185,25 @@ int main(int, char**) {
 	shader_1->addVertexOutput("uv", 2, VertexFormat::Float32x2);
 	shader_1->addVertexOutput("worldPosition", 3, VertexFormat::Float32x4);
 
-	shader_1->addTexture("baseColorTexture", whiteTextureView, Shader::Binding::Material);
+	shader_1->addAttributes(c_pbrMaterialAttributes, Shader::Binding::Material);
+	/*shader_1->addTexture("baseColorTexture", whiteTextureView, Shader::Binding::Material);
 	shader_1->addUniform("baseColorFactor", glm::vec4(1.0f), Shader::Binding::Material);
 	shader_1->addTexture("metallicRoughnessTexture", whiteTextureView, Shader::Binding::Material);
 	shader_1->addUniform("metallicFactor", 0.5f, Shader::Binding::Material);
 	shader_1->addUniform("roughnessFactor", 0.5f, Shader::Binding::Material);
-	shader_1->addSampler("defaultSampler", defaultSampler, Shader::Binding::Material);
+	shader_1->addSampler("defaultSampler", defaultSampler, Shader::Binding::Material);*/
+	//shader_1->addUniform("tuto", 0.5f, Shader::Binding::Material);
+	//shader_1->addTexture("tutoTexture", whiteTextureView, Shader::Binding::Material);
 
-	shader_1->addUniform("view", mat4(1.0), Shader::Binding::Scene);
+	shader_1->addAttributes(Issam::c_pbrSceneAttributes, Shader::Binding::Scene);
+	/*shader_1->addUniform("view", mat4(1.0), Shader::Binding::Scene);
 	shader_1->addUniform("projection", mat4(1.0), Shader::Binding::Scene);
 	shader_1->addUniform("cameraPosition", vec4(0.0), Shader::Binding::Scene);
-	shader_1->addUniform("lightDirection", vec4(1.0), Shader::Binding::Scene);
+	shader_1->addUniform("lightDirection", vec4(1.0), Shader::Binding::Scene);*/
+	//shader_1->addUniform("tata", 0.5f, Shader::Binding::Scene);
 
-	shader_1->addUniform("model", mat4(1.0), Shader::Binding::Node);
-
-	//MaterialModule* materialPbrModule = new MaterialModule();
-
-	//materialPbrModule->addUniform("baseColorFactor", glm::vec4(1.0f));
-	//materialPbrModule->addUniform("metallicFactor", 0.5f);
-	//materialPbrModule->addUniform("roughnessFactor", 0.5f);
-
-	//materialPbrModule->addTexture("baseColorTexture", whiteTextureView);
-	//materialPbrModule->addTexture("metallicRoughnessTexture", whiteTextureView);
-	//materialPbrModule->addSampler("defaultSampler", defaultSampler);
-
-	//shader_1->setMaterialModule(materialPbrModule);
-
-	//MaterialModuleManager::getInstance().add("pbrMat", *materialPbrModule);	
+	//shader_1->addUniform("model", mat4(1.0), Shader::Binding::Node);
+	shader_1->addAttributes(Issam::c_pbrNodeAttributes, Shader::Binding::Node);
 	
 	glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos) {
 		if (m_drag.active) {
@@ -344,7 +359,7 @@ int main(int, char**) {
 							if (ImGui::Selectable(textureNames[i].c_str(), isSelected)) {
 								selectedTextureIndex = i;
 								//	std::cout << "Selected texture: " << textureNames[i] << std::endl;
-								selectedMaterial->setTexture("baseColorTexture", TextureManager::getInstance().getTextureView(textureNames[i]));
+								selectedMaterial->setAttribute("baseColorTexture", TextureManager::getInstance().getTextureView(textureNames[i]));
 							}
 							if (isSelected) {
 								ImGui::SetItemDefaultFocus();

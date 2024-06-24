@@ -67,10 +67,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	let L = lightDirection;
 	let H = normalize(V + L);
 	
-	let baseColor = textureSample(baseColorTexture, defaultSampler, in.uv) * u_uniforms.baseColorFactor;
+	let baseColor = textureSample(baseColorTexture, defaultSampler, in.uv) * u_material.baseColorFactor;
 	let metallicRoughnessTex = textureSample(metallicRoughnessTexture, defaultSampler, in.uv);
-	let metallic = metallicRoughnessTex.b * u_uniforms.metallicFactor.x;
-	let roughness = metallicRoughnessTex.g * u_uniforms.roughnessFactor.x;
+	let metallic = metallicRoughnessTex.b * u_material.metallicFactor.x;
+	let roughness = metallicRoughnessTex.g * u_material.roughnessFactor.x;
 	
 	var  F0 = vec3f(0.04); 
     F0 = mix(F0, baseColor.xyz, metallic);

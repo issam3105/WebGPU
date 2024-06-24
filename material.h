@@ -11,21 +11,33 @@ using namespace glm;
 
 #include "uniformsBuffer.h"
 #include "attributed.h"
+#include "managers.h"
 
-class Material : public Issam::Attributed {
+const std::string c_pbrMaterialAttributes = "pbrMaterialModel";
+
+//class MaterialModel : public Issam::Attributed {
+//public:
+//	MaterialModel()
+//	{	
+//	};
+//	~MaterialModel() = default;
+//};
+
+
+
+
+class Material : public Issam::Attributed
+{
 public:
-	Material()
+	Material(const std::string&  materialAttributesId)
 	{
-		auto& defaultSampler = SamplerManager().getInstance().getSampler("defaultSampler");
-		auto& defaultTexture = TextureManager().getInstance().getTextureView("whiteTex");
-		addAttribute("baseColorFactor", glm::vec4(1.0f));
-		addAttribute("metallicFactor", 0.5f);
-		addAttribute("roughnessFactor", 0.5f);
-
-		addTexture("baseColorTexture", defaultTexture);
-		addTexture("metallicRoughnessTexture", defaultTexture);
-		addSampler("defaultSampler", defaultSampler);
-		
+		auto materialModel = Issam::AttributedManager::getInstance().get(materialAttributesId);
+		m_attributes = materialModel.getAttributes();
+		m_textures = materialModel.getTextures();
+		m_samplers = materialModel.getSamplers();
 	};
-	~Material() = default;	
+	~Material() = default;
 };
+
+
+

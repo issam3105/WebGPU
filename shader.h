@@ -11,7 +11,8 @@
 #include "context.h"
 //#include "material.h"
 #include "uniformsBuffer.h"
-//#include "node.h"
+#include "node.h"
+#include "material.h"
 
 
 using namespace wgpu;
@@ -89,7 +90,7 @@ public:
 		}
 		vertexInputOutputStr += "}; \n \n";
 
-		std::string vertexUniformsStr = "struct Uniforms { \n";
+		std::string vertexUniformsStr = "struct Material { \n";
 		const std::vector<Uniform>& materialUniforms = getUniformsByBinding(m_uniforms, Binding::Material);
 		for (const auto& uniform : materialUniforms)
 		{
@@ -98,7 +99,7 @@ public:
 		vertexUniformsStr += "}; \n \n";
 		//Binding groups
 		{
-			vertexUniformsStr += "@group(0) @binding(0) var<uniform> u_uniforms: Uniforms;\n";
+			vertexUniformsStr += "@group(0) @binding(0) var<uniform> u_material: Material;\n";
 			int binding = 1; //0 used for uniforms
 			for (const auto& texture : m_textures)
 			{
@@ -289,8 +290,33 @@ public:
 		uniform.value = value;
 	}
 
-private:
+	void addAttributes(const std::string& materialModelId, Binding binding) { 
+	//	m_material = material; 
+		auto materialModel = Issam::AttributedManager::getInstance().get(materialModelId);
+		auto attributes = materialModel.getAttributes();
+		for (auto attrib : attributes)
+		{
+			if (std::holds_alternative< glm::vec4>(attrib.value) || std::holds_alternative< float>(attrib.value) || std::holds_alternative< glm::mat4x4>(attrib.value))
+			{
+				Uniform uniform;
+				uniform.name = attrib.name;
+				uniform.value = attrib.value;
+				m_uniforms.push_back({ uniform, binding });
+			}
+			else if (std::holds_alternative<TextureView>(attrib.value))
+			{
+				m_textures.push_back({ attrib.name, std::get<TextureView>(attrib.value), binding });
+			}
+			else if (std::holds_alternative<Sampler>(attrib.value))
+				m_samplers.push_back({ attrib.name, std::get<Sampler>(attrib.value), binding });
+			else
+				assert(false);
+		}
+		
+	}
 
+private:
+//	Material* m_material = nullptr;
 	std::vector<std::pair<Uniform, Binding>> m_uniforms{};
 	std::vector<std::tuple<std::string, TextureView, Binding> > m_textures{};
 	std::vector<std::tuple<std::string, Sampler, Binding>> m_samplers{};

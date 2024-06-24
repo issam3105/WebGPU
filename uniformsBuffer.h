@@ -15,7 +15,7 @@
 
 using namespace wgpu;
 
-using Value = std::variant<float, glm::vec4, glm::mat4>;
+using Value = std::variant<float, glm::vec4, glm::mat4, TextureView, Sampler>;
 using UniformsData = std::array<glm::vec4, UNIFORMS_MAX>;
 
 struct Uniform {

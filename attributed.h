@@ -34,15 +34,22 @@ namespace Issam {
 			{
 				uniform.handle = m_uniformsBuffer.allocateMat4();
 			}
+			else if (std::holds_alternative<TextureView>(defaultValue))
+			{
+				m_textures.push_back({ name, std::get< TextureView>(defaultValue) });
+			}
+				
+			else if (std::holds_alternative<Sampler>(defaultValue))
+			{
+				m_samplers.push_back({ name, std::get< Sampler>(defaultValue) });
+			}
+				
 			else
 				assert(false);
-
+			
 			m_attributes.push_back(uniform);
 			dirtyBindGroup = true;
 		};
-
-		void addTexture(const std::string& name, TextureView defaultTextureView) { m_textures.push_back({ name, defaultTextureView }); }
-		void addSampler(const std::string& name, Sampler defaultSampler) { m_samplers.push_back({ name, defaultSampler }); }
 
 		Attribute& getAttribute(std::string name) {
 			auto it = std::find_if(m_attributes.begin(), m_attributes.end(), [name](const Attribute& obj) {
@@ -56,27 +63,19 @@ namespace Issam {
 		{
 			auto& attribute = getAttribute(name);
 			attribute.value = value;
-			m_uniformsBuffer.set(attribute.handle, value);
-		}
+			if (std::holds_alternative< glm::vec4>(value) || std::holds_alternative< float>(value) || std::holds_alternative< glm::mat4x4>(value))
+			{
+				m_uniformsBuffer.set(attribute.handle, value);
+			}
+			else if (std::holds_alternative<TextureView>(value))
+			{
+				setTexture(name, std::get< TextureView>(value));
+			}
+			else if (std::holds_alternative<Sampler>(value))
+				setSampler(name, std::get< Sampler>(value));
+			else
+				assert(false);
 
-		void setTexture(const std::string& name, TextureView textureView)
-		{
-			auto it = std::find_if(m_textures.begin(), m_textures.end(), [name](const std::pair<std::string, TextureView>& obj) {
-				return obj.first == name;
-			});
-			assert(it != m_textures.end());
-			it->second = textureView;
-			dirtyBindGroup = true;
-		}
-
-		void setSampler(const std::string& name, Sampler sampler)
-		{
-			auto it = std::find_if(m_samplers.begin(), m_samplers.end(), [name](const std::pair<std::string, Sampler>& obj) {
-				return obj.first == name;
-			});
-			assert(it != m_samplers.end());
-			it->second = sampler;
-			dirtyBindGroup = true;
 		}
 
 		std::vector<Attribute>& getAttributes() { return m_attributes; }
@@ -124,13 +123,64 @@ namespace Issam {
 			return bindGroup;
 		}
 
+		std::vector<std::pair<std::string, TextureView>>& getTextures() { return m_textures; }
+		std::vector<std::pair<std::string, Sampler>>& getSamplers() { return m_samplers; }
 	protected:
 		std::vector<Attribute> m_attributes{};
+
 		std::vector<std::pair<std::string, TextureView> > m_textures{};
 		std::vector<std::pair<std::string, Sampler>> m_samplers{};
-
 		UniformsBuffer m_uniformsBuffer{};
+
 		BindGroup bindGroup{ nullptr };
 		bool dirtyBindGroup = true;
+	private:
+
+		void setTexture(const std::string& name, TextureView textureView)
+		{
+			auto it = std::find_if(m_textures.begin(), m_textures.end(), [name](const std::pair<std::string, TextureView>& obj) {
+				return obj.first == name;
+			});
+			assert(it != m_textures.end());
+			it->second = textureView;
+			dirtyBindGroup = true;
+		}
+
+		void setSampler(const std::string& name, Sampler sampler)
+		{
+			auto it = std::find_if(m_samplers.begin(), m_samplers.end(), [name](const std::pair<std::string, Sampler>& obj) {
+				return obj.first == name;
+			});
+			assert(it != m_samplers.end());
+			it->second = sampler;
+			dirtyBindGroup = true;
+		}
+	};
+
+	class AttributedManager
+	{
+	public:
+		AttributedManager() = default;
+		~AttributedManager() = default;
+
+		static AttributedManager& getInstance() {
+			static AttributedManager attributedManager;
+			return attributedManager;
+		};
+
+		bool add(const std::string& id, Issam::Attributed attributed) {
+			m_attributed[id] = attributed;
+			return true;
+		}
+		Issam::Attributed get(const std::string& id) {
+			return  m_attributed[id];
+		}
+		void clear()
+		{
+			m_attributed.clear();
+		}
+		std::unordered_map<std::string, Issam::Attributed>& getAll() { return m_attributed; }
+	private:
+		std::unordered_map<std::string, Issam::Attributed> m_attributed{};
 	};
 }

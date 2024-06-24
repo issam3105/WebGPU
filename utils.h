@@ -396,7 +396,7 @@ namespace Utils
 				{
 					const tinygltf::Texture& gltfTexture = model.textures[baseColorTextureIndex];
 					const tinygltf::Image& gltfImage = model.images[gltfTexture.source];
-					node->material->setTexture("baseColorTexture", TextureManager::getInstance().getTextureView(gltfImage.uri));
+					node->material->setAttribute("baseColorTexture", TextureManager::getInstance().getTextureView(gltfImage.uri));
 				}
 
 				int metallicRoughnessIndex = gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index;
@@ -404,7 +404,7 @@ namespace Utils
 				{
 					const tinygltf::Texture& gltfTexture = model.textures[metallicRoughnessIndex];
 					const tinygltf::Image& gltfImage = model.images[gltfTexture.source];
-					node->material->setTexture("metallicRoughnessTexture", TextureManager::getInstance().getTextureView(gltfImage.uri));
+					node->material->setAttribute("metallicRoughnessTexture", TextureManager::getInstance().getTextureView(gltfImage.uri));
 				}
 
 				auto& metallicFactor = gltfMaterial.pbrMetallicRoughness.metallicFactor;
