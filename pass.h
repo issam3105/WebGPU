@@ -89,14 +89,19 @@ public:
 		renderPassColorAttachment = new RenderPassColorAttachment();
 		renderPassColorAttachment->view = view;
 		renderPassColorAttachment->resolveTarget = nullptr;
-		renderPassColorAttachment->loadOp = LoadOp::Clear;
+		renderPassColorAttachment->loadOp = clearColor ? LoadOp::Clear : LoadOp::Load;
 		renderPassColorAttachment->storeOp = StoreOp::Store;
-		renderPassColorAttachment->clearValue = Color{ 0.3, 0.3, 0.3, 1.0 };
+		renderPassColorAttachment->clearValue = clearColorValue;
 		return renderPassColorAttachment;
 	}
 
 	void setPipeline(Pipeline* pipline) { m_pipline = pipline; }
 	Pipeline* getPipeline() { return m_pipline; }
+
+	void addFilter(std::string filter) { m_filters.push_back(filter); }
+	const std::vector<std::string>& getFilters() { return m_filters; }
+
+	void setClearColor(bool clear) { clearColor = clear; }
 
 private:
 	RenderPassDepthStencilAttachment* depthStencilAttachment;
@@ -105,4 +110,8 @@ private:
 	Pipeline* m_pipline{ nullptr };
 	TextureView m_depthTextureView{ nullptr };
 	ImGUIWrapper* m_imGuiWrapper{ nullptr };
+	std::vector<std::string> m_filters;
+
+	bool clearColor = true;
+	Color clearColorValue{ 0.3, 0.3, 0.3, 1.0 };
 };

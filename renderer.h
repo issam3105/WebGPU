@@ -27,32 +27,38 @@ public:
 		if (!nextTexture) {
 			std::cerr << "Cannot acquire next swap chain texture" << std::endl;
 		}
-
+		int passIdx = 0;
 		for (auto& pass : m_passes)
 		{
 			RenderPassDescriptor renderPassDesc;
 
 			renderPassDesc.colorAttachmentCount = 1;
-			renderPassDesc.colorAttachments = pass.getRenderPassColorAttachment(nextTexture);//&renderPassColorAttachment;
-			renderPassDesc.depthStencilAttachment = pass.getRenderPassDepthStencilAttachment();
+			renderPassDesc.colorAttachments = pass->getRenderPassColorAttachment(nextTexture);//&renderPassColorAttachment;
+			renderPassDesc.depthStencilAttachment = pass->getRenderPassDepthStencilAttachment();
 
 			renderPassDesc.timestampWriteCount = 0;
 			renderPassDesc.timestampWrites = nullptr;
 
 			RenderPassEncoder renderPass = encoder.beginRenderPass(renderPassDesc);
 			renderPass.pushDebugGroup("Render Pass");
-			auto pipeline = pass.getPipeline()->getRenderPipeline();
+			auto pipeline = pass->getPipeline()->getRenderPipeline();
 			renderPass.setPipeline(pipeline);
-			Shader* shader = pass.getShader();
+			Shader* shader = pass->getShader();
 			auto& layouts = shader->getBindGroupLayouts();
 			renderPass.setBindGroup(2, m_scene->getBindGroup( layouts[static_cast<int>(Shader::Binding::Scene)]), 0, nullptr); //Scene uniforms
 			for(auto& node : m_scene->getNodes())
 			{
+				bool shouldDraw = std::any_of(node->getFilters().begin(), node->getFilters().end(),
+					[&pass](const std::string& filter) {
+					return std::find(pass->getFilters().begin(), pass->getFilters().end(), filter) != pass->getFilters().end();
+				});
+				if (!shouldDraw) continue;
+
 				Mesh* mesh = MeshManager::getInstance().get(node->meshId);
 				if (mesh)
 				{
 					
-					renderPass.setBindGroup(0, node->material->getBindGroup(layouts[static_cast<int>(Shader::Binding::Material)]), 0, nullptr); //Material
+					renderPass.setBindGroup(0, node->materials.at(passIdx)->getBindGroup(layouts[static_cast<int>(Shader::Binding::Material)]), 0, nullptr); //Material
 					renderPass.setBindGroup(1, node->getBindGroup(layouts[static_cast<int>(Shader::Binding::Node)]), 0, nullptr); //Node model
 					renderPass.setVertexBuffer(0, mesh->getVertexBuffer()->getBuffer(), 0, mesh->getVertexBuffer()->getSize());
 					if (mesh->getIndexBuffer() != nullptr)
@@ -66,13 +72,14 @@ public:
 			}
 
 			// Build UI
-			if (pass.getImGuiWrapper())
-				pass.getImGuiWrapper()->draw(renderPass);
+			if (pass->getImGuiWrapper())
+				pass->getImGuiWrapper()->draw(renderPass);
 
 			renderPass.popDebugGroup();
 
 			renderPass.end();
 			renderPass.release();
+			passIdx++;
 		}
 		Context::getInstance().getDevice().tick();
 
@@ -87,7 +94,7 @@ public:
 		Context::getInstance().getSwapChain().present();
 	};
 
-	void addPass(const Pass& pass)
+	void addPass(Pass* pass)
 	{
 		m_passes.push_back(pass);
 	}
@@ -98,6 +105,6 @@ public:
 private:
 	
 	Queue m_queue{ nullptr };
-	std::vector<Pass> m_passes;
+	std::vector<Pass*> m_passes;
 	Issam::Scene* m_scene;
 };

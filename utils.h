@@ -389,14 +389,14 @@ namespace Utils
 			{
 				auto& gltfMaterial = model.materials[primitive.material];
 				auto& baseColorFactor = gltfMaterial.pbrMetallicRoughness.baseColorFactor;
-				node->material->setAttribute("baseColorFactor", glm::make_vec4(baseColorFactor.data()));
+				node->materials.at(0)->setAttribute("baseColorFactor", glm::make_vec4(baseColorFactor.data()));
 
 				int baseColorTextureIndex = gltfMaterial.pbrMetallicRoughness.baseColorTexture.index;
 				if (baseColorTextureIndex >= 0 && baseColorTextureIndex < model.textures.size())
 				{
 					const tinygltf::Texture& gltfTexture = model.textures[baseColorTextureIndex];
 					const tinygltf::Image& gltfImage = model.images[gltfTexture.source];
-					node->material->setAttribute("baseColorTexture", TextureManager::getInstance().getTextureView(gltfImage.uri));
+					node->materials.at(0)->setAttribute("baseColorTexture", TextureManager::getInstance().getTextureView(gltfImage.uri));
 				}
 
 				int metallicRoughnessIndex = gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index;
@@ -404,14 +404,14 @@ namespace Utils
 				{
 					const tinygltf::Texture& gltfTexture = model.textures[metallicRoughnessIndex];
 					const tinygltf::Image& gltfImage = model.images[gltfTexture.source];
-					node->material->setAttribute("metallicRoughnessTexture", TextureManager::getInstance().getTextureView(gltfImage.uri));
+					node->materials.at(0)->setAttribute("metallicRoughnessTexture", TextureManager::getInstance().getTextureView(gltfImage.uri));
 				}
 
 				auto& metallicFactor = gltfMaterial.pbrMetallicRoughness.metallicFactor;
-				node->material->setAttribute("metallicFactor", (float) metallicFactor);
+				node->materials.at(0)->setAttribute("metallicFactor", (float) metallicFactor);
 
 				auto& roughnessFactor = gltfMaterial.pbrMetallicRoughness.roughnessFactor;
-				node->material->setAttribute("roughnessFactor", (float)roughnessFactor);
+				node->materials.at(0)->setAttribute("roughnessFactor", (float)roughnessFactor);
 			}
 		}
 	}

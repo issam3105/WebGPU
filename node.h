@@ -20,16 +20,24 @@ using namespace glm;
 namespace Issam {
 	const std::string c_pbrSceneAttributes = "pbrSceneAttributes";
 	const std::string c_pbrNodeAttributes = "pbrNodeAttributes";
+	const std::string c_unlitSceneAttributes = "unlitSceneAttributes";
 
-	class Node : public Attributed{
+	class Node : public AttributedRuntime{
 	public:
 		Node() {
-			auto materialModel = Issam::AttributedManager::getInstance().get(c_pbrNodeAttributes);
+			setAttributes(c_pbrNodeAttributes);
+			/*auto materialModel = Issam::AttributedManager::getInstance().get(c_pbrNodeAttributes);
 			m_attributes = materialModel.getAttributes();
 			m_textures = materialModel.getTextures();
-			m_samplers = materialModel.getSamplers();
+			m_samplers = materialModel.getSamplers();*/
 			//addAttribute("model", glm::mat4(1.0));
-			material = new Material(c_pbrMaterialAttributes);
+			auto* pbrMaterial = new Material(c_pbrMaterialAttributes);
+			auto* unlitMaterial = new Material(c_unlitMaterialAttributes);
+			unlitMaterial->setAttribute("colorFactor", glm::vec4(1.0, 0.5, 0.0, 1.0));
+			materials.push_back(pbrMaterial);
+			materials.push_back(unlitMaterial);
+
+			m_filters.push_back("pbr");
 		};
 
 
@@ -37,10 +45,12 @@ namespace Issam {
 			name = other.name;
 			children = other.children;
 			meshId = other.meshId;
-			material = other.material;
+			materials = other.materials;
 			m_attributes = other.m_attributes;
-			m_textures = other.m_textures;
-			m_samplers = other.m_samplers;
+			//m_textures = other.m_textures;
+			//m_samplers = other.m_samplers;
+
+			m_filters = other.m_filters;
 		}
 
 		void setTransform(glm::mat4 in_transform) { 
@@ -50,16 +60,23 @@ namespace Issam {
 			return std::get<glm::mat4>( getAttribute("model").value);
 		}
 
+		void addFilter(std::string filter) { m_filters.push_back(filter); }
+		void removeFilter(std::string filter) {
+			auto it = std::find(m_filters.begin(), m_filters.end(), filter);
+			m_filters.erase(it); 
+		}
+
+		const std::vector<std::string>& getFilters() { return m_filters; }
 
 		std::string name;
 		std::vector<Node*> children;
 		std::string meshId;
 
-		Material* material;
+		std::vector<Material*> materials;
 
 	private:
 
-
+		std::vector<std::string> m_filters;
 	};
 
 
@@ -100,15 +117,16 @@ namespace Issam {
 	};
 	*/
 
-	class Scene : public Attributed
+	class Scene : public AttributedRuntime
 	{
 	public:	
 		Scene()
 		{
-			auto sceneModel = Issam::AttributedManager::getInstance().get(Issam::c_pbrSceneAttributes);
-			m_attributes = sceneModel.getAttributes();
-			m_textures = sceneModel.getTextures();
-			m_samplers = sceneModel.getSamplers();
+			setAttributes(Issam::c_pbrSceneAttributes);
+			//auto sceneModel = Issam::AttributedManager::getInstance().get(Issam::c_pbrSceneAttributes);
+			//m_attributes = sceneModel.getAttributes();
+			//m_textures = sceneModel.getTextures();
+			//m_samplers = sceneModel.getSamplers();
 			/*addAttribute("view", mat4(1.0));
 			addAttribute("projection", mat4(1.0));
 			addAttribute("cameraPosition", vec4(0.0));

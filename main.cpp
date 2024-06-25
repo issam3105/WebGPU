@@ -171,21 +171,20 @@ int main(int, char**) {
 	pbrNodeAttributes.addAttribute("model", mat4(1.0));
 	Issam::AttributedManager::getInstance().add(Issam::c_pbrNodeAttributes, pbrNodeAttributes);
 
-    
-	std::string userCode = Utils::loadFile(DATA_DIR  "/sahder_1.wgsl");
-	Shader* shader_1 = new Shader();
-	shader_1->setUserCode(userCode);
-	shader_1->addVertexInput("position", 0, VertexFormat::Float32x3);
-	shader_1->addVertexInput("normal", 1, VertexFormat::Float32x3);
-	shader_1->addVertexInput("color", 2, VertexFormat::Float32x3);
-	shader_1->addVertexInput("uv", 3, VertexFormat::Float32x2);
 
-	shader_1->addVertexOutput("color", 0, VertexFormat::Float32x3);
-	shader_1->addVertexOutput("normal", 1, VertexFormat::Float32x3);
-	shader_1->addVertexOutput("uv", 2, VertexFormat::Float32x2);
-	shader_1->addVertexOutput("worldPosition", 3, VertexFormat::Float32x4);
+	Shader* pbrShader = new Shader();
+	pbrShader->setUserCode(Utils::loadFile(DATA_DIR  "/pbr.wgsl"));
+	pbrShader->addVertexInput("position", 0, VertexFormat::Float32x3);
+	pbrShader->addVertexInput("normal", 1, VertexFormat::Float32x3);
+	pbrShader->addVertexInput("color", 2, VertexFormat::Float32x3);
+	pbrShader->addVertexInput("uv", 3, VertexFormat::Float32x2);
 
-	shader_1->addAttributes(c_pbrMaterialAttributes, Shader::Binding::Material);
+	pbrShader->addVertexOutput("color", 0, VertexFormat::Float32x3);
+	pbrShader->addVertexOutput("normal", 1, VertexFormat::Float32x3);
+	pbrShader->addVertexOutput("uv", 2, VertexFormat::Float32x2);
+	pbrShader->addVertexOutput("worldPosition", 3, VertexFormat::Float32x4);
+
+	pbrShader->addAttributes(c_pbrMaterialAttributes, Shader::Binding::Material);
 	/*shader_1->addTexture("baseColorTexture", whiteTextureView, Shader::Binding::Material);
 	shader_1->addUniform("baseColorFactor", glm::vec4(1.0f), Shader::Binding::Material);
 	shader_1->addTexture("metallicRoughnessTexture", whiteTextureView, Shader::Binding::Material);
@@ -195,7 +194,7 @@ int main(int, char**) {
 	//shader_1->addUniform("tuto", 0.5f, Shader::Binding::Material);
 	//shader_1->addTexture("tutoTexture", whiteTextureView, Shader::Binding::Material);
 
-	shader_1->addAttributes(Issam::c_pbrSceneAttributes, Shader::Binding::Scene);
+	pbrShader->addAttributes(Issam::c_pbrSceneAttributes, Shader::Binding::Scene);
 	/*shader_1->addUniform("view", mat4(1.0), Shader::Binding::Scene);
 	shader_1->addUniform("projection", mat4(1.0), Shader::Binding::Scene);
 	shader_1->addUniform("cameraPosition", vec4(0.0), Shader::Binding::Scene);
@@ -203,7 +202,34 @@ int main(int, char**) {
 	//shader_1->addUniform("tata", 0.5f, Shader::Binding::Scene);
 
 	//shader_1->addUniform("model", mat4(1.0), Shader::Binding::Node);
-	shader_1->addAttributes(Issam::c_pbrNodeAttributes, Shader::Binding::Node);
+	pbrShader->addAttributes(Issam::c_pbrNodeAttributes, Shader::Binding::Node);
+
+	Shader* unlitShader = new Shader();
+	unlitShader->setUserCode(Utils::loadFile(DATA_DIR  "/unlit.wgsl"));
+	unlitShader->addVertexInput("position", 0, VertexFormat::Float32x3);
+	unlitShader->addVertexInput("normal", 1, VertexFormat::Float32x3);
+	unlitShader->addVertexInput("color", 2, VertexFormat::Float32x3);
+	unlitShader->addVertexInput("uv", 3, VertexFormat::Float32x2);
+
+	unlitShader->addVertexOutput("color", 0, VertexFormat::Float32x3);
+	unlitShader->addVertexOutput("normal", 1, VertexFormat::Float32x3);
+	unlitShader->addVertexOutput("uv", 2, VertexFormat::Float32x2);
+	//unlitShader->addVertexOutput("worldPosition", 3, VertexFormat::Float32x4);
+
+	Issam::Attributed unlitMaterialAttributes;
+	unlitMaterialAttributes.addAttribute("colorFactor", glm::vec4(1.0f));
+	unlitMaterialAttributes.addAttribute("colorTexture", whiteTextureView);
+	unlitMaterialAttributes.addAttribute("defaultSampler", defaultSampler);
+	Issam::AttributedManager::getInstance().add(c_unlitMaterialAttributes, unlitMaterialAttributes);
+	unlitShader->addAttributes(c_unlitMaterialAttributes, Shader::Binding::Material);
+
+	Issam::Attributed unlitSceneAttributes;
+	unlitSceneAttributes.addAttribute("view", mat4(1.0));
+	unlitSceneAttributes.addAttribute("projection", mat4(1.0));
+	Issam::AttributedManager::getInstance().add(Issam::c_unlitSceneAttributes, unlitSceneAttributes);
+	unlitShader->addAttributes(Issam::c_unlitSceneAttributes, Shader::Binding::Scene);
+
+	unlitShader->addAttributes(Issam::c_pbrNodeAttributes, Shader::Binding::Node); //le meme que PBR
 	
 	glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos) {
 		if (m_drag.active) {
@@ -254,11 +280,20 @@ int main(int, char**) {
 	
 	Issam::Scene* scene = new Issam::Scene();
 
-	Pass pass1(shader_1);
-	Pipeline* pipeline = new Pipeline(shader_1, swapChainFormat, depthTextureFormat);
-	pass1.setPipeline(pipeline);
-	pass1.addDepthBuffer(m_winWidth, m_winHeight, depthTextureFormat);
-	pass1.setImGuiWrapper(imgui);
+	Pass* passPbr = new Pass(pbrShader);
+	Pipeline* pipelinePbr = new Pipeline(pbrShader, swapChainFormat, depthTextureFormat);
+	passPbr->setPipeline(pipelinePbr);
+	passPbr->addDepthBuffer(m_winWidth, m_winHeight, depthTextureFormat);
+	passPbr->addFilter("pbr");
+	//passPbr->setImGuiWrapper(imgui);
+
+	Pass* unlitPass = new Pass(unlitShader);
+	Pipeline* pipelineUnlit = new Pipeline(unlitShader, swapChainFormat, depthTextureFormat);
+	unlitPass->setPipeline(pipelineUnlit);
+	unlitPass->addDepthBuffer(m_winWidth, m_winHeight, depthTextureFormat);
+	unlitPass->setImGuiWrapper(imgui);
+	unlitPass->addFilter("unlit");
+	unlitPass->setClearColor(false);
 
 	vec3 focalPoint(0.0, 0.0, -2.0);
 	float angle2 = 3.0f * PI / 4.0f;
@@ -279,7 +314,8 @@ int main(int, char**) {
 	scene->setAttribute("lightDirection", vec4(vec3(0.5, -0.9, 0.1), 0.0));
 
 	Renderer renderer;
-	renderer.addPass(pass1);
+	renderer.addPass(passPbr);
+	renderer.addPass(unlitPass);
 	renderer.setScene(scene);
 
 	Issam::Node* selectedNode = nullptr;
@@ -329,7 +365,9 @@ int main(int, char**) {
 						if (ImGui::Selectable(nodesNames[i].c_str(), isSelected)) {
 
 							nodeIndex = i;
+							if(selectedNode) selectedNode->removeFilter("unlit");
 							selectedNode = scene->getNodes()[nodeIndex];
+							selectedNode->addFilter("unlit");
 							std::cout << nodesNames[i].c_str() << " selected !" << std::endl;
 						}
 						if (isSelected) {
@@ -340,9 +378,9 @@ int main(int, char**) {
 				}
 			}
 
-			if (selectedNode && selectedNode->material)
+			if (selectedNode && selectedNode->materials.at(0))
 			{
-				Material* selectedMaterial = selectedNode->material;
+				Material* selectedMaterial = selectedNode->materials.at(0);
 				glm::vec4 baseColorFactor = std::get<glm::vec4>(selectedMaterial->getAttribute("baseColorFactor").value);
 				ImGui::ColorEdit4("BaseColorFactor", (float*)&baseColorFactor);
 				selectedMaterial->setAttribute("baseColorFactor", baseColorFactor);
