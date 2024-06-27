@@ -14,8 +14,34 @@ public:
 	Renderer()
 	{
 		m_queue = Context::getInstance().getDevice().getQueue();
+
+		std::vector<Vertex> vertices;
+		Vertex vertex;
+		vertex.position = glm::vec3(-1.0, -1.0, 0.0);
+		vertex.uv = glm::vec2(0.0, 0.0);
+		vertices.push_back(vertex);
+		vertex.position = glm::vec3(1.0, -1.0, 0.0);
+		vertex.uv = glm::vec2(1.0, 0.0);
+		vertices.push_back(vertex);
+		vertex.position = glm::vec3(-1.0, 1.0, 0.0);
+		vertex.uv = glm::vec2(0.0, 1.0);
+		vertices.push_back(vertex);
+		vertex.position = glm::vec3(1.0, 1.0, 0.0);
+		vertex.uv = glm::vec2(1.0, 1.0);
+		vertices.push_back(vertex);
+		vertex.position = glm::vec3(-1.0, 1.0, 0.0);
+		vertex.uv = glm::vec2(0.0, 1.0);
+		vertices.push_back(vertex);
+		vertex.position = glm::vec3(1.0, -1.0, 0.0);
+		vertex.uv = glm::vec2(1.0, 0.0);
+		vertices.push_back(vertex);
+
+		fullScreenMesh = new Mesh();
+		fullScreenMesh->setVertices(vertices);
 	};
-	~Renderer() = default;
+	~Renderer() {
+		delete fullScreenMesh;
+	};
 
 	void draw()
 	{
@@ -27,7 +53,7 @@ public:
 		if (!nextTexture) {
 			std::cerr << "Cannot acquire next swap chain texture" << std::endl;
 		}
-		int passIdx = 0;
+
 		for (auto& pass : m_passes)
 		{
 			RenderPassDescriptor renderPassDesc;
@@ -41,33 +67,54 @@ public:
 
 			RenderPassEncoder renderPass = encoder.beginRenderPass(renderPassDesc);
 			renderPass.pushDebugGroup("Render Pass");
-			auto pipeline = pass->getPipeline()->getRenderPipeline();
-			renderPass.setPipeline(pipeline);
-			Shader* shader = pass->getShader();
-			auto& layouts = shader->getBindGroupLayouts();
-			renderPass.setBindGroup(2, m_scene->getBindGroup( layouts[static_cast<int>(Shader::Binding::Scene)]), 0, nullptr); //Scene uniforms
-			for(auto& node : m_scene->getNodes())
+			
+			
+		
+			if (pass->getType() == Pass::Type::SCENE)
 			{
-				bool shouldDraw = std::any_of(node->getFilters().begin(), node->getFilters().end(),
-					[&pass](const std::string& filter) {
-					return std::find(pass->getFilters().begin(), pass->getFilters().end(), filter) != pass->getFilters().end();
-				});
-				if (!shouldDraw) continue;
-
-				Mesh* mesh = MeshManager::getInstance().get(node->meshId);
-				if (mesh)
+				auto pipeline = pass->getPipeline()->getRenderPipeline();
+				renderPass.setPipeline(pipeline);
+				Shader* shader = pass->getShader();
+				auto& layouts = shader->getBindGroupLayouts();
+				auto& attribSceneId = shader->getAttributedId(Shader::Binding::Scene);
+				renderPass.setBindGroup(2, m_scene->getAttibutedRuntime(attribSceneId)->getBindGroup(layouts[static_cast<int>(Shader::Binding::Scene)]), 0, nullptr); //Scene uniforms
+				for (auto& node : m_scene->getNodes())
 				{
-					
-					renderPass.setBindGroup(0, node->materials.at(passIdx)->getBindGroup(layouts[static_cast<int>(Shader::Binding::Material)]), 0, nullptr); //Material
-					renderPass.setBindGroup(1, node->getBindGroup(layouts[static_cast<int>(Shader::Binding::Node)]), 0, nullptr); //Node model
-					renderPass.setVertexBuffer(0, mesh->getVertexBuffer()->getBuffer(), 0, mesh->getVertexBuffer()->getSize());
-					if (mesh->getIndexBuffer() != nullptr)
+					bool shouldDraw = std::any_of(node->getFilters().begin(), node->getFilters().end(),
+						[&pass](const std::string& filter) {
+						return std::find(pass->getFilters().begin(), pass->getFilters().end(), filter) != pass->getFilters().end();
+					});
+					if (!shouldDraw) continue;
+
+					Mesh* mesh = MeshManager::getInstance().get(node->meshId);
+					if (mesh)
 					{
-						renderPass.setIndexBuffer(mesh->getIndexBuffer()->getBuffer(), IndexFormat::Uint16, 0, mesh->getIndexBuffer()->getSize());
-						renderPass.drawIndexed(mesh->getIndexBuffer()->getCount(), 1, 0, 0, 0);
+						auto& attribMaterialId = shader->getAttributedId(Shader::Binding::Material);
+						renderPass.setBindGroup(0, node->geMaterial(attribMaterialId)->getBindGroup(layouts[static_cast<int>(Shader::Binding::Material)]), 0, nullptr); //Material
+						renderPass.setBindGroup(1, node->getBindGroup(layouts[static_cast<int>(Shader::Binding::Node)]), 0, nullptr); //Node model
+						renderPass.setVertexBuffer(0, mesh->getVertexBuffer()->getBuffer(), 0, mesh->getVertexBuffer()->getSize());
+						if (mesh->getIndexBuffer() != nullptr)
+						{
+							renderPass.setIndexBuffer(mesh->getIndexBuffer()->getBuffer(), IndexFormat::Uint16, 0, mesh->getIndexBuffer()->getSize());
+							renderPass.drawIndexed(mesh->getIndexBuffer()->getCount(), 1, 0, 0, 0);
+						}
+						else
+							renderPass.draw(mesh->getVertexCount(), 1, 0, 0);
 					}
-					else
-						renderPass.draw(mesh->getVertexCount(), 1, 0, 0);
+				}
+			}
+			else
+			{
+				auto pipeline = pass->getPipeline()->getRenderPipeline();
+				renderPass.setPipeline(pipeline);
+				Shader* shader = pass->getShader();
+				auto& layouts = shader->getBindGroupLayouts();
+				auto& attribSceneId = shader->getAttributedId(Shader::Binding::Scene);
+				renderPass.setBindGroup(0, m_scene->getAttibutedRuntime(attribSceneId)->getBindGroup(layouts[0]), 0, nullptr);
+				if (fullScreenMesh)
+				{
+					renderPass.setVertexBuffer(0, fullScreenMesh->getVertexBuffer()->getBuffer(), 0, fullScreenMesh->getVertexBuffer()->getSize());
+					renderPass.draw(fullScreenMesh->getVertexCount(), 1, 0, 0);
 				}
 			}
 
@@ -79,7 +126,6 @@ public:
 
 			renderPass.end();
 			renderPass.release();
-			passIdx++;
 		}
 		Context::getInstance().getDevice().tick();
 
@@ -107,4 +153,6 @@ private:
 	Queue m_queue{ nullptr };
 	std::vector<Pass*> m_passes;
 	Issam::Scene* m_scene;
+
+	Mesh* fullScreenMesh{ nullptr };
 };

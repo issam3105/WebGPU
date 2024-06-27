@@ -22,7 +22,7 @@ public:
 	}
 	bool clear()
 	{
-		m_meshes.clear();
+	    m_meshes.clear();
 		return true;
 	}
 	Mesh* get(const std::string& id) { return  m_meshes[id]; }

@@ -102,7 +102,14 @@ public:
 	const std::vector<std::string>& getFilters() { return m_filters; }
 
 	void setClearColor(bool clear) { clearColor = clear; }
+	enum class Type: uint8_t
+	{
+		SCENE = 0,
+		FILTER
+	};
 
+	void setType(Type type) { m_type = type; }
+	Type getType() { return m_type; }
 private:
 	RenderPassDepthStencilAttachment* depthStencilAttachment;
 	RenderPassColorAttachment* renderPassColorAttachment;
@@ -114,4 +121,6 @@ private:
 
 	bool clearColor = true;
 	Color clearColorValue{ 0.3, 0.3, 0.3, 1.0 };
+
+	Type m_type{ Type::SCENE };
 };

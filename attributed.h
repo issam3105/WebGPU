@@ -186,6 +186,7 @@ namespace Issam {
 	class AttributedRuntime {
 	public:
 		AttributedRuntime(){};
+		AttributedRuntime(const std::string& attributesId) { setAttributes(attributesId); };
 
 		void setAttributes(const std::string& attributesId)
 		{
@@ -224,6 +225,13 @@ namespace Issam {
 			});
 			assert(it != m_attributes.end());
 			return *it;
+		}
+
+		bool hasAttribute(std::string name) {
+			auto it = std::find_if(m_attributes.begin(), m_attributes.end(), [name](const Issam::Attribute& obj) {
+				return obj.name == name;
+			});
+			return (it != m_attributes.end());
 		}
 
 		void setAttribute(std::string name, const Value& value)

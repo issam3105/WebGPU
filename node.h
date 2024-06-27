@@ -21,6 +21,7 @@ namespace Issam {
 	const std::string c_pbrSceneAttributes = "pbrSceneAttributes";
 	const std::string c_pbrNodeAttributes = "pbrNodeAttributes";
 	const std::string c_unlitSceneAttributes = "unlitSceneAttributes";
+	const std::string c_backgroundSceneAttributes = "backgroundSceneModel";
 
 	class Node : public AttributedRuntime{
 	public:
@@ -34,11 +35,13 @@ namespace Issam {
 			auto* pbrMaterial = new Material(c_pbrMaterialAttributes);
 			auto* unlitMaterial = new Material(c_unlitMaterialAttributes);
 			unlitMaterial->setAttribute("colorFactor", glm::vec4(1.0, 0.5, 0.0, 1.0));
-			materials.push_back(pbrMaterial);
-			materials.push_back(unlitMaterial);
+			materials[c_pbrMaterialAttributes] = pbrMaterial;
+			materials[c_unlitMaterialAttributes] = unlitMaterial;
 
 			m_filters.push_back("pbr");
 		};
+
+		Material* geMaterial(const std::string& attributedId) { return materials[attributedId]; }
 
 
 		Node(const Node& other) {
@@ -51,6 +54,8 @@ namespace Issam {
 			//m_samplers = other.m_samplers;
 
 			m_filters = other.m_filters;
+
+			
 		}
 
 		void setTransform(glm::mat4 in_transform) { 
@@ -72,7 +77,7 @@ namespace Issam {
 		std::vector<Node*> children;
 		std::string meshId;
 
-		std::vector<Material*> materials;
+		std::unordered_map<std::string , Material*> materials;
 
 	private:
 
@@ -117,12 +122,14 @@ namespace Issam {
 	};
 	*/
 
-	class Scene : public AttributedRuntime
+	class Scene 
 	{
 	public:	
 		Scene()
 		{
-			setAttributes(Issam::c_pbrSceneAttributes);
+			m_attributeds[Issam::c_pbrSceneAttributes] = new AttributedRuntime(Issam::c_pbrSceneAttributes);
+			m_attributeds[Issam::c_unlitSceneAttributes] = new AttributedRuntime(Issam::c_unlitSceneAttributes);
+			m_attributeds[Issam::c_backgroundSceneAttributes] = new AttributedRuntime(Issam::c_backgroundSceneAttributes);
 			//auto sceneModel = Issam::AttributedManager::getInstance().get(Issam::c_pbrSceneAttributes);
 			//m_attributes = sceneModel.getAttributes();
 			//m_textures = sceneModel.getTextures();
@@ -132,6 +139,21 @@ namespace Issam {
 			addAttribute("cameraPosition", vec4(0.0));
 			addAttribute("lightDirection", vec4(1.0));*/
 		}
+
+		void setAttribute(const std::string& name, const Value& value)
+		{
+			for (auto attributed : m_attributeds)
+			{
+				if (attributed.second->hasAttribute(name))
+					attributed.second->setAttribute(name, value);
+			}
+		}
+
+		Issam::AttributedRuntime* getAttibutedRuntime(const std::string& attributedId)
+		{
+			return m_attributeds[attributedId];
+		}
+
 
 		void setNodes(std::vector<Issam::Node*> nodes) {
 			std::vector<Issam::Node*> flatNodes;
@@ -156,5 +178,6 @@ namespace Issam {
 		}
 
 		std::vector<Issam::Node*> m_nodes;	
+		std::unordered_map<std::string, Issam::AttributedRuntime*> m_attributeds{};
 	};
 }

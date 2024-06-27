@@ -171,6 +171,27 @@ int main(int, char**) {
 	pbrNodeAttributes.addAttribute("model", mat4(1.0));
 	Issam::AttributedManager::getInstance().add(Issam::c_pbrNodeAttributes, pbrNodeAttributes);
 
+	
+
+	Shader* backgroundShader = new Shader();
+	backgroundShader->setUserCode(Utils::loadFile(DATA_DIR  "/background.wgsl"));
+	backgroundShader->addVertexInput("position", 0, VertexFormat::Float32x3);
+	backgroundShader->addVertexInput("normal", 1, VertexFormat::Float32x3);
+	backgroundShader->addVertexInput("tangent", 2, VertexFormat::Float32x3);
+	backgroundShader->addVertexInput("uv", 3, VertexFormat::Float32x2);
+
+	backgroundShader->addVertexOutput("tangent", 0, VertexFormat::Float32x3);
+	backgroundShader->addVertexOutput("normal", 1, VertexFormat::Float32x3);
+	backgroundShader->addVertexOutput("uv", 2, VertexFormat::Float32x2);
+
+	Issam::Attributed backgroundShaderAttributes;
+	backgroundShaderAttributes.addAttribute("backgroundFactor", glm::vec4(1.0f));
+	backgroundShaderAttributes.addAttribute("backgroundTexture", whiteTextureView);
+	backgroundShaderAttributes.addAttribute("defaultSampler", defaultSampler);
+	Issam::AttributedManager::getInstance().add(Issam::c_backgroundSceneAttributes, backgroundShaderAttributes);
+	backgroundShader->addAttributes(Issam::c_backgroundSceneAttributes, Shader::Binding::Scene); 
+
+
 
 	Shader* pbrShader = new Shader();
 	pbrShader->setUserCode(Utils::loadFile(DATA_DIR  "/pbr.wgsl"));
@@ -280,20 +301,36 @@ int main(int, char**) {
 	
 	Issam::Scene* scene = new Issam::Scene();
 
+	Pass* backgroundPass = new Pass(backgroundShader);
+	Pipeline* backgroundPipeline = new Pipeline(backgroundShader, swapChainFormat, depthTextureFormat);
+	backgroundPass->setPipeline(backgroundPipeline);
+	backgroundPass->setType(Pass::Type::FILTER);
+	backgroundPass->addDepthBuffer(m_winWidth, m_winHeight, depthTextureFormat); //TODO Remove
+
 	Pass* passPbr = new Pass(pbrShader);
 	Pipeline* pipelinePbr = new Pipeline(pbrShader, swapChainFormat, depthTextureFormat);
 	passPbr->setPipeline(pipelinePbr);
 	passPbr->addDepthBuffer(m_winWidth, m_winHeight, depthTextureFormat);
 	passPbr->addFilter("pbr");
+	passPbr->setClearColor(false);
 	//passPbr->setImGuiWrapper(imgui);
 
 	Pass* unlitPass = new Pass(unlitShader);
 	Pipeline* pipelineUnlit = new Pipeline(unlitShader, swapChainFormat, depthTextureFormat);
 	unlitPass->setPipeline(pipelineUnlit);
 	unlitPass->addDepthBuffer(m_winWidth, m_winHeight, depthTextureFormat);
-	unlitPass->setImGuiWrapper(imgui);
+	//unlitPass->setImGuiWrapper(imgui);
 	unlitPass->addFilter("unlit");
 	unlitPass->setClearColor(false);
+
+	Pass* pbrPass2 = new Pass(pbrShader);
+	//Pipeline* pipelineUnlit = new Pipeline(unlitShader, swapChainFormat, depthTextureFormat);
+	pbrPass2->setPipeline(pipelinePbr);
+	pbrPass2->addDepthBuffer(m_winWidth, m_winHeight, depthTextureFormat);
+	pbrPass2->setImGuiWrapper(imgui);
+	pbrPass2->addFilter("unlit");
+	//unlitPass->addFilter("pbr");
+	pbrPass2->setClearColor(false);
 
 	vec3 focalPoint(0.0, 0.0, -2.0);
 	float angle2 = 3.0f * PI / 4.0f;
@@ -312,10 +349,13 @@ int main(int, char**) {
 	scene->setAttribute("view", V);
 	scene->setAttribute("projection", proj);
 	scene->setAttribute("lightDirection", vec4(vec3(0.5, -0.9, 0.1), 0.0));
+	scene->setAttribute("backgroundTexture", TextureManager::getInstance().getTextureView(jpgFiles[1]));
 
 	Renderer renderer;
+	renderer.addPass(backgroundPass);
 	renderer.addPass(passPbr);
 	renderer.addPass(unlitPass);
+	renderer.addPass(pbrPass2);
 	renderer.setScene(scene);
 
 	Issam::Node* selectedNode = nullptr;
@@ -378,9 +418,9 @@ int main(int, char**) {
 				}
 			}
 
-			if (selectedNode && selectedNode->materials.at(0))
+			if (selectedNode && selectedNode->materials[c_pbrMaterialAttributes])
 			{
-				Material* selectedMaterial = selectedNode->materials.at(0);
+				Material* selectedMaterial = selectedNode->materials[c_pbrMaterialAttributes];
 				glm::vec4 baseColorFactor = std::get<glm::vec4>(selectedMaterial->getAttribute("baseColorFactor").value);
 				ImGui::ColorEdit4("BaseColorFactor", (float*)&baseColorFactor);
 				selectedMaterial->setAttribute("baseColorFactor", baseColorFactor);
@@ -398,6 +438,8 @@ int main(int, char**) {
 								selectedTextureIndex = i;
 								//	std::cout << "Selected texture: " << textureNames[i] << std::endl;
 								selectedMaterial->setAttribute("baseColorTexture", TextureManager::getInstance().getTextureView(textureNames[i]));
+								
+								
 							}
 							if (isSelected) {
 								ImGui::SetItemDefaultFocus();

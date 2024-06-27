@@ -123,6 +123,25 @@ public:
 
 	int getVertexCount() { return m_vertices.size(); } 
 
+	std::pair<glm::vec3, glm::vec3> getBoundingBox() {
+		if (!m_dirtyBoundingBox) return m_boundingBox;
+		glm::vec3 min = glm::vec3(std::numeric_limits<float>::max());
+		glm::vec3 max = glm::vec3(std::numeric_limits<float>::lowest());
+
+		for (const auto& vertex : m_vertices) {
+			if (vertex.position.x < min.x) min.x = vertex.position.x;
+			if (vertex.position.y < min.y) min.y = vertex.position.y;
+			if (vertex.position.z < min.z) min.z = vertex.position.z;
+
+			if (vertex.position.x > max.x) max.x = vertex.position.x;
+			if (vertex.position.y > max.y) max.y = vertex.position.y;
+			if (vertex.position.z > max.z) max.z = vertex.position.z;
+		}
+		m_dirtyBoundingBox = false;
+		m_boundingBox = std::make_pair(min, max);
+		return m_boundingBox;
+	}
+
 private:
 
 	VertexBuffer* m_vertexBuffer;
@@ -130,4 +149,7 @@ private:
 
 	std::vector<uint16_t> m_indices;
 	std::vector<Vertex> m_vertices;
+
+	std::pair<glm::vec3, glm::vec3> m_boundingBox;
+	bool m_dirtyBoundingBox = true;;
 };
