@@ -22,6 +22,7 @@ namespace Issam {
 	const std::string c_pbrNodeAttributes = "pbrNodeAttributes";
 	const std::string c_unlitSceneAttributes = "unlitSceneAttributes";
 	const std::string c_backgroundSceneAttributes = "backgroundSceneModel";
+	const std::string c_diltationSceneAttributes = "dilatationSceneModel";
 
 	class Node : public AttributedRuntime{
 	public:
@@ -37,6 +38,9 @@ namespace Issam {
 			unlitMaterial->setAttribute("colorFactor", glm::vec4(1.0, 0.5, 0.0, 1.0));
 			materials[c_pbrMaterialAttributes] = pbrMaterial;
 			materials[c_unlitMaterialAttributes] = unlitMaterial;
+			auto* unlit2Material = new Material(c_unlit2MaterialAttributes);
+			unlit2Material->setAttribute("colorFactor", glm::vec4(0.0));
+			materials[c_unlit2MaterialAttributes] = unlit2Material;
 
 			m_filters.push_back("pbr");
 		};
@@ -130,6 +134,7 @@ namespace Issam {
 			m_attributeds[Issam::c_pbrSceneAttributes] = new AttributedRuntime(Issam::c_pbrSceneAttributes);
 			m_attributeds[Issam::c_unlitSceneAttributes] = new AttributedRuntime(Issam::c_unlitSceneAttributes);
 			m_attributeds[Issam::c_backgroundSceneAttributes] = new AttributedRuntime(Issam::c_backgroundSceneAttributes);
+			m_attributeds[Issam::c_diltationSceneAttributes] = new AttributedRuntime(Issam::c_diltationSceneAttributes);
 			//auto sceneModel = Issam::AttributedManager::getInstance().get(Issam::c_pbrSceneAttributes);
 			//m_attributes = sceneModel.getAttributes();
 			//m_textures = sceneModel.getTextures();

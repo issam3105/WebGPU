@@ -14,7 +14,7 @@ public:
 	{
 	};
 	~Pass() {
-		m_depthTextureView.release();
+		m_depthBuffer.release();
 		//depthTexture.destroy(); TODO
 		//depthTexture.release();
 		delete depthStencilAttachment;
@@ -25,39 +25,23 @@ public:
 	void setImGuiWrapper(ImGUIWrapper* imGuiWrapper) { m_imGuiWrapper = imGuiWrapper; }
 	ImGUIWrapper* getImGuiWrapper() { return m_imGuiWrapper; }
 
-	void addDepthBuffer(uint32_t width, uint32_t height, WGPUTextureFormat format)
+	void setDepthBuffer(TextureView bufferView)
 	{
-		// Create the depth texture
-		TextureDescriptor depthTextureDesc;
-		depthTextureDesc.dimension = TextureDimension::_2D;
-		depthTextureDesc.format = format;
-		depthTextureDesc.mipLevelCount = 1;
-		depthTextureDesc.sampleCount = 1;
-		depthTextureDesc.size = { width, height, 1 };
-		depthTextureDesc.usage = TextureUsage::RenderAttachment;
-		depthTextureDesc.viewFormatCount = 1;
-		depthTextureDesc.viewFormats = (WGPUTextureFormat*)&format;
-		Texture depthTexture = Context::getInstance().getDevice().createTexture(depthTextureDesc);
+		m_depthBuffer = bufferView;
+	}
 
-		// Create the view of the depth texture manipulated by the rasterizer
-		TextureViewDescriptor depthTextureViewDesc;
-		depthTextureViewDesc.aspect = TextureAspect::DepthOnly;
-		depthTextureViewDesc.baseArrayLayer = 0;
-		depthTextureViewDesc.arrayLayerCount = 1;
-		depthTextureViewDesc.baseMipLevel = 0;
-		depthTextureViewDesc.mipLevelCount = 1;
-		depthTextureViewDesc.dimension = TextureViewDimension::_2D;
-		depthTextureViewDesc.format = format;
-		m_depthTextureView = depthTexture.createView(depthTextureViewDesc);
+	void setColorBuffer(TextureView bufferView)
+	{
+		m_colorBuffer = bufferView;
 	}
 
 	//const TextureView getDepthTextureView() const { return m_depthTextureView; }
 	const RenderPassDepthStencilAttachment* getRenderPassDepthStencilAttachment() {
-		if (m_depthTextureView)
+		if (m_depthBuffer)
 		{
 			depthStencilAttachment = new RenderPassDepthStencilAttachment();
 			// The view of the depth texture
-			depthStencilAttachment->view = m_depthTextureView;
+			depthStencilAttachment->view = m_depthBuffer;
 
 			// The initial value of the depth buffer, meaning "far"
 			depthStencilAttachment->depthClearValue = 1.0f;
@@ -87,11 +71,11 @@ public:
 
 	const RenderPassColorAttachment* getRenderPassColorAttachment(WGPUTextureView view) {
 		renderPassColorAttachment = new RenderPassColorAttachment();
-		renderPassColorAttachment->view = view;
+		renderPassColorAttachment->view = m_colorBuffer ? m_colorBuffer : view;
 		renderPassColorAttachment->resolveTarget = nullptr;
-		renderPassColorAttachment->loadOp = clearColor ? LoadOp::Clear : LoadOp::Load;
+		renderPassColorAttachment->loadOp = m_clearColor ? LoadOp::Clear : LoadOp::Load;
 		renderPassColorAttachment->storeOp = StoreOp::Store;
-		renderPassColorAttachment->clearValue = clearColorValue;
+		renderPassColorAttachment->clearValue = m_clearColorValue;
 		return renderPassColorAttachment;
 	}
 
@@ -101,7 +85,9 @@ public:
 	void addFilter(std::string filter) { m_filters.push_back(filter); }
 	const std::vector<std::string>& getFilters() { return m_filters; }
 
-	void setClearColor(bool clear) { clearColor = clear; }
+	void setClearColor(bool clear) { m_clearColor = clear; }
+	void setClearColorValue(Color in_clearValue) { m_clearColorValue = in_clearValue; }
+
 	enum class Type: uint8_t
 	{
 		SCENE = 0,
@@ -115,12 +101,13 @@ private:
 	RenderPassColorAttachment* renderPassColorAttachment;
 	Shader* m_shader{ nullptr };
 	Pipeline* m_pipline{ nullptr };
-	TextureView m_depthTextureView{ nullptr };
+	TextureView m_depthBuffer{ nullptr };
+	TextureView m_colorBuffer{ nullptr };
 	ImGUIWrapper* m_imGuiWrapper{ nullptr };
 	std::vector<std::string> m_filters;
 
-	bool clearColor = true;
-	Color clearColorValue{ 0.3, 0.3, 0.3, 1.0 };
+	bool m_clearColor = true;
+	Color m_clearColorValue{ 0.3, 0.3, 0.3, 1.0 };
 
 	Type m_type{ Type::SCENE };
 };

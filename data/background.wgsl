@@ -2,8 +2,6 @@
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
 	var out: VertexOutput;
-
-	//out.position = u_scene.projection * u_scene.view * vec4f(in.position, 1.0);
 	out.position = vec4f(in.position, 1.0);
 	out.tangent = in.tangent;
 	out.normal = in.normal;
@@ -14,6 +12,8 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
-    let color = textureSample(backgroundTexture, defaultSampler, in.uv) * u_scene.backgroundFactor;
-	return vec4f(color.rgb, 1.0);
+    let color = textureSample(backgroundTexture, defaultSampler, vec2f(in.uv.x, 1.0- in.uv.y)) * u_scene.backgroundFactor;
+	//return vec4f(color.rgb, 1.0);
+	return color;
+	//return vec4f(vec3f(color.a), 1.0);
 }

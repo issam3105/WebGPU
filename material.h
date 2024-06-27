@@ -15,6 +15,7 @@ using namespace glm;
 
 const std::string c_pbrMaterialAttributes = "pbrMaterialModel";
 const std::string c_unlitMaterialAttributes = "unlitMaterialModel";
+const std::string c_unlit2MaterialAttributes = "unlit2MaterialModel"; //TODO remove ?
 
 //class MaterialModel : public Issam::Attributed {
 //public:

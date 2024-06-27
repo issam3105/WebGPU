@@ -109,7 +109,31 @@ glm::mat4 computeRotationMatrix(const glm::vec3& rotation) {
 	return rz * ry * rx;
 }
 
+TextureView createBuffer(uint32_t width, uint32_t height, WGPUTextureFormat format)
+{
+	// Create the depth texture
+	TextureDescriptor textureDesc;
+	textureDesc.dimension = TextureDimension::_2D;
+	textureDesc.format = format;
+	textureDesc.mipLevelCount = 1;
+	textureDesc.sampleCount = 1;
+	textureDesc.size = { width, height, 1 };
+	textureDesc.usage = TextureUsage::RenderAttachment | TextureUsage::TextureBinding;
+	textureDesc.viewFormatCount = 1;
+	textureDesc.viewFormats = (WGPUTextureFormat*)&format;
+	Texture depthTexture = Context::getInstance().getDevice().createTexture(textureDesc);
 
+	// Create the view of the depth texture manipulated by the rasterizer
+	TextureViewDescriptor textureViewDesc;
+	textureViewDesc.aspect = TextureAspect::All;;//TODO TextureAspect::DepthOnly; for depth
+	textureViewDesc.baseArrayLayer = 0;
+	textureViewDesc.arrayLayerCount = 1;
+	textureViewDesc.baseMipLevel = 0;
+	textureViewDesc.mipLevelCount = 1;
+	textureViewDesc.dimension = TextureViewDimension::_2D;
+	textureViewDesc.format = format;
+	return depthTexture.createView(textureViewDesc);
+}
 
 
 int main(int, char**) {
@@ -148,6 +172,55 @@ int main(int, char**) {
 	// Create a sampler
 	Sampler defaultSampler = Utils::createDefaultSampler();
 	SamplerManager().getInstance().add("defaultSampler", defaultSampler);
+	
+
+	Shader* backgroundShader = new Shader();
+	backgroundShader->setUserCode(Utils::loadFile(DATA_DIR  "/background.wgsl"));
+	backgroundShader->addVertexInput("position", 0, VertexFormat::Float32x3);
+	backgroundShader->addVertexInput("normal", 1, VertexFormat::Float32x3);
+	backgroundShader->addVertexInput("tangent", 2, VertexFormat::Float32x3);
+	backgroundShader->addVertexInput("uv", 3, VertexFormat::Float32x2);
+
+	backgroundShader->addVertexOutput("tangent", 0, VertexFormat::Float32x3);
+	backgroundShader->addVertexOutput("normal", 1, VertexFormat::Float32x3);
+	backgroundShader->addVertexOutput("uv", 2, VertexFormat::Float32x2);
+
+	Issam::Attributed backgroundShaderAttributes;
+	backgroundShaderAttributes.addAttribute("backgroundFactor", glm::vec4(1.0f));
+	backgroundShaderAttributes.addAttribute("backgroundTexture", whiteTextureView);
+	backgroundShaderAttributes.addAttribute("defaultSampler", defaultSampler);
+	Issam::AttributedManager::getInstance().add(Issam::c_backgroundSceneAttributes, backgroundShaderAttributes);
+	backgroundShader->addAttributes(Issam::c_backgroundSceneAttributes, Shader::Binding::Scene); 
+
+	Shader* diltationShader = new Shader();
+	diltationShader->setUserCode(Utils::loadFile(DATA_DIR  "/dilatation.wgsl"));
+	diltationShader->addVertexInput("position", 0, VertexFormat::Float32x3);
+	diltationShader->addVertexInput("normal", 1, VertexFormat::Float32x3);
+	diltationShader->addVertexInput("tangent", 2, VertexFormat::Float32x3);
+	diltationShader->addVertexInput("uv", 3, VertexFormat::Float32x2);
+
+	diltationShader->addVertexOutput("tangent", 0, VertexFormat::Float32x3);
+	diltationShader->addVertexOutput("normal", 1, VertexFormat::Float32x3);
+	diltationShader->addVertexOutput("uv", 2, VertexFormat::Float32x2);
+
+	Issam::Attributed diltationShaderAttributes;
+	diltationShaderAttributes.addAttribute("viewTexel", glm::vec4(1.0f / m_winWidth, 1.0f/ m_winHeight, 0.0, 0.0));
+	diltationShaderAttributes.addAttribute("source", whiteTextureView);
+	diltationShaderAttributes.addAttribute("defaultSampler", defaultSampler);
+	Issam::AttributedManager::getInstance().add(Issam::c_diltationSceneAttributes, diltationShaderAttributes);
+	diltationShader->addAttributes(Issam::c_diltationSceneAttributes, Shader::Binding::Scene);
+
+	Shader* pbrShader = new Shader();
+	pbrShader->setUserCode(Utils::loadFile(DATA_DIR  "/pbr.wgsl"));
+	pbrShader->addVertexInput("position", 0, VertexFormat::Float32x3);
+	pbrShader->addVertexInput("normal", 1, VertexFormat::Float32x3);
+	pbrShader->addVertexInput("color", 2, VertexFormat::Float32x3);
+	pbrShader->addVertexInput("uv", 3, VertexFormat::Float32x2);
+
+	pbrShader->addVertexOutput("color", 0, VertexFormat::Float32x3);
+	pbrShader->addVertexOutput("normal", 1, VertexFormat::Float32x3);
+	pbrShader->addVertexOutput("uv", 2, VertexFormat::Float32x2);
+	pbrShader->addVertexOutput("worldPosition", 3, VertexFormat::Float32x4);
 
 	Issam::Attributed pbrMaterialAttributes;
 	pbrMaterialAttributes.addAttribute("baseColorFactor", glm::vec4(1.0f));
@@ -171,58 +244,8 @@ int main(int, char**) {
 	pbrNodeAttributes.addAttribute("model", mat4(1.0));
 	Issam::AttributedManager::getInstance().add(Issam::c_pbrNodeAttributes, pbrNodeAttributes);
 
-	
-
-	Shader* backgroundShader = new Shader();
-	backgroundShader->setUserCode(Utils::loadFile(DATA_DIR  "/background.wgsl"));
-	backgroundShader->addVertexInput("position", 0, VertexFormat::Float32x3);
-	backgroundShader->addVertexInput("normal", 1, VertexFormat::Float32x3);
-	backgroundShader->addVertexInput("tangent", 2, VertexFormat::Float32x3);
-	backgroundShader->addVertexInput("uv", 3, VertexFormat::Float32x2);
-
-	backgroundShader->addVertexOutput("tangent", 0, VertexFormat::Float32x3);
-	backgroundShader->addVertexOutput("normal", 1, VertexFormat::Float32x3);
-	backgroundShader->addVertexOutput("uv", 2, VertexFormat::Float32x2);
-
-	Issam::Attributed backgroundShaderAttributes;
-	backgroundShaderAttributes.addAttribute("backgroundFactor", glm::vec4(1.0f));
-	backgroundShaderAttributes.addAttribute("backgroundTexture", whiteTextureView);
-	backgroundShaderAttributes.addAttribute("defaultSampler", defaultSampler);
-	Issam::AttributedManager::getInstance().add(Issam::c_backgroundSceneAttributes, backgroundShaderAttributes);
-	backgroundShader->addAttributes(Issam::c_backgroundSceneAttributes, Shader::Binding::Scene); 
-
-
-
-	Shader* pbrShader = new Shader();
-	pbrShader->setUserCode(Utils::loadFile(DATA_DIR  "/pbr.wgsl"));
-	pbrShader->addVertexInput("position", 0, VertexFormat::Float32x3);
-	pbrShader->addVertexInput("normal", 1, VertexFormat::Float32x3);
-	pbrShader->addVertexInput("color", 2, VertexFormat::Float32x3);
-	pbrShader->addVertexInput("uv", 3, VertexFormat::Float32x2);
-
-	pbrShader->addVertexOutput("color", 0, VertexFormat::Float32x3);
-	pbrShader->addVertexOutput("normal", 1, VertexFormat::Float32x3);
-	pbrShader->addVertexOutput("uv", 2, VertexFormat::Float32x2);
-	pbrShader->addVertexOutput("worldPosition", 3, VertexFormat::Float32x4);
-
 	pbrShader->addAttributes(c_pbrMaterialAttributes, Shader::Binding::Material);
-	/*shader_1->addTexture("baseColorTexture", whiteTextureView, Shader::Binding::Material);
-	shader_1->addUniform("baseColorFactor", glm::vec4(1.0f), Shader::Binding::Material);
-	shader_1->addTexture("metallicRoughnessTexture", whiteTextureView, Shader::Binding::Material);
-	shader_1->addUniform("metallicFactor", 0.5f, Shader::Binding::Material);
-	shader_1->addUniform("roughnessFactor", 0.5f, Shader::Binding::Material);
-	shader_1->addSampler("defaultSampler", defaultSampler, Shader::Binding::Material);*/
-	//shader_1->addUniform("tuto", 0.5f, Shader::Binding::Material);
-	//shader_1->addTexture("tutoTexture", whiteTextureView, Shader::Binding::Material);
-
 	pbrShader->addAttributes(Issam::c_pbrSceneAttributes, Shader::Binding::Scene);
-	/*shader_1->addUniform("view", mat4(1.0), Shader::Binding::Scene);
-	shader_1->addUniform("projection", mat4(1.0), Shader::Binding::Scene);
-	shader_1->addUniform("cameraPosition", vec4(0.0), Shader::Binding::Scene);
-	shader_1->addUniform("lightDirection", vec4(1.0), Shader::Binding::Scene);*/
-	//shader_1->addUniform("tata", 0.5f, Shader::Binding::Scene);
-
-	//shader_1->addUniform("model", mat4(1.0), Shader::Binding::Node);
 	pbrShader->addAttributes(Issam::c_pbrNodeAttributes, Shader::Binding::Node);
 
 	Shader* unlitShader = new Shader();
@@ -251,6 +274,29 @@ int main(int, char**) {
 	unlitShader->addAttributes(Issam::c_unlitSceneAttributes, Shader::Binding::Scene);
 
 	unlitShader->addAttributes(Issam::c_pbrNodeAttributes, Shader::Binding::Node); //le meme que PBR
+
+
+	//TODO Remove 
+	Shader* unlit2Shader = new Shader();
+	unlit2Shader->setUserCode(Utils::loadFile(DATA_DIR  "/unlit.wgsl"));
+	unlit2Shader->addVertexInput("position", 0, VertexFormat::Float32x3);
+	unlit2Shader->addVertexInput("normal", 1, VertexFormat::Float32x3);
+	unlit2Shader->addVertexInput("color", 2, VertexFormat::Float32x3);
+	unlit2Shader->addVertexInput("uv", 3, VertexFormat::Float32x2);
+
+	unlit2Shader->addVertexOutput("color", 0, VertexFormat::Float32x3);
+	unlit2Shader->addVertexOutput("normal", 1, VertexFormat::Float32x3);
+	unlit2Shader->addVertexOutput("uv", 2, VertexFormat::Float32x2);
+	//unlitShader->addVertexOutput("worldPosition", 3, VertexFormat::Float32x4);
+
+	Issam::Attributed unlit2MaterialAttributes;
+	unlit2MaterialAttributes.addAttribute("colorFactor", glm::vec4(1.0f));
+	unlit2MaterialAttributes.addAttribute("colorTexture", whiteTextureView);
+	unlit2MaterialAttributes.addAttribute("defaultSampler", defaultSampler);
+	Issam::AttributedManager::getInstance().add(c_unlit2MaterialAttributes, unlit2MaterialAttributes);
+	unlit2Shader->addAttributes(c_unlit2MaterialAttributes, Shader::Binding::Material);
+	unlit2Shader->addAttributes(Issam::c_unlitSceneAttributes, Shader::Binding::Scene);
+	unlit2Shader->addAttributes(Issam::c_pbrNodeAttributes, Shader::Binding::Node);
 	
 	glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos) {
 		if (m_drag.active) {
@@ -301,36 +347,71 @@ int main(int, char**) {
 	
 	Issam::Scene* scene = new Issam::Scene();
 
-	Pass* backgroundPass = new Pass(backgroundShader);
-	Pipeline* backgroundPipeline = new Pipeline(backgroundShader, swapChainFormat, depthTextureFormat);
-	backgroundPass->setPipeline(backgroundPipeline);
-	backgroundPass->setType(Pass::Type::FILTER);
-	backgroundPass->addDepthBuffer(m_winWidth, m_winHeight, depthTextureFormat); //TODO Remove
+	TextureView depthBuffer = createBuffer(m_winWidth, m_winHeight, depthTextureFormat);
+	TextureView colorBuffer = createBuffer(m_winWidth, m_winHeight, TextureFormat::BGRA8Unorm);
+	TextureView tmpColorBuffer = createBuffer(m_winWidth, m_winHeight, TextureFormat::BGRA8Unorm);
+
+	//Pass* backgroundPass = new Pass(backgroundShader);
+	//Pipeline* backgroundPipeline = new Pipeline(backgroundShader, swapChainFormat, depthTextureFormat);
+	//backgroundPass->setPipeline(backgroundPipeline);
+	//backgroundPass->setType(Pass::Type::FILTER);
+	//backgroundPass->setDepthBuffer(depthBuffer); //TODO Remove
 
 	Pass* passPbr = new Pass(pbrShader);
-	Pipeline* pipelinePbr = new Pipeline(pbrShader, swapChainFormat, depthTextureFormat);
+	Pipeline* pipelinePbr = new Pipeline(pbrShader, swapChainFormat, depthTextureFormat, Pipeline::BlendingMode::Over);
 	passPbr->setPipeline(pipelinePbr);
-	passPbr->addDepthBuffer(m_winWidth, m_winHeight, depthTextureFormat);
+	passPbr->setDepthBuffer(depthBuffer);
 	passPbr->addFilter("pbr");
-	passPbr->setClearColor(false);
+	//passPbr->setClearColor(false);
 	//passPbr->setImGuiWrapper(imgui);
 
 	Pass* unlitPass = new Pass(unlitShader);
-	Pipeline* pipelineUnlit = new Pipeline(unlitShader, swapChainFormat, depthTextureFormat);
+	Pipeline* pipelineUnlit = new Pipeline(unlitShader, swapChainFormat, depthTextureFormat, Pipeline::BlendingMode::Replace);
 	unlitPass->setPipeline(pipelineUnlit);
-	unlitPass->addDepthBuffer(m_winWidth, m_winHeight, depthTextureFormat);
-	//unlitPass->setImGuiWrapper(imgui);
+	unlitPass->setDepthBuffer(depthBuffer);
+	unlitPass->setColorBuffer(tmpColorBuffer);
 	unlitPass->addFilter("unlit");
-	unlitPass->setClearColor(false);
+	unlitPass->setClearColor(true);
+	unlitPass->setClearColorValue(Color(0.0,0.0,0.0,0.0));
+	//unlitPass->setImGuiWrapper(imgui);
 
-	Pass* pbrPass2 = new Pass(pbrShader);
-	//Pipeline* pipelineUnlit = new Pipeline(unlitShader, swapChainFormat, depthTextureFormat);
-	pbrPass2->setPipeline(pipelinePbr);
-	pbrPass2->addDepthBuffer(m_winWidth, m_winHeight, depthTextureFormat);
-	pbrPass2->setImGuiWrapper(imgui);
-	pbrPass2->addFilter("unlit");
-	//unlitPass->addFilter("pbr");
-	pbrPass2->setClearColor(false);
+	//Pass* pbrPass2 = new Pass(pbrShader);
+	////Pipeline* pipelineUnlit = new Pipeline(unlitShader, swapChainFormat, depthTextureFormat);
+	//pbrPass2->setPipeline(pipelinePbr);
+	//pbrPass2->setDepthBuffer(depthBuffer);
+	//pbrPass2->setImGuiWrapper(imgui);
+	//pbrPass2->addFilter("unlit");
+	////unlitPass->addFilter("pbr");
+	//pbrPass2->setClearColor(false);
+
+	Pass* dilatationPass = new Pass(diltationShader);
+	Pipeline* dilatationPipeline = new Pipeline(diltationShader, swapChainFormat, depthTextureFormat, Pipeline::BlendingMode::Replace);
+	dilatationPass->setPipeline(dilatationPipeline);
+	dilatationPass->setType(Pass::Type::FILTER);
+	dilatationPass->setDepthBuffer(depthBuffer); //TODO dont need depthBuffer
+	dilatationPass->setClearColor(false);
+	dilatationPass->setColorBuffer(colorBuffer);
+	//dilatationPass->setClearColorValue(Color(0.0, 0.0, 0.0, 0.0));
+	scene->setAttribute("source", tmpColorBuffer);
+	//scene->setAttribute("source", TextureManager::getInstance().getTextureView(jpgFiles[1]));
+
+	Pass* unlit2Pass = new Pass(unlit2Shader);
+	Pipeline* pipelineUnlit2 = new Pipeline(unlit2Shader, swapChainFormat, depthTextureFormat, Pipeline::BlendingMode::Replace);
+	unlit2Pass->setPipeline(pipelineUnlit2);
+	unlit2Pass->setDepthBuffer(depthBuffer);
+	unlit2Pass->setColorBuffer(colorBuffer);
+	unlit2Pass->addFilter("unlit");
+	unlit2Pass->setClearColor(false);
+
+	Pass* toScreenPass = new Pass(backgroundShader);
+	Pipeline* backgroundPipeline = new Pipeline(backgroundShader, swapChainFormat, depthTextureFormat, Pipeline::BlendingMode::Over);
+	toScreenPass->setPipeline(backgroundPipeline);
+	toScreenPass->setType(Pass::Type::FILTER);
+	toScreenPass->setClearColor(false);
+	toScreenPass->setDepthBuffer(depthBuffer); //TODO dont need depthBuffer
+	scene->setAttribute("backgroundTexture", colorBuffer);
+	//scene->setAttribute("backgroundTexture", tmpColorBuffer);
+	toScreenPass->setImGuiWrapper(imgui);
 
 	vec3 focalPoint(0.0, 0.0, -2.0);
 	float angle2 = 3.0f * PI / 4.0f;
@@ -349,13 +430,16 @@ int main(int, char**) {
 	scene->setAttribute("view", V);
 	scene->setAttribute("projection", proj);
 	scene->setAttribute("lightDirection", vec4(vec3(0.5, -0.9, 0.1), 0.0));
-	scene->setAttribute("backgroundTexture", TextureManager::getInstance().getTextureView(jpgFiles[1]));
+	//scene->setAttribute("backgroundTexture", TextureManager::getInstance().getTextureView(jpgFiles[1]));
 
 	Renderer renderer;
-	renderer.addPass(backgroundPass);
+	//renderer.addPass(backgroundPass);
 	renderer.addPass(passPbr);
 	renderer.addPass(unlitPass);
-	renderer.addPass(pbrPass2);
+	//renderer.addPass(pbrPass2);
+ 	renderer.addPass(dilatationPass);
+	renderer.addPass(unlit2Pass); //to remove interior
+	renderer.addPass(toScreenPass);
 	renderer.setScene(scene);
 
 	Issam::Node* selectedNode = nullptr;

@@ -110,7 +110,7 @@ public:
 				Shader* shader = pass->getShader();
 				auto& layouts = shader->getBindGroupLayouts();
 				auto& attribSceneId = shader->getAttributedId(Shader::Binding::Scene);
-				renderPass.setBindGroup(0, m_scene->getAttibutedRuntime(attribSceneId)->getBindGroup(layouts[0]), 0, nullptr);
+				renderPass.setBindGroup(0, m_scene->getAttibutedRuntime(attribSceneId)->getBindGroup(layouts[0]), 0, nullptr); //TODO layouts[0] ?
 				if (fullScreenMesh)
 				{
 					renderPass.setVertexBuffer(0, fullScreenMesh->getVertexBuffer()->getBuffer(), 0, fullScreenMesh->getVertexBuffer()->getSize());

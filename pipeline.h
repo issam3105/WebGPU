@@ -10,7 +10,16 @@ using namespace wgpu;
 class Pipeline
 {
 public:
-	Pipeline(Shader* shader, TextureFormat swapChainFormat, TextureFormat depthTextureFormat) {
+	enum class BlendingMode : uint8_t
+	{
+		Replace = 0,
+		Over,
+		Multiply,
+		Custom
+	};
+
+
+	Pipeline(Shader* shader, TextureFormat swapChainFormat, TextureFormat depthTextureFormat, BlendingMode blendingMode) {
 		//Creating render pipeline
 		RenderPipelineDescriptor pipelineDesc;
 
@@ -70,21 +79,9 @@ public:
 		fragmentState.constants = nullptr;
 		pipelineDesc.fragment = &fragmentState;
 
-
-		// Configure blend state
-		BlendState blendState;
-		// Usual alpha blending for the color:
-		blendState.color.srcFactor = BlendFactor::SrcAlpha;
-		blendState.color.dstFactor = BlendFactor::OneMinusSrcAlpha;
-		blendState.color.operation = BlendOperation::Add;
-		// We leave the target alpha untouched:
-		blendState.alpha.srcFactor = BlendFactor::Zero;
-		blendState.alpha.dstFactor = BlendFactor::One;
-		blendState.alpha.operation = BlendOperation::Add;
-
 		ColorTargetState colorTarget;
 		colorTarget.format = swapChainFormat;
-		colorTarget.blend = &blendState;
+		colorTarget.blend = &getBlendState(blendingMode);
 		colorTarget.writeMask = ColorWriteMask::All; // We could write to only some of the color channels.
 
 		// We have only one target because our render pass has only one output color
@@ -132,4 +129,47 @@ public:
 	RenderPipeline getRenderPipeline() const { return m_pipeline; }
 private:
 	RenderPipeline m_pipeline{ nullptr };
+
+	BlendState getBlendState(BlendingMode blendingMode)
+	{
+		// Configure blend state
+		BlendState blendState;
+
+		switch (blendingMode)
+		{
+		case Pipeline::BlendingMode::Replace:
+			blendState.color.srcFactor = BlendFactor::One;
+			blendState.color.dstFactor = BlendFactor::Zero;
+			blendState.color.operation = BlendOperation::Add;
+			// We leave the target alpha untouched:
+			blendState.alpha.srcFactor = BlendFactor::One;
+			blendState.alpha.dstFactor = BlendFactor::Zero;
+			blendState.alpha.operation = BlendOperation::Add;
+			break;
+		case Pipeline::BlendingMode::Over:
+			// Usual alpha blending for the color:
+			blendState.color.srcFactor = BlendFactor::SrcAlpha;
+			blendState.color.dstFactor = BlendFactor::OneMinusSrcAlpha;
+			blendState.color.operation = BlendOperation::Add;
+			// We leave the target alpha untouched:
+			blendState.alpha.srcFactor = BlendFactor::One;
+			blendState.alpha.dstFactor = BlendFactor::OneMinusSrcAlpha;
+			blendState.alpha.operation = BlendOperation::Add;
+			break;
+		case Pipeline::BlendingMode::Multiply:
+			blendState.color.srcFactor = BlendFactor::Zero;
+			blendState.color.dstFactor = BlendFactor::SrcAlpha;
+			blendState.color.operation = BlendOperation::Add;
+			// We leave the target alpha untouched:
+			blendState.alpha.srcFactor = BlendFactor::Zero;
+			blendState.alpha.dstFactor = BlendFactor::SrcAlpha;
+			blendState.alpha.operation = BlendOperation::Add;
+			break;
+		case Pipeline::BlendingMode::Custom: assert(false);
+			break;
+		default: assert(false);
+			break;
+		}
+		return blendState;
+	}
 };
