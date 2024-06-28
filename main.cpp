@@ -49,6 +49,8 @@ TextureFormat depthTextureFormat = TextureFormat::Depth24Plus;
 int m_winWidth = 1280;
 int m_winHeight = 720;
 
+Issam::Scene* scene{nullptr};
+
 struct CameraState {
 	// angles.x is the rotation of the camera around the global vertical axis, affected by mouse.x
 	// angles.y is the rotation of the camera around its local horizontal axis, affected by mouse.y
@@ -135,6 +137,57 @@ TextureView createBuffer(uint32_t width, uint32_t height, WGPUTextureFormat form
 	return depthTexture.createView(textureViewDesc);
 }
 
+glm::vec3 getRayFromMouse(float mouseX, float mouseY, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, int screenWidth, int screenHeight) {
+	float x = (2.0f * mouseX) / screenWidth - 1.0f;
+	float y = 1.0f - (2.0f * mouseY) / screenHeight;
+	float z = 1.0f;
+	glm::vec3 rayNDS(x, y, z);
+
+	glm::vec4 rayClip(rayNDS.x, rayNDS.y, -1.0f, 1.0f);
+
+	glm::vec4 rayEye = glm::inverse(projectionMatrix) * rayClip;
+	rayEye = glm::vec4(rayEye.x, rayEye.y, -1.0f, 0.0f);
+
+	glm::vec3 rayWorld = glm::inverse(viewMatrix) * rayEye;
+	rayWorld = glm::normalize(rayWorld);
+
+	return rayWorld;
+}
+
+// Fonction pour tester l'intersection entre un rayon et une bounding box
+using BoundingBox = std::pair<glm::vec3, glm::vec3>;
+bool rayIntersectsBoundingBox(const glm::vec3& rayOrigin, const glm::vec3& rayDirection, const BoundingBox& box, float& t) {
+	float tmin = (box.first.x - rayOrigin.x) / rayDirection.x;
+	float tmax = (box.second.x - rayOrigin.x) / rayDirection.x;
+
+	if (tmin > tmax) std::swap(tmin, tmax);
+
+	float tymin = (box.first.y - rayOrigin.y) / rayDirection.y;
+	float tymax = (box.second.y - rayOrigin.y) / rayDirection.y;
+
+	if (tymin > tmax) std::swap(tymin, tymax);
+
+	if ((tmin > tymax) || (tymin > tmax)) return false;
+
+	if (tymin > tmin) tmin = tymin;
+	if (tymax < tmax) tmax = tymax;
+
+	float tzmin = (box.first.z - rayOrigin.z) / rayDirection.z;
+	float tzmax = (box.second.z - rayOrigin.z) / rayDirection.z;
+
+	if (tzmin > tzmax) std::swap(tzmin, tzmax);
+
+	if ((tmin > tzmax) || (tzmin > tmax)) return false;
+
+	if (tzmin > tmin) tmin = tzmin;
+	if (tzmax < tmax) tmax = tzmax;
+
+	t = tmin;
+
+	return true;
+}
+
+Issam::Node* pickedNode = nullptr;
 
 int main(int, char**) {
 	if (!glfwInit()) {
@@ -326,6 +379,32 @@ int main(int, char**) {
 				glfwGetCursorPos(window, &xpos, &ypos);
 				m_drag.startMouse = vec2(-(float)xpos, (float)ypos);
 				m_drag.startCameraState = m_cameraState;
+				glm::mat4 viewMatrix = std::get< glm::mat4>(scene->getAttribute("view").value);
+				glm::mat4 projectionMatrix = std::get< glm::mat4>(scene->getAttribute("projection").value);
+				glm::vec3 rayOrigin = glm::vec3(glm::inverse(viewMatrix) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
+				glm::vec3 rayDirection = getRayFromMouse(m_winWidth - xpos, m_winHeight -ypos, viewMatrix, projectionMatrix, m_winWidth, m_winHeight);
+				for (auto node : scene->getNodes()) {
+				
+					auto mesh= MeshManager::getInstance().get(node->meshId);
+					if (mesh)
+					{
+						glm::vec3 aabb_min = node->getTransform() * glm::vec4(mesh->getBoundingBox().first, 1.0);
+						glm::vec3 aabb_max = node->getTransform() * glm::vec4(mesh->getBoundingBox().second, 1.0);
+						BoundingBox	aabb = std::make_pair(aabb_min, aabb_max);
+						float t;
+						if (rayIntersectsBoundingBox(rayOrigin, rayDirection, aabb, t)) {
+							if (pickedNode) pickedNode->removeFilter("unlit");
+							pickedNode = node;
+							pickedNode->addFilter("unlit");
+						//	std::cout << "Ray intersects the bounding box at t = " << t << std::endl;
+						}
+						else {
+						//	std::cout << "Ray does not intersect the bounding box" << std::endl;
+						}
+					}
+					
+				}
+				
 				break;
 			case GLFW_RELEASE:
 				m_drag.active = false;
@@ -345,7 +424,7 @@ int main(int, char**) {
 
 	ImGUIWrapper* imgui = new ImGUIWrapper(window, swapChainFormat, depthTextureFormat); //After glfw callbacks
 	
-	Issam::Scene* scene = new Issam::Scene();
+	scene = new Issam::Scene();
 
 	TextureView depthBuffer = createBuffer(m_winWidth, m_winHeight, depthTextureFormat);
 	TextureView colorBuffer = createBuffer(m_winWidth, m_winHeight, TextureFormat::BGRA8Unorm);
@@ -442,7 +521,7 @@ int main(int, char**) {
 	renderer.addPass(toScreenPass);
 	renderer.setScene(scene);
 
-	Issam::Node* selectedNode = nullptr;
+	//Issam::Node* selectedNode = nullptr;
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -476,7 +555,7 @@ int main(int, char**) {
 				}
 			}
 			
-			{
+			/*{
 				std::vector<std::string> nodesNames;
 				for (auto node : scene->getNodes()) {
 					nodesNames.push_back(node->name);
@@ -489,9 +568,9 @@ int main(int, char**) {
 						if (ImGui::Selectable(nodesNames[i].c_str(), isSelected)) {
 
 							nodeIndex = i;
-							if(selectedNode) selectedNode->removeFilter("unlit");
-							selectedNode = scene->getNodes()[nodeIndex];
-							selectedNode->addFilter("unlit");
+							if(pickedNode) pickedNode->removeFilter("unlit");
+							pickedNode = scene->getNodes()[nodeIndex];
+							pickedNode->addFilter("unlit");
 							std::cout << nodesNames[i].c_str() << " selected !" << std::endl;
 						}
 						if (isSelected) {
@@ -500,11 +579,11 @@ int main(int, char**) {
 					}
 					ImGui::EndCombo();
 				}
-			}
+			}*/
 
-			if (selectedNode && selectedNode->materials[c_pbrMaterialAttributes])
+			if (pickedNode && pickedNode->materials[c_pbrMaterialAttributes])
 			{
-				Material* selectedMaterial = selectedNode->materials[c_pbrMaterialAttributes];
+				Material* selectedMaterial = pickedNode->materials[c_pbrMaterialAttributes];
 				glm::vec4 baseColorFactor = std::get<glm::vec4>(selectedMaterial->getAttribute("baseColorFactor").value);
 				ImGui::ColorEdit4("BaseColorFactor", (float*)&baseColorFactor);
 				selectedMaterial->setAttribute("baseColorFactor", baseColorFactor);

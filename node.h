@@ -154,6 +154,15 @@ namespace Issam {
 			}
 		}
 
+		Attribute& getAttribute(const std::string& name)
+		{
+			for (auto attributed : m_attributeds)
+			{
+				if (attributed.second->hasAttribute(name))
+					return attributed.second->getAttribute(name);
+			}
+		}
+
 		Issam::AttributedRuntime* getAttibutedRuntime(const std::string& attributedId)
 		{
 			return m_attributeds[attributedId];
