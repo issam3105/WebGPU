@@ -581,9 +581,9 @@ int main(int, char**) {
 				}
 			}*/
 
-			if (pickedNode && pickedNode->materials[c_pbrMaterialAttributes])
+			if (pickedNode && pickedNode->material)
 			{
-				Material* selectedMaterial = pickedNode->materials[c_pbrMaterialAttributes];
+				Material* selectedMaterial = pickedNode->material;
 				glm::vec4 baseColorFactor = std::get<glm::vec4>(selectedMaterial->getAttribute("baseColorFactor").value);
 				ImGui::ColorEdit4("BaseColorFactor", (float*)&baseColorFactor);
 				selectedMaterial->setAttribute("baseColorFactor", baseColorFactor);

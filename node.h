@@ -33,26 +33,25 @@ namespace Issam {
 			m_textures = materialModel.getTextures();
 			m_samplers = materialModel.getSamplers();*/
 			//addAttribute("model", glm::mat4(1.0));
-			auto* pbrMaterial = new Material(c_pbrMaterialAttributes);
-			auto* unlitMaterial = new Material(c_unlitMaterialAttributes);
-			unlitMaterial->setAttribute("colorFactor", glm::vec4(1.0, 0.5, 0.0, 1.0));
-			materials[c_pbrMaterialAttributes] = pbrMaterial;
-			materials[c_unlitMaterialAttributes] = unlitMaterial;
-			auto* unlit2Material = new Material(c_unlit2MaterialAttributes);
-			unlit2Material->setAttribute("colorFactor", glm::vec4(0.0));
-			materials[c_unlit2MaterialAttributes] = unlit2Material;
+			material = new Material();
+			//auto* unlitMaterial = new Material(c_unlitMaterialAttributes);
+			material->setAttribute(c_unlitMaterialAttributes, "colorFactor", glm::vec4(1.0, 0.5, 0.0, 1.0));
+			
+			material->setAttribute(c_unlit2MaterialAttributes, "colorFactor", glm::vec4(0.0));
+			//materials[c_unlit2MaterialAttributes] = unlit2Material;
 
 			m_filters.push_back("pbr");
+
 		};
 
-		Material* geMaterial(const std::string& attributedId) { return materials[attributedId]; }
+		Material* geMaterial() { return material; }
 
 
 		Node(const Node& other) {
 			name = other.name;
 			children = other.children;
 			meshId = other.meshId;
-			materials = other.materials;
+			material = other.material;
 			m_attributes = other.m_attributes;
 			//m_textures = other.m_textures;
 			//m_samplers = other.m_samplers;
@@ -81,7 +80,7 @@ namespace Issam {
 		std::vector<Node*> children;
 		std::string meshId;
 
-		std::unordered_map<std::string , Material*> materials;
+		Material* material;
 
 	private:
 

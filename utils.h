@@ -389,14 +389,14 @@ namespace Utils
 			{
 				auto& gltfMaterial = model.materials[primitive.material];
 				auto& baseColorFactor = gltfMaterial.pbrMetallicRoughness.baseColorFactor;
-				node->materials[c_pbrMaterialAttributes]->setAttribute("baseColorFactor", glm::make_vec4(baseColorFactor.data()));
+				node->material->setAttribute(c_pbrMaterialAttributes, "baseColorFactor", glm::make_vec4(baseColorFactor.data()));
 
 				int baseColorTextureIndex = gltfMaterial.pbrMetallicRoughness.baseColorTexture.index;
 				if (baseColorTextureIndex >= 0 && baseColorTextureIndex < model.textures.size())
 				{
 					const tinygltf::Texture& gltfTexture = model.textures[baseColorTextureIndex];
 					const tinygltf::Image& gltfImage = model.images[gltfTexture.source];
-					node->materials[c_pbrMaterialAttributes]->setAttribute("baseColorTexture", TextureManager::getInstance().getTextureView(gltfImage.uri));
+					node->material->setAttribute(c_pbrMaterialAttributes,"baseColorTexture", TextureManager::getInstance().getTextureView(gltfImage.uri));
 				}
 
 				int metallicRoughnessIndex = gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index;
@@ -404,14 +404,14 @@ namespace Utils
 				{
 					const tinygltf::Texture& gltfTexture = model.textures[metallicRoughnessIndex];
 					const tinygltf::Image& gltfImage = model.images[gltfTexture.source];
-					node->materials[c_pbrMaterialAttributes]->setAttribute("metallicRoughnessTexture", TextureManager::getInstance().getTextureView(gltfImage.uri));
+					node->material->setAttribute(c_pbrMaterialAttributes, "metallicRoughnessTexture", TextureManager::getInstance().getTextureView(gltfImage.uri));
 				}
 
 				auto& metallicFactor = gltfMaterial.pbrMetallicRoughness.metallicFactor;
-				node->materials[c_pbrMaterialAttributes]->setAttribute("metallicFactor", (float) metallicFactor);
+				node->material->setAttribute(c_pbrMaterialAttributes, "metallicFactor", (float) metallicFactor);
 
 				auto& roughnessFactor = gltfMaterial.pbrMetallicRoughness.roughnessFactor;
-				node->materials[c_pbrMaterialAttributes]->setAttribute("roughnessFactor", (float)roughnessFactor);
+				node->material->setAttribute(c_pbrMaterialAttributes, "roughnessFactor", (float)roughnessFactor);
 			}
 		}
 	}

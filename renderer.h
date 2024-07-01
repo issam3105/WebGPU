@@ -54,9 +54,11 @@ public:
 			std::cerr << "Cannot acquire next swap chain texture" << std::endl;
 		}
 
+		int passIdx = 0;
 		for (auto& pass : m_passes)
 		{
 			RenderPassDescriptor renderPassDesc;
+			renderPassDesc.label = ("pass_" + std::to_string(passIdx++)).c_str();
 
 			renderPassDesc.colorAttachmentCount = 1;
 			renderPassDesc.colorAttachments = pass->getRenderPassColorAttachment(nextTexture);//&renderPassColorAttachment;
@@ -66,7 +68,7 @@ public:
 			renderPassDesc.timestampWrites = nullptr;
 
 			RenderPassEncoder renderPass = encoder.beginRenderPass(renderPassDesc);
-			renderPass.pushDebugGroup("Render Pass");
+		//	renderPass.pushDebugGroup("Render Pass");
 			
 			
 		
@@ -90,7 +92,7 @@ public:
 					if (mesh)
 					{
 						auto& attribMaterialId = shader->getAttributedId(Shader::Binding::Material);
-						renderPass.setBindGroup(0, node->geMaterial(attribMaterialId)->getBindGroup(layouts[static_cast<int>(Shader::Binding::Material)]), 0, nullptr); //Material
+						renderPass.setBindGroup(0, node->geMaterial()->getAttibutedRuntime(attribMaterialId)->getBindGroup(layouts[static_cast<int>(Shader::Binding::Material)]), 0, nullptr); //Material
 						renderPass.setBindGroup(1, node->getBindGroup(layouts[static_cast<int>(Shader::Binding::Node)]), 0, nullptr); //Node model
 						renderPass.setVertexBuffer(0, mesh->getVertexBuffer()->getBuffer(), 0, mesh->getVertexBuffer()->getSize());
 						if (mesh->getIndexBuffer() != nullptr)
@@ -122,7 +124,7 @@ public:
 			if (pass->getImGuiWrapper())
 				pass->getImGuiWrapper()->draw(renderPass);
 
-			renderPass.popDebugGroup();
+			//renderPass.popDebugGroup();
 
 			renderPass.end();
 			renderPass.release();
