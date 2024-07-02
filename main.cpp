@@ -9,6 +9,7 @@
 #define TINYOBJLOADER_IMPLEMENTATION // add this to exactly 1 of your C++ files
 #include "tiny_obj_loader.h"
 
+#include <entt/entt.hpp>
 
 #include <iostream>
 #include <cassert>
@@ -187,7 +188,7 @@ bool rayIntersectsBoundingBox(const glm::vec3& rayOrigin, const glm::vec3& rayDi
 	return true;
 }
 
-Issam::Node* pickedNode = nullptr;
+entt::entity pickedEntity = entt::null;
 
 int main(int, char**) {
 	if (!glfwInit()) {
@@ -374,6 +375,7 @@ int main(int, char**) {
 		if (button == GLFW_MOUSE_BUTTON_LEFT) {
 			switch (action) {
 			case GLFW_PRESS:
+			{
 				m_drag.active = true;
 				double xpos, ypos;
 				glfwGetCursorPos(window, &xpos, &ypos);
@@ -382,28 +384,44 @@ int main(int, char**) {
 				glm::mat4 viewMatrix = std::get< glm::mat4>(scene->getAttribute("view").value);
 				glm::mat4 projectionMatrix = std::get< glm::mat4>(scene->getAttribute("projection").value);
 				glm::vec3 rayOrigin = glm::vec3(glm::inverse(viewMatrix) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-				glm::vec3 rayDirection = getRayFromMouse(m_winWidth - xpos, m_winHeight -ypos, viewMatrix, projectionMatrix, m_winWidth, m_winHeight);
-				for (auto node : scene->getNodes()) {
-				
-					auto mesh= MeshManager::getInstance().get(node->meshId);
+				glm::vec3 rayDirection = getRayFromMouse(m_winWidth - xpos, m_winHeight - ypos, viewMatrix, projectionMatrix, m_winWidth, m_winHeight);
+				auto view = scene->getRegistry().view<const Issam::Transform, Material*, Issam::Filters, Issam::MeshId>();
+				for (auto entity : view)
+					//for (auto node : scene->getNodes()) 
+				{
+
+					Issam::MeshId meshId = view.get<Issam::MeshId>(entity);
+					Mesh* mesh = MeshManager::getInstance().get(meshId.meshId);
 					if (mesh)
 					{
-						glm::vec3 aabb_min = node->getTransform() * glm::vec4(mesh->getBoundingBox().first, 1.0);
-						glm::vec3 aabb_max = node->getTransform() * glm::vec4(mesh->getBoundingBox().second, 1.0);
+						auto& transform = view.get<Issam::Transform>(entity);
+
+						glm::vec3 aabb_min = transform.transform * glm::vec4(mesh->getBoundingBox().first, 1.0);
+						glm::vec3 aabb_max = transform.transform * glm::vec4(mesh->getBoundingBox().second, 1.0);
 						BoundingBox	aabb = std::make_pair(aabb_min, aabb_max);
 						float t;
 						if (rayIntersectsBoundingBox(rayOrigin, rayDirection, aabb, t)) {
-							if (pickedNode) pickedNode->removeFilter("unlit");
-							pickedNode = node;
-							pickedNode->addFilter("unlit");
-						//	std::cout << "Ray intersects the bounding box at t = " << t << std::endl;
+							if (pickedEntity != entt::null)
+							{
+								auto& filters = scene->getRegistry().get<Issam::Filters>(pickedEntity);
+								//auto it = std::find(filters.filters.begin(), filters.filters.end(), "unlit");
+								//filters.filters.erase(it);
+								filters.remove("unlit");
+								//pickedEntity->removeFilter("unlit");
+							}
+								
+							pickedEntity = entity;
+							auto& filters = scene->getRegistry().get<Issam::Filters>(entity);
+							filters.add("unlit");
+							//	std::cout << "Ray intersects the bounding box at t = " << t << std::endl;
 						}
 						else {
-						//	std::cout << "Ray does not intersect the bounding box" << std::endl;
+							//	std::cout << "Ray does not intersect the bounding box" << std::endl;
 						}
 					}
-					
+
 				}
+			}
 				
 				break;
 			case GLFW_RELEASE:
@@ -581,9 +599,11 @@ int main(int, char**) {
 				}
 			}*/
 
-			if (pickedNode && pickedNode->material)
+			if (pickedEntity != entt::null /*&& pickedEntity->material*/)
 			{
-				Material* selectedMaterial = pickedNode->material;
+				Material* selectedMaterial = scene->getRegistry().get<Material*>(pickedEntity);
+
+				//Material* selectedMaterial = pickedNode->material;
 				glm::vec4 baseColorFactor = std::get<glm::vec4>(selectedMaterial->getAttribute("baseColorFactor").value);
 				ImGui::ColorEdit4("BaseColorFactor", (float*)&baseColorFactor);
 				selectedMaterial->setAttribute("baseColorFactor", baseColorFactor);

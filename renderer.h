@@ -7,7 +7,6 @@
 #include "node.h"
 
 
-
 class Renderer
 {
 public:
@@ -80,20 +79,30 @@ public:
 				auto& layouts = shader->getBindGroupLayouts();
 				auto& attribSceneId = shader->getAttributedId(Shader::Binding::Scene);
 				renderPass.setBindGroup(2, m_scene->getAttibutedRuntime(attribSceneId)->getBindGroup(layouts[static_cast<int>(Shader::Binding::Scene)]), 0, nullptr); //Scene uniforms
-				for (auto& node : m_scene->getNodes())
+
+				auto view = m_scene->getRegistry().view<const Issam::Transform, Material*, Issam::Filters, Issam::MeshId, Issam::AttributedRuntime*>();
+				for (auto entity : view) 
+				//for (auto& node : m_scene->getNodes())
 				{
-					bool shouldDraw = std::any_of(node->getFilters().begin(), node->getFilters().end(),
+					auto& transform = view.get<Issam::Transform>(entity);
+					
+					Issam::Filters filters = view.get<Issam::Filters>(entity);
+
+					bool shouldDraw = std::any_of(filters.filters.begin(), filters.filters.end(),
 						[&pass](const std::string& filter) {
 						return std::find(pass->getFilters().begin(), pass->getFilters().end(), filter) != pass->getFilters().end();
 					});
 					if (!shouldDraw) continue;
 
-					Mesh* mesh = MeshManager::getInstance().get(node->meshId);
+					Issam::MeshId meshId = view.get<Issam::MeshId>(entity);
+					Mesh* mesh = MeshManager::getInstance().get(meshId.meshId);
 					if (mesh)
 					{
+						Material* material = view.get< Material*>(entity);
+						Issam::AttributedRuntime* nodeAttributes = view.get< Issam::AttributedRuntime*>(entity);
 						auto& attribMaterialId = shader->getAttributedId(Shader::Binding::Material);
-						renderPass.setBindGroup(0, node->geMaterial()->getAttibutedRuntime(attribMaterialId)->getBindGroup(layouts[static_cast<int>(Shader::Binding::Material)]), 0, nullptr); //Material
-						renderPass.setBindGroup(1, node->getBindGroup(layouts[static_cast<int>(Shader::Binding::Node)]), 0, nullptr); //Node model
+						renderPass.setBindGroup(0, material->getAttibutedRuntime(attribMaterialId)->getBindGroup(layouts[static_cast<int>(Shader::Binding::Material)]), 0, nullptr); //Material
+						renderPass.setBindGroup(1, nodeAttributes->getBindGroup(layouts[static_cast<int>(Shader::Binding::Node)]), 0, nullptr); //Node model
 						renderPass.setVertexBuffer(0, mesh->getVertexBuffer()->getBuffer(), 0, mesh->getVertexBuffer()->getSize());
 						if (mesh->getIndexBuffer() != nullptr)
 						{

@@ -24,67 +24,64 @@ namespace Issam {
 	const std::string c_backgroundSceneAttributes = "backgroundSceneModel";
 	const std::string c_diltationSceneAttributes = "dilatationSceneModel";
 
-	class Node : public AttributedRuntime{
+	class Node //: public AttributedRuntime
+	{
 	public:
 		Node() {
-			setAttributes(c_pbrNodeAttributes);
-			/*auto materialModel = Issam::AttributedManager::getInstance().get(c_pbrNodeAttributes);
-			m_attributes = materialModel.getAttributes();
-			m_textures = materialModel.getTextures();
-			m_samplers = materialModel.getSamplers();*/
-			//addAttribute("model", glm::mat4(1.0));
-			material = new Material();
-			//auto* unlitMaterial = new Material(c_unlitMaterialAttributes);
-			material->setAttribute(c_unlitMaterialAttributes, "colorFactor", glm::vec4(1.0, 0.5, 0.0, 1.0));
-			
+		//	setAttributes(c_pbrNodeAttributes);
+		/*	material = new Material();
+			material->setAttribute(c_unlitMaterialAttributes, "colorFactor", glm::vec4(1.0, 0.5, 0.0, 1.0));	
 			material->setAttribute(c_unlit2MaterialAttributes, "colorFactor", glm::vec4(0.0));
-			//materials[c_unlit2MaterialAttributes] = unlit2Material;
-
-			m_filters.push_back("pbr");
+			*/
+			//m_filters.push_back("pbr");
 
 		};
 
-		Material* geMaterial() { return material; }
+		//Material* geMaterial() { return material; }
 
 
 		Node(const Node& other) {
 			name = other.name;
 			children = other.children;
 			meshId = other.meshId;
+			transform = other.transform;
 			material = other.material;
-			m_attributes = other.m_attributes;
+		//	m_attributes = other.m_attributes;
 			//m_textures = other.m_textures;
 			//m_samplers = other.m_samplers;
 
-			m_filters = other.m_filters;
+		//	m_filters = other.m_filters;
 
 			
 		}
 
 		void setTransform(glm::mat4 in_transform) { 
-			setAttribute("model", in_transform);
+			transform = in_transform;
+		//	setAttribute("model", in_transform);
 		}
 		glm::mat4& getTransform() {
-			return std::get<glm::mat4>( getAttribute("model").value);
+			return transform;
+			//return std::get<glm::mat4>( getAttribute("model").value);
 		}
 
-		void addFilter(std::string filter) { m_filters.push_back(filter); }
+		/*void addFilter(std::string filter) { m_filters.push_back(filter); }
 		void removeFilter(std::string filter) {
 			auto it = std::find(m_filters.begin(), m_filters.end(), filter);
 			m_filters.erase(it); 
 		}
 
-		const std::vector<std::string>& getFilters() { return m_filters; }
+		const std::vector<std::string>& getFilters() { return m_filters; }*/
 
 		std::string name;
 		std::vector<Node*> children;
 		std::string meshId;
+		glm::mat4 transform;
 
-		Material* material;
+		Material* material{ nullptr };
 
 	private:
 
-		std::vector<std::string> m_filters;
+	//	std::vector<std::string> m_filters;
 	};
 
 
@@ -124,6 +121,27 @@ namespace Issam {
 		std::unordered_map<std::string, SceneModel> m_sceneModels{};
 	};
 	*/
+
+	struct Transform
+	{
+		glm::mat4 transform = glm::mat4(1.0);
+	};
+
+	struct Filters {
+	public:
+		void add(std::string filter) { filters.push_back(filter); }
+		void remove(std::string filter) {
+			auto it = std::find(filters.begin(), filters.end(), filter);
+			filters.erase(it);
+		}
+	public:
+		std::vector<std::string> filters;
+	};
+
+	struct MeshId {
+		std::string meshId;
+	};
+
 
 	class Scene 
 	{
@@ -173,10 +191,39 @@ namespace Issam {
 			for (auto rootNode : nodes) {
 				flattenNodes(rootNode, glm::mat4(1.0f), flatNodes);
 			}
-			m_nodes = flatNodes;
+			//	m_nodes = flatNodes;
+			for (auto node : flatNodes)
+			{
+				const auto entity = m_registry.create();
+				Transform transf;
+				transf.transform = node->getTransform();
+				m_registry.emplace<Transform>(entity, transf);
+				Material* material = node->material;
+				if (material)
+				{
+					material->setAttribute(c_unlitMaterialAttributes, "colorFactor", glm::vec4(1.0, 0.5, 0.0, 1.0));
+					material->setAttribute(c_unlit2MaterialAttributes, "colorFactor", glm::vec4(0.0));
+					m_registry.emplace<Material*>(entity, material);
+				}
+				
+
+				Filters filters;
+				filters.add("pbr");
+				m_registry.emplace<Filters>(entity, filters);
+
+				MeshId mesh{ node->meshId };
+				m_registry.emplace<MeshId>(entity, mesh);
+
+				AttributedRuntime* nodeAttributes = new AttributedRuntime(Issam::c_pbrNodeAttributes);
+				nodeAttributes->setAttribute("model", transf.transform);
+				m_registry.emplace<AttributedRuntime*>(entity, nodeAttributes);
+			}
+
 		}
 
-		std::vector<Issam::Node*>& getNodes() { return m_nodes; }
+		entt::registry& getRegistry() { return m_registry; };
+
+		//std::vector<Issam::Node*>& getNodes() { return m_nodes; }
 	private:
 		void flattenNodes(Issam::Node* node, glm::mat4 parentTransform, std::vector<Issam::Node*>& flatNodes) {
 			glm::mat4 globalTransform = parentTransform * node->getTransform();
@@ -190,7 +237,8 @@ namespace Issam {
 			}
 		}
 
-		std::vector<Issam::Node*> m_nodes;	
+		//std::vector<Issam::Node*> m_nodes;	
+		entt::registry m_registry;
 		std::unordered_map<std::string, Issam::AttributedRuntime*> m_attributeds{};
 	};
 }

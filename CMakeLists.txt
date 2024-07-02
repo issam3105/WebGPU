@@ -49,9 +49,10 @@ add_subdirectory(ext/glfw3webgpu)
 add_subdirectory(ext/glm)
 add_subdirectory(ext/imgui)
 add_subdirectory(ext/tinygltf)
+add_subdirectory(ext/entt)
 
 
-target_link_libraries(App PRIVATE webgpu glfw glfw3webgpu glm imgui tinygltf)
+target_link_libraries(App PRIVATE webgpu glfw glfw3webgpu glm imgui tinygltf EnTT::EnTT)
 
 
 target_compile_definitions(App PRIVATE
