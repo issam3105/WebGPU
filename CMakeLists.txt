@@ -22,7 +22,7 @@ list(APPEND sources
 	utils.h 
 	renderer.h 
 	mesh.h 
-	node.h
+	scene.h
 	uniformsBuffer.h
 	material.h
 	attributed.h

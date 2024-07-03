@@ -4,7 +4,7 @@
 #include <webgpu/webgpu.hpp>
 
 #include "context.h"
-#include "node.h"
+#include "scene.h"
 
 
 class Renderer
@@ -44,6 +44,7 @@ public:
 
 	void draw()
 	{
+		//m_scene->updateWorldTransforms(); //TODO only when needed
 		CommandEncoderDescriptor commandEncoderDesc;
 		commandEncoderDesc.label = "Command Encoder";
 		CommandEncoder encoder = Context::getInstance().getDevice().createCommandEncoder(commandEncoderDesc);
@@ -67,10 +68,7 @@ public:
 			renderPassDesc.timestampWrites = nullptr;
 
 			RenderPassEncoder renderPass = encoder.beginRenderPass(renderPassDesc);
-		//	renderPass.pushDebugGroup("Render Pass");
-			
-			
-		
+
 			if (pass->getType() == Pass::Type::SCENE)
 			{
 				auto pipeline = pass->getPipeline()->getRenderPipeline();
@@ -79,30 +77,26 @@ public:
 				auto& layouts = shader->getBindGroupLayouts();
 				auto& attribSceneId = shader->getAttributedId(Shader::Binding::Scene);
 				renderPass.setBindGroup(2, m_scene->getAttibutedRuntime(attribSceneId)->getBindGroup(layouts[static_cast<int>(Shader::Binding::Scene)]), 0, nullptr); //Scene uniforms
-
-				auto view = m_scene->getRegistry().view<const Issam::Transform, Material*, Issam::Filters, Issam::MeshId, Issam::AttributedRuntime*>();
+				auto view = m_scene->getRegistry().view<const Issam::WorldTransform, Issam::Filters, Issam::MeshRenderer, Issam::Hierarchy>();
 				for (auto entity : view) 
-				//for (auto& node : m_scene->getNodes())
 				{
-					auto& transform = view.get<Issam::Transform>(entity);
-					
 					Issam::Filters filters = view.get<Issam::Filters>(entity);
-
 					bool shouldDraw = std::any_of(filters.filters.begin(), filters.filters.end(),
 						[&pass](const std::string& filter) {
 						return std::find(pass->getFilters().begin(), pass->getFilters().end(), filter) != pass->getFilters().end();
 					});
 					if (!shouldDraw) continue;
 
-					Issam::MeshId meshId = view.get<Issam::MeshId>(entity);
-					Mesh* mesh = MeshManager::getInstance().get(meshId.meshId);
+					Issam::MeshRenderer meshRenderer = view.get<Issam::MeshRenderer>(entity);
+					auto transform = view.get<Issam::WorldTransform>(entity);
+					Mesh* mesh = MeshManager::getInstance().get(meshRenderer.meshId);
 					if (mesh)
 					{
-						Material* material = view.get< Material*>(entity);
-						Issam::AttributedRuntime* nodeAttributes = view.get< Issam::AttributedRuntime*>(entity);
+						Material* material = meshRenderer.material;
+						//Issam::AttributedRuntime* nodeAttributes = transform.getAttributedRuntime();
 						auto& attribMaterialId = shader->getAttributedId(Shader::Binding::Material);
 						renderPass.setBindGroup(0, material->getAttibutedRuntime(attribMaterialId)->getBindGroup(layouts[static_cast<int>(Shader::Binding::Material)]), 0, nullptr); //Material
-						renderPass.setBindGroup(1, nodeAttributes->getBindGroup(layouts[static_cast<int>(Shader::Binding::Node)]), 0, nullptr); //Node model
+						renderPass.setBindGroup(1, transform.getBindGroup(layouts[static_cast<int>(Shader::Binding::Node)]), 0, nullptr); //Node model
 						renderPass.setVertexBuffer(0, mesh->getVertexBuffer()->getBuffer(), 0, mesh->getVertexBuffer()->getSize());
 						if (mesh->getIndexBuffer() != nullptr)
 						{
@@ -156,7 +150,10 @@ public:
 		m_passes.push_back(pass);
 	}
 
-	void setScene(Issam::Scene* scene) { m_scene = scene; }
+	void setScene(Issam::Scene* scene) {
+		m_scene = scene;
+		
+	}
 	//void setCamera(Issam::Camera* camera) { m_scene->camera = camera; }
 	//Issam::Camera* getCamera() { return m_scene->camera; }
 private:

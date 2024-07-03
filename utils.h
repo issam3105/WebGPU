@@ -9,7 +9,7 @@
 #include <webgpu/webgpu.hpp>
 
 #include "context.h"
-#include "node.h"
+#include "scene.h"
 #include "material.h"
 
 #include "tiny_gltf.h"
@@ -274,9 +274,13 @@ namespace Utils
 	}
 
 
-	void loadMesh(const tinygltf::Model& model, const tinygltf::Mesh& mesh, Issam::Node* node)
+	void loadMesh(const tinygltf::Model& model, const tinygltf::Mesh& mesh,entt::entity parent, Issam::Scene* scene)
 	{
-		for (const auto& primitive : mesh.primitives) {
+		int primitiveIdx = 0;
+		for (const auto& primitive : mesh.primitives)
+		{
+			entt::entity entity = scene->addEntity();
+			scene->addChild(parent, entity);
 			std::vector<Vertex> vertices;
 			std::vector<uint16_t> indices;
 			// Process vertex attributes
@@ -380,10 +384,17 @@ namespace Utils
 				}
 				myMesh->setIndices(indices);
 			}
-
+			
 			static int meshId = 0;
-			node->meshId = "mesh_" + std::to_string(meshId++);
-			MeshManager::getInstance().add(node->meshId, myMesh);
+			std::string meshID = mesh.name;
+			if(meshID.empty())
+			     meshID = "mesh_" + std::to_string(meshId++);
+
+			std::string primitiveName = meshID + "_prim"+ std::to_string(primitiveIdx++);
+
+			Issam::MeshRenderer meshRenderer{ primitiveName };
+
+			MeshManager::getInstance().add(primitiveName, myMesh);
 			if (primitive.material != -1)
 			{
 				Material* material = new Material();
@@ -412,9 +423,19 @@ namespace Utils
 
 				auto& roughnessFactor = gltfMaterial.pbrMetallicRoughness.roughnessFactor;
 				material->setAttribute(c_pbrMaterialAttributes, "roughnessFactor", (float)roughnessFactor);
-				node->material = material;
+
+				material->setAttribute(c_unlitMaterialAttributes, "colorFactor", glm::vec4(1.0, 0.5, 0.0, 1.0));
+				material->setAttribute(c_unlit2MaterialAttributes, "colorFactor", glm::vec4(0.0));
+
+				meshRenderer.material = material;
+
+				Issam::Filters filters;
+				filters.add("pbr");
+				scene->setFilters(entity, filters);
 
 			}
+
+			scene->setMeshRenderer(entity, meshRenderer);
 		}
 	}
 
@@ -424,13 +445,16 @@ namespace Utils
 		return "";
 	}
 
-	void loadNode(const tinygltf::Model& model, const tinygltf::Node& gltfNode, Issam::Node* node) {
+	void loadNode(const tinygltf::Model& model, const tinygltf::Node& gltfNode, entt::entity entity, Issam::Scene* scene, int idx) {
 		static int nodeId = 0;
 		std::string nodeName = gltfNode.name;
 		if (nodeName.empty())
-			nodeName = "node_" + std::to_string(nodeId++);
+			nodeName = "node_" + std::to_string(idx);
 
-		node->name = nodeName;
+		//std::cout << nodeName  << std::endl;
+
+		scene->setName(entity, nodeName);
+		//node->name = nodeName;
 
 		const glm::vec3 T =
 			gltfNode.translation.empty()
@@ -447,27 +471,30 @@ namespace Utils
 			? glm::vec3(1.0)
 			: glm::make_vec3(gltfNode.scale.data());
 
-		node->setTransform(glm::translate(glm::mat4(1.0), T) * glm::mat4_cast(R) * glm::scale(glm::mat4(1.0), S));
-		
+		//node->setTransform(glm::translate(glm::mat4(1.0), T) * glm::mat4_cast(R) * glm::scale(glm::mat4(1.0), S));
+		scene->setLocalTransform(entity, glm::translate(glm::mat4(1.0), T) * glm::mat4_cast(R) * glm::scale(glm::mat4(1.0), S));
+
 		if (!gltfNode.matrix.empty()) {
-			node->setTransform(glm::make_mat4(gltfNode.matrix.data()));
+			scene->setLocalTransform(entity, glm::make_mat4(gltfNode.matrix.data()));
+			//node->setTransform(glm::make_mat4(gltfNode.matrix.data()));
 		}
 
 		if (gltfNode.mesh >= 0) {
-			loadMesh(model, model.meshes[gltfNode.mesh], node);
+			loadMesh(model, model.meshes[gltfNode.mesh], entity, scene);
 		}
 
 		for (int childIndex : gltfNode.children) {
-			Issam::Node* childNode = new Issam::Node();
-			loadNode(model, model.nodes[childIndex], childNode);
-			node->children.push_back(childNode);
+			entt::entity childEntity = scene->addEntity();
+			loadNode(model, model.nodes[childIndex], childEntity, scene,  childIndex);
+			scene->addChild(entity, childEntity);
+			//node->children.push_back(childNode);
 		}
 	}
 
 
 
-	std::vector<Issam::Node*> LoadGLTF(const std::string& filepath) {
-		std::vector<Issam::Node*> scene;
+	void LoadGLTF(const std::string& filepath, Issam::Scene* scene) {
+		//std::vector<Issam::Node*> scene;
 		tinygltf::Model model;
 		tinygltf::TinyGLTF loader;
 		std::string err;
@@ -483,7 +510,7 @@ namespace Utils
 		}
 
 		if (!ret) {
-			return scene;
+			return ;
 		}
 
 		std::string baseDir = GetBaseDir(filepath);
@@ -497,11 +524,12 @@ namespace Utils
 		}
 		
 		for (const auto& sceneNodeIndex : model.scenes[model.defaultScene].nodes) {
-			Issam::Node* rootNode = new Issam::Node();
-			loadNode(model, model.nodes[sceneNodeIndex], rootNode);
-			scene.push_back(rootNode);
+			entt::entity rootNode = scene->addEntity();
+			loadNode(model, model.nodes[sceneNodeIndex], rootNode, scene, sceneNodeIndex);
+			//scene.push_back(rootNode);
 		}
 		
-		return scene;
+		//return scene;
+		return;
 	}
 }

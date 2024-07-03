@@ -11,7 +11,7 @@
 #include "context.h"
 //#include "material.h"
 #include "uniformsBuffer.h"
-#include "node.h"
+#include "scene.h"
 #include "material.h"
 
 

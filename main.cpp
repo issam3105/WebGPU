@@ -385,29 +385,24 @@ int main(int, char**) {
 				glm::mat4 projectionMatrix = std::get< glm::mat4>(scene->getAttribute("projection").value);
 				glm::vec3 rayOrigin = glm::vec3(glm::inverse(viewMatrix) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 				glm::vec3 rayDirection = getRayFromMouse(m_winWidth - xpos, m_winHeight - ypos, viewMatrix, projectionMatrix, m_winWidth, m_winHeight);
-				auto view = scene->getRegistry().view<const Issam::Transform, Material*, Issam::Filters, Issam::MeshId>();
+				auto view = scene->getRegistry().view<const Issam::WorldTransform, Issam::Filters, Issam::MeshRenderer>();
 				for (auto entity : view)
-					//for (auto node : scene->getNodes()) 
 				{
-
-					Issam::MeshId meshId = view.get<Issam::MeshId>(entity);
-					Mesh* mesh = MeshManager::getInstance().get(meshId.meshId);
+					Issam::MeshRenderer meshRenderer = view.get<Issam::MeshRenderer>(entity);
+					Mesh* mesh = MeshManager::getInstance().get(meshRenderer.meshId);
 					if (mesh)
 					{
-						auto& transform = view.get<Issam::Transform>(entity);
+						auto& transform = view.get<Issam::WorldTransform>(entity);
 
-						glm::vec3 aabb_min = transform.transform * glm::vec4(mesh->getBoundingBox().first, 1.0);
-						glm::vec3 aabb_max = transform.transform * glm::vec4(mesh->getBoundingBox().second, 1.0);
+						glm::vec3 aabb_min = transform.getTransform() * glm::vec4(mesh->getBoundingBox().first, 1.0);
+						glm::vec3 aabb_max = transform.getTransform() * glm::vec4(mesh->getBoundingBox().second, 1.0);
 						BoundingBox	aabb = std::make_pair(aabb_min, aabb_max);
 						float t;
 						if (rayIntersectsBoundingBox(rayOrigin, rayDirection, aabb, t)) {
 							if (pickedEntity != entt::null)
 							{
 								auto& filters = scene->getRegistry().get<Issam::Filters>(pickedEntity);
-								//auto it = std::find(filters.filters.begin(), filters.filters.end(), "unlit");
-								//filters.filters.erase(it);
 								filters.remove("unlit");
-								//pickedEntity->removeFilter("unlit");
 							}
 								
 							pickedEntity = entity;
@@ -559,10 +554,14 @@ int main(int, char**) {
 						bool isSelected = (selectedGLTFIndex == i);
 						if (ImGui::Selectable(gltfFiles[i].c_str(), isSelected)) {
 							if (selectedGLTFIndex != -1)
+							{
 								MeshManager::getInstance().clear();//MeshManager::getInstance().remove(gltfFiles[selectedGLTFIndex]);
+								scene->clear();
+								pickedEntity = entt::null;
+							}
 							selectedGLTFIndex = i;
-							std::vector<Issam::Node*> nodes = Utils::LoadGLTF(gltfFiles[i]);
-							scene->setNodes(nodes);
+							Utils::LoadGLTF(gltfFiles[i], scene);
+							//scene->setNodes(nodes);
 
 						}
 						if (isSelected) {
@@ -573,35 +572,10 @@ int main(int, char**) {
 				}
 			}
 			
-			/*{
-				std::vector<std::string> nodesNames;
-				for (auto node : scene->getNodes()) {
-					nodesNames.push_back(node->name);
-				}
-				static int nodeIndex = -1;
 
-				if (ImGui::BeginCombo("Nodes", nodeIndex == -1 ? "Select a Node" : nodesNames[nodeIndex].c_str())) {
-					for (int i = 0; i < nodesNames.size(); i++) {
-						bool isSelected = (nodeIndex == i);
-						if (ImGui::Selectable(nodesNames[i].c_str(), isSelected)) {
-
-							nodeIndex = i;
-							if(pickedNode) pickedNode->removeFilter("unlit");
-							pickedNode = scene->getNodes()[nodeIndex];
-							pickedNode->addFilter("unlit");
-							std::cout << nodesNames[i].c_str() << " selected !" << std::endl;
-						}
-						if (isSelected) {
-							ImGui::SetItemDefaultFocus();
-						}
-					}
-					ImGui::EndCombo();
-				}
-			}*/
-
-			if (pickedEntity != entt::null /*&& pickedEntity->material*/)
+			if (pickedEntity != entt::null && scene->getRegistry().valid(pickedEntity)/*&& pickedEntity->material*/)
 			{
-				Material* selectedMaterial = scene->getRegistry().get<Material*>(pickedEntity);
+				Material* selectedMaterial = scene->getRegistry().get<Issam::MeshRenderer>(pickedEntity).material;
 
 				//Material* selectedMaterial = pickedNode->material;
 				glm::vec4 baseColorFactor = std::get<glm::vec4>(selectedMaterial->getAttribute("baseColorFactor").value);
