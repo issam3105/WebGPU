@@ -85,15 +85,35 @@ namespace Issam {
 		std::vector<entt::entity> children;
 	};
 
+	struct Camera {
+		glm::vec3 m_pos = glm::vec3(0.0);
+		glm::mat4 m_view = glm::mat4(1.0);
+		glm::mat4 m_projection = glm::mat4(1.0);
+	};
+
+	struct Light {
+		glm::vec3 m_direction = glm::vec3(0.0);
+	};
+
+	
+
 	class Scene 
 	{
 	public:	
+		
+
 		Scene()
 		{
 			m_attributeds[Issam::c_pbrSceneAttributes] = new AttributedRuntime(Issam::c_pbrSceneAttributes);
 			m_attributeds[Issam::c_unlitSceneAttributes] = new AttributedRuntime(Issam::c_unlitSceneAttributes);
 			m_attributeds[Issam::c_backgroundSceneAttributes] = new AttributedRuntime(Issam::c_backgroundSceneAttributes);
 			m_attributeds[Issam::c_diltationSceneAttributes] = new AttributedRuntime(Issam::c_diltationSceneAttributes);
+
+			m_registry.on_update<Hierarchy>().connect<&Scene::updateWorldTransforms>(*this);
+			m_registry.on_update<LocalTransform>().connect<&Scene::updateWorldTransforms>(*this);
+
+			m_registry.on_update<Camera>().connect<&Scene::onCameraModified>(*this);
+			m_registry.on_update<Light>().connect<&Scene::onLightModified>(*this);
 		}
 
 		void setAttribute(const std::string& name, const Value& value)
@@ -129,7 +149,23 @@ namespace Issam {
 			m_registry.emplace<Hierarchy>(entity, Hierarchy());
 			
 			assert(m_registry.valid(entity));
-			updateWorldTransforms();
+			//updateWorldTransforms();
+			return entity;
+		}
+
+		entt::entity addCamera()
+		{
+			const auto entity = m_registry.create();
+			m_entities.push_back(entity);
+			m_registry.emplace<Camera>(entity, Camera());
+			return entity;
+		}
+
+		entt::entity addLight()
+		{
+			const auto entity = m_registry.create();
+			m_entities.push_back(entity);
+			m_registry.emplace<Light>(entity, Light());
 			return entity;
 		}
 
@@ -137,6 +173,7 @@ namespace Issam {
 		{
 			auto& localTransform = m_registry.get<LocalTransform>(entity);
 			localTransform.m_matrix = in_localTransform;
+			m_registry.patch<LocalTransform>(entity);
 		}
 
 		void setMeshRenderer(entt::entity entity,const MeshRenderer& meshRenderer)
@@ -162,7 +199,9 @@ namespace Issam {
 
 			auto& childHierarchy = m_registry.get<Hierarchy>(child);
 			childHierarchy.parent = parent;
-			updateWorldTransforms();
+
+			m_registry.patch<Hierarchy>(parent);
+			//updateWorldTransforms();
 		}
 
 		void removeChild(entt::entity parent, entt::entity child) {
@@ -174,6 +213,8 @@ namespace Issam {
 
 			auto& childHierarchy = m_registry.get<Hierarchy>(child);
 			childHierarchy.parent = entt::null;
+
+			m_registry.patch<Hierarchy>(parent);
 		}
 
 		void removeEntity(entt::entity entity)
@@ -202,8 +243,25 @@ namespace Issam {
 		}
 
 	private:
+		//Slots
+		void updateWorldTransforms(entt::registry& registry, entt::entity entity)
+		{
+			calculateWorldTransforms(entity);
+		}
 
-		void updateWorldTransforms(entt::entity entity, const glm::mat4& parentTransform = glm::mat4(1.0f)) {
+		void onCameraModified(entt::registry& registry, entt::entity entity) {
+			auto& camera = registry.get<Camera>(entity);
+			setAttribute("cameraPosition", vec4(camera.m_pos, 0.0));
+			setAttribute("view", camera.m_view);
+			setAttribute("projection", camera.m_projection);
+		}
+
+		void onLightModified(entt::registry& registry, entt::entity entity) {
+			auto& light = registry.get<Light>(entity);
+			setAttribute("lightDirection", vec4(light.m_direction, 0.0));
+		}
+
+		void calculateWorldTransforms(entt::entity entity, const glm::mat4& parentTransform = glm::mat4(1.0f)) {
 			auto& localTransform = m_registry.get<LocalTransform>(entity);
 			auto& globalTransform = m_registry.get_or_emplace<WorldTransform>(entity);
 
@@ -211,16 +269,8 @@ namespace Issam {
 
 			const auto& hierarchy = m_registry.get<Hierarchy>(entity);
 			for (auto child : hierarchy.children) {
-				updateWorldTransforms(child, globalTransform.getTransform());
+				calculateWorldTransforms(child, globalTransform.getTransform());
 			}
-		}
-
-		void updateWorldTransforms() {
-			m_registry.view<Hierarchy>().each([&](auto entity, const auto& hierarchy) {
-				if (hierarchy.parent == entt::null) {
-					updateWorldTransforms(entity);
-				}
-			});
 		}
 
 		std::string mat4_to_string(const glm::mat4& mat, std::string espace) {

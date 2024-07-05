@@ -44,7 +44,6 @@ public:
 
 	void draw()
 	{
-		//m_scene->updateWorldTransforms(); //TODO only when needed
 		CommandEncoderDescriptor commandEncoderDesc;
 		commandEncoderDesc.label = "Command Encoder";
 		CommandEncoder encoder = Context::getInstance().getDevice().createCommandEncoder(commandEncoderDesc);

@@ -35,6 +35,7 @@ public:
 		RequestAdapterOptions adapterOpts;
 		adapterOpts.compatibleSurface = m_surface;
 		adapterOpts.backendType = WGPUBackendType::WGPUBackendType_D3D12;
+		adapterOpts.powerPreference = WGPUPowerPreference::WGPUPowerPreference_HighPerformance;
 		m_adapter = m_instance.requestAdapter(adapterOpts);
 		assert(m_adapter);
 		//	inspectAdapter(m_adapter);

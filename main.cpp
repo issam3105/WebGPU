@@ -82,6 +82,8 @@ struct DragState {
 DragState m_drag;
 CameraState m_cameraState;
 
+entt::entity cameraEntity;
+
 void updateViewMatrix(Issam::Scene* scene) {
 	float cx = cos(m_cameraState.angles.x);
 	float sx = sin(m_cameraState.angles.x);
@@ -89,8 +91,11 @@ void updateViewMatrix(Issam::Scene* scene) {
 	float sy = sin(m_cameraState.angles.y);
 	vec3 position = vec3(cx * cy, sx * cy, sy) * std::exp(-m_cameraState.zoom);
 	mat4x4 viewMatrix = glm::lookAt(position, vec3(0.0f), vec3(0, 0, 1));
-	scene->setAttribute("view", viewMatrix);
-	scene->setAttribute("cameraPosition", vec4(position, 0.0));
+
+	auto& camera = scene->getRegistry().get<Issam::Camera>(cameraEntity);
+	camera.m_pos = position;
+	camera.m_view = viewMatrix;
+	scene->getRegistry().patch<Issam::Camera>(cameraEntity);
 }
 
 std::vector<std::string> GetFiles(const std::string& directoryPath, std::string extension) {
@@ -381,8 +386,10 @@ int main(int, char**) {
 				glfwGetCursorPos(window, &xpos, &ypos);
 				m_drag.startMouse = vec2(-(float)xpos, (float)ypos);
 				m_drag.startCameraState = m_cameraState;
-				glm::mat4 viewMatrix = std::get< glm::mat4>(scene->getAttribute("view").value);
-				glm::mat4 projectionMatrix = std::get< glm::mat4>(scene->getAttribute("projection").value);
+				auto& camera = scene->getRegistry().get<Issam::Camera>(cameraEntity);
+
+				glm::mat4 viewMatrix = camera.m_view;
+				glm::mat4 projectionMatrix = camera.m_projection;
 				glm::vec3 rayOrigin = glm::vec3(glm::inverse(viewMatrix) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 				glm::vec3 rayDirection = getRayFromMouse(m_winWidth - xpos, m_winHeight - ypos, viewMatrix, projectionMatrix, m_winWidth, m_winHeight);
 				auto view = scene->getRegistry().view<const Issam::WorldTransform, Issam::Filters, Issam::MeshRenderer>();
@@ -517,11 +524,17 @@ int main(int, char**) {
 	float farPlane = 300.0f;
 	float fov = 2 * glm::atan(1 / focalLength);
 	mat4x4 proj = glm::perspective(fov, ratio, nearPlane, farPlane);
-	
-	scene->setAttribute("cameraPosition", vec4(focalPoint, 0.0));
-	scene->setAttribute("view", V);
-	scene->setAttribute("projection", proj);
-	scene->setAttribute("lightDirection", vec4(vec3(0.5, -0.9, 0.1), 0.0));
+
+	cameraEntity = scene->addCamera();
+	auto& camera = scene->getRegistry().get<Issam::Camera>(cameraEntity);
+	camera.m_pos = focalPoint;
+	camera.m_view = V;
+	camera.m_projection = proj;
+	scene->getRegistry().patch<Issam::Camera>(cameraEntity);
+	entt::entity lightEnitity = scene->addLight();
+	auto& light = scene->getRegistry().get<Issam::Light>(lightEnitity);
+	light.m_direction = vec3(0.5, -0.9, 0.1);
+	scene->getRegistry().patch<Issam::Light>(lightEnitity);
 	//scene->setAttribute("backgroundTexture", TextureManager::getInstance().getTextureView(jpgFiles[1]));
 
 	Renderer renderer;
@@ -614,9 +627,11 @@ int main(int, char**) {
 				selectedMaterial->setAttribute("roughnessFactor", roughnessFactor);
 			}
 
-			static glm::vec4 lightDirection = glm::vec4(1.0);
+			static glm::vec3 lightDirection = glm::vec3(1.0);
 			ImGui::SliderFloat3("lightDirection", (float*)&lightDirection, -1.0, 1.0);
-			scene->setAttribute("lightDirection", lightDirection);
+			auto& light = scene->getRegistry().get<Issam::Light>(lightEnitity);
+			light.m_direction = lightDirection;
+			scene->getRegistry().patch<Issam::Light>(lightEnitity);
 			
 			/*static float translation[3] = { 0.0, 0.0, 0.0 };
 			static float rotation[3] = { 0.0, 0.0, 0.0 };
