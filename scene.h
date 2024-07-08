@@ -250,14 +250,14 @@ namespace Issam {
 		}
 
 		void onCameraModified(entt::registry& registry, entt::entity entity) {
-			auto& camera = registry.get<Camera>(entity);
+			const auto& camera = registry.get<Camera>(entity);
 			setAttribute("cameraPosition", vec4(camera.m_pos, 0.0));
 			setAttribute("view", camera.m_view);
 			setAttribute("projection", camera.m_projection);
 		}
 
 		void onLightModified(entt::registry& registry, entt::entity entity) {
-			auto& light = registry.get<Light>(entity);
+			const auto& light = registry.get<Light>(entity);
 			setAttribute("lightDirection", vec4(light.m_direction, 0.0));
 		}
 

@@ -70,7 +70,7 @@ public:
 
 			if (pass->getType() == Pass::Type::SCENE)
 			{
-				auto pipeline = pass->getPipeline()->getRenderPipeline();
+				const auto pipeline = pass->getPipeline()->getRenderPipeline();
 				renderPass.setPipeline(pipeline);
 				Shader* shader = pass->getShader();
 				auto& layouts = shader->getBindGroupLayouts();
@@ -107,9 +107,9 @@ public:
 					}
 				}
 			}
-			else
+			else if (pass->getType() == Pass::Type::FILTER)
 			{
-				auto pipeline = pass->getPipeline()->getRenderPipeline();
+				const auto pipeline = pass->getPipeline()->getRenderPipeline();
 				renderPass.setPipeline(pipeline);
 				Shader* shader = pass->getShader();
 				auto& layouts = shader->getBindGroupLayouts();
@@ -121,10 +121,12 @@ public:
 					renderPass.draw(fullScreenMesh->getVertexCount(), 1, 0, 0);
 				}
 			}
+			else
+			{
+				pass->getWrapper()->draw(renderPass);
+			}
 
-			// Build UI
-			if (pass->getImGuiWrapper())
-				pass->getImGuiWrapper()->draw(renderPass);
+				
 
 			//renderPass.popDebugGroup();
 

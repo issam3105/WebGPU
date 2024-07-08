@@ -19,9 +19,10 @@ public:
 	};
 
 
-	Pipeline(Shader* shader, TextureFormat swapChainFormat, TextureFormat depthTextureFormat, BlendingMode blendingMode) {
+	Pipeline(std::string label, Shader* shader, TextureFormat swapChainFormat, TextureFormat depthTextureFormat, BlendingMode blendingMode) {
 		//Creating render pipeline
 		RenderPipelineDescriptor pipelineDesc;
+		pipelineDesc.label = label.c_str();
 
 		// Vertex fetch
 		std::vector<VertexAttribute> m_vertexAttribs;
@@ -91,18 +92,25 @@ public:
 
 		// Depth and stencil tests are not used here
 		//pipelineDesc.depthStencil = nullptr;
-		DepthStencilState depthStencilState = Default;
-		// Setup depth state
-		depthStencilState.depthCompare = CompareFunction::Less;
-		// Each time a fragment is blended into the target, we update the value of the Z-buffer
-		depthStencilState.depthWriteEnabled = true;
-		// Store the format in a variable as later parts of the code depend on it
-		depthStencilState.format = depthTextureFormat;
-		// Deactivate the stencil alltogether
-		depthStencilState.stencilReadMask = 0;
-		depthStencilState.stencilWriteMask = 0;
+		if (depthTextureFormat != TextureFormat::Undefined)
+		{
+			DepthStencilState depthStencilState = Default;
+			// Setup depth state
+			depthStencilState.depthCompare = CompareFunction::Less;
+			// Each time a fragment is blended into the target, we update the value of the Z-buffer
+			depthStencilState.depthWriteEnabled = true;
+			// Store the format in a variable as later parts of the code depend on it
+			depthStencilState.format = depthTextureFormat;
+			// Deactivate the stencil alltogether
+			depthStencilState.stencilReadMask = 0;
+			depthStencilState.stencilWriteMask = 0;
 
-		pipelineDesc.depthStencil = &depthStencilState;
+			pipelineDesc.depthStencil = &depthStencilState;
+		}
+		else
+		{
+			pipelineDesc.depthStencil = nullptr;
+		}
 
 		// Multi-sampling
 		// Samples per pixel
@@ -126,7 +134,7 @@ public:
 		m_pipeline.release();
 	};
 
-	RenderPipeline getRenderPipeline() const { return m_pipeline; }
+	const RenderPipeline getRenderPipeline() const { return m_pipeline; }
 private:
 	RenderPipeline m_pipeline{ nullptr };
 

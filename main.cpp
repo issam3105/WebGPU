@@ -454,25 +454,24 @@ int main(int, char**) {
 	//Pipeline* backgroundPipeline = new Pipeline(backgroundShader, swapChainFormat, depthTextureFormat);
 	//backgroundPass->setPipeline(backgroundPipeline);
 	//backgroundPass->setType(Pass::Type::FILTER);
-	//backgroundPass->setDepthBuffer(depthBuffer); //TODO Remove
 
-	Pass* passPbr = new Pass(pbrShader);
-	Pipeline* pipelinePbr = new Pipeline(pbrShader, swapChainFormat, depthTextureFormat, Pipeline::BlendingMode::Over);
+	Pass* passPbr = new Pass();
+	passPbr->setShader(pbrShader);
+	Pipeline* pipelinePbr = new Pipeline("pbr", pbrShader, swapChainFormat, depthTextureFormat, Pipeline::BlendingMode::Over);
 	passPbr->setPipeline(pipelinePbr);
 	passPbr->setDepthBuffer(depthBuffer);
 	passPbr->addFilter("pbr");
-	//passPbr->setClearColor(false);
-	//passPbr->setImGuiWrapper(imgui);
+	
 
-	Pass* unlitPass = new Pass(unlitShader);
-	Pipeline* pipelineUnlit = new Pipeline(unlitShader, swapChainFormat, depthTextureFormat, Pipeline::BlendingMode::Replace);
+	Pass* unlitPass = new Pass();
+	unlitPass->setShader(unlitShader);
+	Pipeline* pipelineUnlit = new Pipeline("unlit", unlitShader, swapChainFormat, depthTextureFormat, Pipeline::BlendingMode::Replace);
 	unlitPass->setPipeline(pipelineUnlit);
 	unlitPass->setDepthBuffer(depthBuffer);
 	unlitPass->setColorBuffer(tmpColorBuffer);
 	unlitPass->addFilter("unlit");
 	unlitPass->setClearColor(true);
 	unlitPass->setClearColorValue(Color(0.0,0.0,0.0,0.0));
-	//unlitPass->setImGuiWrapper(imgui);
 
 	//Pass* pbrPass2 = new Pass(pbrShader);
 	////Pipeline* pipelineUnlit = new Pipeline(unlitShader, swapChainFormat, depthTextureFormat);
@@ -483,34 +482,42 @@ int main(int, char**) {
 	////unlitPass->addFilter("pbr");
 	//pbrPass2->setClearColor(false);
 
-	Pass* dilatationPass = new Pass(diltationShader);
-	Pipeline* dilatationPipeline = new Pipeline(diltationShader, swapChainFormat, depthTextureFormat, Pipeline::BlendingMode::Replace);
+	Pass* dilatationPass = new Pass();
+	dilatationPass->setShader(diltationShader);
+	Pipeline* dilatationPipeline = new Pipeline("dilatation", diltationShader, swapChainFormat, TextureFormat::Undefined, Pipeline::BlendingMode::Replace);
 	dilatationPass->setPipeline(dilatationPipeline);
 	dilatationPass->setType(Pass::Type::FILTER);
-	dilatationPass->setDepthBuffer(depthBuffer); //TODO dont need depthBuffer
 	dilatationPass->setClearColor(false);
 	dilatationPass->setColorBuffer(colorBuffer);
 	//dilatationPass->setClearColorValue(Color(0.0, 0.0, 0.0, 0.0));
 	scene->setAttribute("source", tmpColorBuffer);
 	//scene->setAttribute("source", TextureManager::getInstance().getTextureView(jpgFiles[1]));
 
-	Pass* unlit2Pass = new Pass(unlit2Shader);
-	Pipeline* pipelineUnlit2 = new Pipeline(unlit2Shader, swapChainFormat, depthTextureFormat, Pipeline::BlendingMode::Replace);
+	Pass* unlit2Pass = new Pass();
+	unlit2Pass->setShader(unlit2Shader);
+	Pipeline* pipelineUnlit2 = new Pipeline("unlit2", unlit2Shader, swapChainFormat, depthTextureFormat, Pipeline::BlendingMode::Replace);
 	unlit2Pass->setPipeline(pipelineUnlit2);
 	unlit2Pass->setDepthBuffer(depthBuffer);
 	unlit2Pass->setColorBuffer(colorBuffer);
 	unlit2Pass->addFilter("unlit");
 	unlit2Pass->setClearColor(false);
 
-	Pass* toScreenPass = new Pass(backgroundShader);
-	Pipeline* backgroundPipeline = new Pipeline(backgroundShader, swapChainFormat, depthTextureFormat, Pipeline::BlendingMode::Over);
+	Pass* toScreenPass = new Pass();
+	toScreenPass->setShader(backgroundShader);
+	Pipeline* backgroundPipeline = new Pipeline("toScreen", backgroundShader, swapChainFormat, TextureFormat::Undefined, Pipeline::BlendingMode::Over);
 	toScreenPass->setPipeline(backgroundPipeline);
 	toScreenPass->setType(Pass::Type::FILTER);
 	toScreenPass->setClearColor(false);
-	toScreenPass->setDepthBuffer(depthBuffer); //TODO dont need depthBuffer
 	scene->setAttribute("backgroundTexture", colorBuffer);
 	//scene->setAttribute("backgroundTexture", tmpColorBuffer);
-	toScreenPass->setImGuiWrapper(imgui);
+
+	
+	Pass* imGuiPass = new Pass();
+	imGuiPass->setDepthBuffer(depthBuffer);
+	imGuiPass->setType(Pass::Type::CUSTUM);
+	imGuiPass->setWrapper(imgui);
+	imGuiPass->setClearColor(false);
+
 
 	vec3 focalPoint(0.0, 0.0, -2.0);
 	float angle2 = 3.0f * PI / 4.0f;
@@ -545,6 +552,7 @@ int main(int, char**) {
  	renderer.addPass(dilatationPass);
 	renderer.addPass(unlit2Pass); //to remove interior
 	renderer.addPass(toScreenPass);
+	renderer.addPass(imGuiPass);
 	renderer.setScene(scene);
 
 	//Issam::Node* selectedNode = nullptr;

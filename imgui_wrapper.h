@@ -9,7 +9,12 @@
 #include <backends/imgui_impl_wgpu.h>
 #include <backends/imgui_impl_glfw.h>
 
-class ImGUIWrapper
+class Wrapper {
+public:
+	virtual void draw(RenderPassEncoder renderPass) = 0;
+};
+
+class ImGUIWrapper : public Wrapper
 {
 public:
 	ImGUIWrapper(GLFWwindow* window, TextureFormat swapChainFormat, TextureFormat depthTextureFormat)
@@ -38,7 +43,7 @@ public:
 		ImGui::NewFrame();
 	}
 
-	void draw(RenderPassEncoder renderPass)
+	void draw(RenderPassEncoder renderPass) override
 	{
 		// Draw the UI
 		ImGui::EndFrame();

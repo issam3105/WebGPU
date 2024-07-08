@@ -9,8 +9,7 @@
 class Pass
 {
 public:
-	Pass(Shader* shader) :
-		m_shader(shader)
+	Pass()
 	{
 	};
 	~Pass() {
@@ -21,9 +20,10 @@ public:
 		delete renderPassColorAttachment;
 	};
 
+	void setShader(Shader* shader) { m_shader = shader; }
 	Shader* getShader() const { return m_shader; }
-	void setImGuiWrapper(ImGUIWrapper* imGuiWrapper) { m_imGuiWrapper = imGuiWrapper; }
-	ImGUIWrapper* getImGuiWrapper() { return m_imGuiWrapper; }
+	void setWrapper(Wrapper* wrapper) { m_wrapper = wrapper; }
+	Wrapper* getWrapper() { return m_wrapper; }
 
 	void setDepthBuffer(TextureView bufferView)
 	{
@@ -80,7 +80,7 @@ public:
 	}
 
 	void setPipeline(Pipeline* pipline) { m_pipline = pipline; }
-	Pipeline* getPipeline() { return m_pipline; }
+	const Pipeline* getPipeline() const { return m_pipline; }
 
 	void addFilter(std::string filter) { m_filters.push_back(filter); }
 	const std::vector<std::string>& getFilters() { return m_filters; }
@@ -91,7 +91,8 @@ public:
 	enum class Type: uint8_t
 	{
 		SCENE = 0,
-		FILTER
+		FILTER, 
+		CUSTUM
 	};
 
 	void setType(Type type) { m_type = type; }
@@ -103,7 +104,7 @@ private:
 	Pipeline* m_pipline{ nullptr };
 	TextureView m_depthBuffer{ nullptr };
 	TextureView m_colorBuffer{ nullptr };
-	ImGUIWrapper* m_imGuiWrapper{ nullptr };
+	Wrapper* m_wrapper{ nullptr };
 	std::vector<std::string> m_filters;
 
 	bool m_clearColor = true;
