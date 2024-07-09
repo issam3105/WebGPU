@@ -148,7 +148,7 @@ public:
 
 	void addTexture(const std::string& name, TextureView defaultTextureView, Binding binding) { m_textures.push_back({ name, defaultTextureView, binding }); }
 	void addSampler(const std::string& name, Sampler defaultSampler, Binding binding) { m_samplers.push_back({ name, defaultSampler, binding }); }
-	void addUniform(std::string name, const Value& defaultValue, Binding binding) {
+	void addUniform(std::string name, const UniformValue& defaultValue, Binding binding) {
 		Uniform uniform;
 		uniform.name = name;
 		uniform.value = defaultValue;
@@ -170,7 +170,7 @@ public:
 		return (it != m_uniforms.end());
 	}
 
-	void setUniform(std::string name, const Value& value, Binding binding)
+	void setUniform(std::string name, const UniformValue& value, Binding binding)
 	{
 		auto& uniform = getUniform(name);
 		uniform.value = value;
@@ -188,11 +188,11 @@ public:
 		auto attributes = materialModel.getAttributes();
 		for (auto attrib : attributes)
 		{
-			if (std::holds_alternative< glm::vec4>(attrib.value) || std::holds_alternative< float>(attrib.value) || std::holds_alternative< glm::mat4x4>(attrib.value))
+			if (std::holds_alternative< UniformValue>(attrib.value))
 			{
 				Uniform uniform;
 				uniform.name = attrib.name;
-				uniform.value = attrib.value;
+				uniform.value = std::get <UniformValue>(attrib.value);
 				m_uniforms.push_back({ uniform, binding });
 			}
 			else if (std::holds_alternative<TextureView>(attrib.value))

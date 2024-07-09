@@ -116,7 +116,7 @@ namespace Issam {
 			m_registry.on_update<Light>().connect<&Scene::onLightModified>(*this);
 		}
 
-		void setAttribute(const std::string& name, const Value& value)
+		void setAttribute(const std::string& name, const  Issam::AttributeValue& value)
 		{
 			for (auto attributed : m_attributeds)
 			{

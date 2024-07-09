@@ -16,36 +16,46 @@ UniformsBuffer::UniformsBuffer()
 	Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, 0, &m_uniformsData, sizeof(UniformsData));
 };
 
-uint16_t UniformsBuffer::allocateVec4() {
-	assert(m_uniformIndex < UNIFORMS_MAX);
-	return m_uniformIndex++;
+void UniformsBuffer::setFloat(uint16_t offset, float value) {
+	if (offset + 1 > UNIFORMS_MAX) {
+		throw std::runtime_error("Uniforms buffer overflow");
+	}
+	m_uniformsData[offset] = value;
 }
 
-uint16_t UniformsBuffer::allocateMat4()
-{
-	assert(m_uniformIndex + 4 < UNIFORMS_MAX);
-	uint16_t currentHandle = m_uniformIndex;
-	m_uniformIndex += 4;
-	return currentHandle;
+void UniformsBuffer::setVec4(uint16_t offset, const glm::vec4& value) {
+	if (offset + 4 > UNIFORMS_MAX) {
+		throw std::runtime_error("Uniforms buffer overflow");
+	}
+	m_uniformsData[offset] = value.x;
+	m_uniformsData[offset + 1] = value.y;
+	m_uniformsData[offset + 2] = value.z;
+	m_uniformsData[offset + 3] = value.w;
 }
 
-void UniformsBuffer::set(uint16_t handle, const Value& value)
+void UniformsBuffer::setMat4(uint16_t offset, const glm::mat4& mat) {
+	if (offset + 16 > UNIFORMS_MAX) {
+		throw std::runtime_error("Uniforms buffer overflow");
+	}
+	for (int i = 0; i < 16; ++i) {
+		m_uniformsData[offset + i] = mat[i / 4][i % 4];
+	}
+}
+
+void UniformsBuffer::set(uint16_t handle, const UniformValue& value)
 {
 	if (std::holds_alternative< glm::vec4>(value))
-		m_uniformsData[handle] = std::get<glm::vec4>(value);
+	{
+		setVec4(handle, std::get<glm::vec4>(value));
+	}
 	else if (std::holds_alternative< float>(value))
 	{
 		float newValue = std::get<float>(value);
-		m_uniformsData[handle] = glm::vec4(newValue, newValue, newValue, newValue);
+		setVec4(handle, glm::vec4(newValue, newValue, newValue, newValue)); //avoid padding
 	}
 	else if (std::holds_alternative< glm::mat4x4>(value))
 	{
-
-		mat4x4 mat = std::get<mat4x4>(value);
-		m_uniformsData[handle] = { mat[0][0], mat[0][1], mat[0][2], mat[0][3] };
-		m_uniformsData[handle + 1] = { mat[1][0], mat[1][1], mat[1][2], mat[1][3] };
-		m_uniformsData[handle + 2] = { mat[2][0], mat[2][1], mat[2][2], mat[2][3] };
-		m_uniformsData[handle + 3] = { mat[3][0], mat[3][1], mat[3][2], mat[3][3] };
+		setMat4(handle, std::get<mat4x4>(value));
 	}
 	else
 		assert(false);

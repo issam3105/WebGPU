@@ -11,17 +11,18 @@
 
 #include <webgpu/webgpu.hpp>
 
-#define UNIFORMS_MAX 15
+#define UNIFORMS_MAX 256
 
 using namespace wgpu;
 
-using Value = std::variant<float, glm::vec4, glm::mat4, TextureView, Sampler>;
-using UniformsData = std::array<glm::vec4, UNIFORMS_MAX>;
+using UniformValue = std::variant<float, glm::vec4, glm::mat4>;
+using UniformsData = std::array<float, UNIFORMS_MAX>;
+
 
 struct Uniform {
 	std::string name;
 	int handle;
-	Value value;
+	UniformValue value;
 	bool isMatrix() const { return std::holds_alternative< glm::mat4>(value); }
 };
 
@@ -29,18 +30,28 @@ class UniformsBuffer
 {
 public:
 	UniformsBuffer();
+	
 	~UniformsBuffer() = default;
 
-	uint16_t allocateVec4();
+	template<typename T>
+	uint16_t allocate()
+	{
+		uint16_t handle = m_uniformOffset;
+		m_uniformOffset += sizeof(T) / sizeof(float);
+		assert(m_uniformOffset < UNIFORMS_MAX);
+		return handle;
+	};
 
-	uint16_t allocateMat4();
-
-	void set(uint16_t handle, const Value& value);
+	void set(uint16_t handle, const UniformValue& value);
 
 	Buffer getBuffer() { return m_uniformBuffer; }
 
 private:
+	void setFloat(uint16_t offset, float value);
+	void setVec4(uint16_t offset, const glm::vec4& value);
+	void setMat4(uint16_t offset, const glm::mat4& value);
+
 	UniformsData m_uniformsData{};
-	uint16_t m_uniformIndex = 0;
+	uint16_t m_uniformOffset = 0;
 	Buffer m_uniformBuffer{ nullptr };
 };

@@ -40,7 +40,7 @@ public:
 	};
 	~Material() = default;
 
-	void setAttribute(const std::string& name, const Value& value)
+	void setAttribute(const std::string& name, const Issam::AttributeValue& value)
 	{
 		for (auto attributed : m_attributeds)
 		{
@@ -49,7 +49,7 @@ public:
 		}
 	}
 
-	void setAttribute(const std::string& materialAttributesId, const std::string& name, const Value& value)
+	void setAttribute(const std::string& materialAttributesId, const std::string& name, const  Issam::AttributeValue& value)
 	{
 		m_attributeds[materialAttributesId]->setAttribute(name, value);
 	}
@@ -60,6 +60,18 @@ public:
 		{
 			if (attributed.second->hasAttribute(name))
 				return attributed.second->getAttribute(name);
+		}
+	}
+
+	UniformValue& getUniform(const std::string& name)
+	{
+		for (auto attributed : m_attributeds)
+		{
+			if (attributed.second->hasAttribute(name))
+			{
+				assert(std::holds_alternative< UniformValue>(attributed.second->getAttribute(name).value)); 
+				return  std::get<UniformValue>(attributed.second->getAttribute(name).value);
+			}
 		}
 	}
 

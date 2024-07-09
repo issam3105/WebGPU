@@ -13,16 +13,18 @@ using namespace glm;
 
 namespace Issam {
 
+	using AttributeValue = std::variant<UniformValue, TextureView, Sampler>;
+
 	struct Attribute
 	{
 		std::string name;
-		Value value;
+		AttributeValue value;
 		int handle = -1;
 	};
 
 	class Attributed {
 	public:
-		void addAttribute(std::string name, const Value& defaultValue) {
+		void addAttribute(std::string name, const AttributeValue& defaultValue) {
 			Attribute attribute;
 			attribute.name = name;
 			attribute.value = defaultValue;
@@ -194,16 +196,21 @@ namespace Issam {
 			m_attributes = materialModel.getAttributes(); //Une copie
 			for (auto& attribute : m_attributes)
 			{
-				if (std::holds_alternative< glm::vec4>(attribute.value) || std::holds_alternative< float>(attribute.value))
+				if (std::holds_alternative< UniformValue>(attribute.value))
 				{
-					attribute.handle = m_uniformsBuffer.allocateVec4();
-					setAttribute(attribute.name, attribute.value); //Apply default value
+					const UniformValue& uniformValue = std::get< UniformValue>(attribute.value);
+					if (std::holds_alternative< glm::vec4>(uniformValue) || std::holds_alternative< float>(uniformValue))
+					{
+						attribute.handle = m_uniformsBuffer.allocate<glm::vec4>();
+						setAttribute(attribute.name, attribute.value); //Apply default value
+					}
+					else if (std::holds_alternative< glm::mat4x4>(uniformValue))
+					{
+						attribute.handle = m_uniformsBuffer.allocate<glm::mat4>();
+						setAttribute(attribute.name, attribute.value); //Apply default value
+					}
 				}
-				else if (std::holds_alternative< glm::mat4x4>(attribute.value))
-				{
-					attribute.handle = m_uniformsBuffer.allocateMat4();
-					setAttribute(attribute.name, attribute.value); //Apply default value
-				}
+				
 				else if (std::holds_alternative<TextureView>(attribute.value))
 				{
 					m_textures.push_back({ attribute.name, std::get< TextureView>(attribute.value) });
@@ -234,13 +241,13 @@ namespace Issam {
 			return (it != m_attributes.end());
 		}
 
-		void setAttribute(std::string name, const Value& value)
+		void setAttribute(std::string name, const AttributeValue& value)
 		{
 			auto& attribute = getAttribute(name);
 			attribute.value = value;
-			if (std::holds_alternative< glm::vec4>(value) || std::holds_alternative< float>(value) || std::holds_alternative< glm::mat4x4>(value))
+			if (std::holds_alternative< UniformValue>(value))
 			{
-				m_uniformsBuffer.set(attribute.handle, value);
+				m_uniformsBuffer.set(attribute.handle, std::get <UniformValue >(value));
 			}
 			else if (std::holds_alternative<TextureView>(value))
 			{

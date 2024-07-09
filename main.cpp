@@ -579,7 +579,7 @@ int main(int, char**) {
 							if (selectedGLTFIndex != -1)
 							{
 								MeshManager::getInstance().clear();//MeshManager::getInstance().remove(gltfFiles[selectedGLTFIndex]);
-								scene->clear();
+								//scene->clear();
 								pickedEntity = entt::null;
 							}
 							selectedGLTFIndex = i;
@@ -601,7 +601,7 @@ int main(int, char**) {
 				Material* selectedMaterial = scene->getComponent<Issam::MeshRenderer>(pickedEntity).material;
 
 				//Material* selectedMaterial = pickedNode->material;
-				glm::vec4 baseColorFactor = std::get<glm::vec4>(selectedMaterial->getAttribute("baseColorFactor").value);
+				glm::vec4 baseColorFactor = std::get<glm::vec4>(selectedMaterial->getUniform("baseColorFactor"));
 				ImGui::ColorEdit4("BaseColorFactor", (float*)&baseColorFactor);
 				selectedMaterial->setAttribute("baseColorFactor", baseColorFactor);
 				{
@@ -628,11 +628,11 @@ int main(int, char**) {
 						ImGui::EndCombo();
 					}
 				}
-				float metallicFactor = std::get<float>(selectedMaterial->getAttribute("metallicFactor").value);
+				float metallicFactor = std::get<float>(selectedMaterial->getUniform("metallicFactor"));
 				ImGui::SliderFloat("MetallicFactor", &metallicFactor, 0.0 , 1.0);
 				selectedMaterial->setAttribute("metallicFactor", metallicFactor);
 				
-				float roughnessFactor = std::get<float>(selectedMaterial->getAttribute("roughnessFactor").value);
+				float roughnessFactor = std::get<float>(selectedMaterial->getUniform("roughnessFactor"));
 				ImGui::SliderFloat("RoughnessFactor", &roughnessFactor, 0.0, 1.0);
 				selectedMaterial->setAttribute("roughnessFactor", roughnessFactor);
 			}
