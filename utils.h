@@ -431,11 +431,11 @@ namespace Utils
 
 				Issam::Filters filters;
 				filters.add("pbr");
-				scene->setFilters(entity, filters);
+				scene->addComponent<Issam::Filters>(entity, filters);
 
 			}
 
-			scene->setMeshRenderer(entity, meshRenderer);
+			scene->addComponent<Issam::MeshRenderer>(entity, meshRenderer);
 		}
 	}
 
@@ -451,10 +451,8 @@ namespace Utils
 		if (nodeName.empty())
 			nodeName = "node_" + std::to_string(idx);
 
-		//std::cout << nodeName  << std::endl;
 
-		scene->setName(entity, nodeName);
-		//node->name = nodeName;
+		scene->addComponent<Issam::Name>(entity, Issam::Name({ nodeName }));
 
 		const glm::vec3 T =
 			gltfNode.translation.empty()

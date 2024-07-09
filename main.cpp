@@ -92,10 +92,10 @@ void updateViewMatrix(Issam::Scene* scene) {
 	vec3 position = vec3(cx * cy, sx * cy, sy) * std::exp(-m_cameraState.zoom);
 	mat4x4 viewMatrix = glm::lookAt(position, vec3(0.0f), vec3(0, 0, 1));
 
-	auto& camera = scene->getRegistry().get<Issam::Camera>(cameraEntity);
+	auto& camera = scene->getComponent<Issam::Camera>(cameraEntity);
 	camera.m_pos = position;
 	camera.m_view = viewMatrix;
-	scene->getRegistry().patch<Issam::Camera>(cameraEntity);
+	scene->update<Issam::Camera>(cameraEntity);
 }
 
 std::vector<std::string> GetFiles(const std::string& directoryPath, std::string extension) {
@@ -386,7 +386,7 @@ int main(int, char**) {
 				glfwGetCursorPos(window, &xpos, &ypos);
 				m_drag.startMouse = vec2(-(float)xpos, (float)ypos);
 				m_drag.startCameraState = m_cameraState;
-				auto& camera = scene->getRegistry().get<Issam::Camera>(cameraEntity);
+				auto& camera = scene->getComponent<Issam::Camera>(cameraEntity);
 
 				glm::mat4 viewMatrix = camera.m_view;
 				glm::mat4 projectionMatrix = camera.m_projection;
@@ -408,12 +408,12 @@ int main(int, char**) {
 						if (rayIntersectsBoundingBox(rayOrigin, rayDirection, aabb, t)) {
 							if (pickedEntity != entt::null)
 							{
-								auto& filters = scene->getRegistry().get<Issam::Filters>(pickedEntity);
+								auto& filters = scene->getComponent<Issam::Filters>(pickedEntity);
 								filters.remove("unlit");
 							}
 								
 							pickedEntity = entity;
-							auto& filters = scene->getRegistry().get<Issam::Filters>(entity);
+							auto& filters = scene->getComponent<Issam::Filters>(entity);
 							filters.add("unlit");
 							//	std::cout << "Ray intersects the bounding box at t = " << t << std::endl;
 						}
@@ -532,16 +532,18 @@ int main(int, char**) {
 	float fov = 2 * glm::atan(1 / focalLength);
 	mat4x4 proj = glm::perspective(fov, ratio, nearPlane, farPlane);
 
-	cameraEntity = scene->addCamera();
-	auto& camera = scene->getRegistry().get<Issam::Camera>(cameraEntity);
+	cameraEntity = scene->addEntity();
+	Issam::Camera camera;
 	camera.m_pos = focalPoint;
 	camera.m_view = V;
 	camera.m_projection = proj;
-	scene->getRegistry().patch<Issam::Camera>(cameraEntity);
-	entt::entity lightEnitity = scene->addLight();
-	auto& light = scene->getRegistry().get<Issam::Light>(lightEnitity);
+	scene->addComponent<Issam::Camera>(cameraEntity, camera);
+
+	entt::entity lightEnitity = scene->addEntity();
+	Issam::Light light;
 	light.m_direction = vec3(0.5, -0.9, 0.1);
-	scene->getRegistry().patch<Issam::Light>(lightEnitity);
+	scene->addComponent<Issam::Light>(lightEnitity, light);
+
 	//scene->setAttribute("backgroundTexture", TextureManager::getInstance().getTextureView(jpgFiles[1]));
 
 	Renderer renderer;
@@ -596,7 +598,7 @@ int main(int, char**) {
 
 			if (pickedEntity != entt::null && scene->getRegistry().valid(pickedEntity)/*&& pickedEntity->material*/)
 			{
-				Material* selectedMaterial = scene->getRegistry().get<Issam::MeshRenderer>(pickedEntity).material;
+				Material* selectedMaterial = scene->getComponent<Issam::MeshRenderer>(pickedEntity).material;
 
 				//Material* selectedMaterial = pickedNode->material;
 				glm::vec4 baseColorFactor = std::get<glm::vec4>(selectedMaterial->getAttribute("baseColorFactor").value);
@@ -637,9 +639,9 @@ int main(int, char**) {
 
 			static glm::vec3 lightDirection = glm::vec3(1.0);
 			ImGui::SliderFloat3("lightDirection", (float*)&lightDirection, -1.0, 1.0);
-			auto& light = scene->getRegistry().get<Issam::Light>(lightEnitity);
+			auto& light = scene->getComponent<Issam::Light>(lightEnitity);
 			light.m_direction = lightDirection;
-			scene->getRegistry().patch<Issam::Light>(lightEnitity);
+			scene->update<Issam::Light>(lightEnitity);
 			
 			/*static float translation[3] = { 0.0, 0.0, 0.0 };
 			static float rotation[3] = { 0.0, 0.0, 0.0 };

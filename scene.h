@@ -143,31 +143,31 @@ namespace Issam {
 		{
 			const auto entity = m_registry.create();
 			m_entities.push_back(entity);
-			LocalTransform localTransform;
-			localTransform.m_matrix = localTransformMatrix;
-			m_registry.emplace<LocalTransform>(entity, localTransform);
-			m_registry.emplace<Hierarchy>(entity, Hierarchy());
-			
+			m_registry.emplace<LocalTransform>(entity, LocalTransform({ localTransformMatrix }));
 			assert(m_registry.valid(entity));
-			//updateWorldTransforms();
 			return entity;
 		}
 
-		entt::entity addCamera()
-		{
-			const auto entity = m_registry.create();
-			m_entities.push_back(entity);
-			m_registry.emplace<Camera>(entity, Camera());
-			return entity;
+		template<typename T>
+		void addComponent(entt::entity entity, T component) {
+			m_registry.emplace<T>(entity, std::move(component));
 		}
 
-		entt::entity addLight()
-		{
-			const auto entity = m_registry.create();
-			m_entities.push_back(entity);
-			m_registry.emplace<Light>(entity, Light());
-			return entity;
+		template<typename T>
+		T& getComponent(entt::entity entity) {
+			return m_registry.get<T>(entity);
 		}
+
+		template<typename T>
+		bool hasComponent(entt::entity entity) {
+			return m_registry.all_of<T>(entity);
+		}
+
+		template<typename T> //To call on_update !
+		T& update(entt::entity entity) {
+			return m_registry.patch<T>(entity);
+		}
+
 
 		void setLocalTransform(entt::entity entity, const glm::mat4& in_localTransform)
 		{
@@ -176,35 +176,19 @@ namespace Issam {
 			m_registry.patch<LocalTransform>(entity);
 		}
 
-		void setMeshRenderer(entt::entity entity,const MeshRenderer& meshRenderer)
-		{
-			assert(m_registry.valid(entity));
-			m_registry.emplace<MeshRenderer>(entity, meshRenderer);
-		}
-
-		void setFilters(entt::entity entity, const Filters& filters)
-		{
-			assert(m_registry.valid(entity));
-			m_registry.emplace<Filters>(entity, filters);
-		}
-
-		void setName(entt::entity entity, const std::string& name)
-		{
-			m_registry.emplace<Name>(entity, Name({ name }));
-		}
-
 		void addChild(entt::entity parent, entt::entity child) {
-			auto& parentHierarchy = m_registry.get<Hierarchy>(parent);
+			auto& parentHierarchy = m_registry.get_or_emplace<Hierarchy>(parent);
 			parentHierarchy.children.push_back(child);
 
-			auto& childHierarchy = m_registry.get<Hierarchy>(child);
+			auto& childHierarchy = m_registry.get_or_emplace<Hierarchy>(child);
 			childHierarchy.parent = parent;
 
 			m_registry.patch<Hierarchy>(parent);
-			//updateWorldTransforms();
 		}
 
 		void removeChild(entt::entity parent, entt::entity child) {
+			assert(hasComponent<Hierarchy>(parent));
+			assert(hasComponent<Hierarchy>(child));
 			auto& parentHierarchy = m_registry.get<Hierarchy>(parent);
 			parentHierarchy.children.erase(
 				std::remove(parentHierarchy.children.begin(), parentHierarchy.children.end(), child),
@@ -227,7 +211,7 @@ namespace Issam {
 			m_registry.clear();
 		}
 
-		entt::registry& getRegistry() { return m_registry; };
+		const entt::registry& getRegistry() { return m_registry; };
 
 		void printHierarchy(entt::entity entity, int level = 0) {
 			const auto& hierarchy = m_registry.get<Hierarchy>(entity);
@@ -262,15 +246,17 @@ namespace Issam {
 		}
 
 		void calculateWorldTransforms(entt::entity entity, const glm::mat4& parentTransform = glm::mat4(1.0f)) {
-			auto& localTransform = m_registry.get<LocalTransform>(entity);
+			auto& localTransform = getComponent<LocalTransform>(entity);
 			auto& globalTransform = m_registry.get_or_emplace<WorldTransform>(entity);
 
 			globalTransform.setTransform(parentTransform * localTransform.m_matrix);
 
-			const auto& hierarchy = m_registry.get<Hierarchy>(entity);
-			for (auto child : hierarchy.children) {
-				calculateWorldTransforms(child, globalTransform.getTransform());
-			}
+			if (hasComponent< Hierarchy>(entity)) {
+				const auto& hierarchy = getComponent<Hierarchy>(entity);
+				for (auto child : hierarchy.children) {
+					calculateWorldTransforms(child, globalTransform.getTransform());
+				}
+			}		
 		}
 
 		std::string mat4_to_string(const glm::mat4& mat, std::string espace) {
