@@ -83,7 +83,7 @@ public:
 				auto view = m_scene->getRegistry().view<const Issam::WorldTransform, Issam::Filters, Issam::MeshRenderer, Issam::Hierarchy>();
 				for (auto entity : view) 
 				{
-					Issam::Filters filters = view.get<Issam::Filters>(entity);
+					const Issam::Filters& filters = view.get<Issam::Filters>(entity);
 					bool shouldDraw = std::any_of(filters.filters.begin(), filters.filters.end(),
 						[&pass](const std::string& filter) {
 						return std::find(pass->getFilters().begin(), pass->getFilters().end(), filter) != pass->getFilters().end();

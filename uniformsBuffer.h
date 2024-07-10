@@ -11,7 +11,7 @@
 
 #include <webgpu/webgpu.hpp>
 
-#define UNIFORMS_MAX 256
+#define UNIFORMS_MAX 64
 
 using namespace wgpu;
 

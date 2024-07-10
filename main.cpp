@@ -546,6 +546,7 @@ int main(int, char**) {
 	renderer.setScene(scene);
 
 	//Issam::Node* selectedNode = nullptr;
+	std::vector<std::string> gltfFiles = GetFiles("C:/Dev/glTF-Sample-Models/2.0", ".gltf");
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -558,7 +559,7 @@ int main(int, char**) {
 
 			ImGui::Begin("Material Editor");
 			{
-				std::vector<std::string> gltfFiles = GetFiles("C:/Dev/glTF-Sample-Models/2.0", ".gltf");
+				
 				static int selectedGLTFIndex = -1;
 				if (ImGui::BeginCombo("GLTF Files", selectedGLTFIndex == -1 ? "Select a GLTF" : gltfFiles[selectedGLTFIndex].c_str())) {
 					for (int i = 0; i < gltfFiles.size(); i++) {
