@@ -400,14 +400,14 @@ namespace Utils
 				Material* material = new Material();
 				auto& gltfMaterial = model.materials[primitive.material];
 				auto& baseColorFactor = gltfMaterial.pbrMetallicRoughness.baseColorFactor;
-				material->setAttribute(c_pbrMaterialAttributes, "baseColorFactor", glm::make_vec4(baseColorFactor.data()));
+				material->setAttribute("baseColorFactor", glm::make_vec4(baseColorFactor.data()));
 
 				int baseColorTextureIndex = gltfMaterial.pbrMetallicRoughness.baseColorTexture.index;
 				if (baseColorTextureIndex >= 0 && baseColorTextureIndex < model.textures.size())
 				{
 					const tinygltf::Texture& gltfTexture = model.textures[baseColorTextureIndex];
 					const tinygltf::Image& gltfImage = model.images[gltfTexture.source];
-					material->setAttribute(c_pbrMaterialAttributes,"baseColorTexture", TextureManager::getInstance().getTextureView(gltfImage.uri));
+					material->setAttribute("baseColorTexture", TextureManager::getInstance().getTextureView(gltfImage.uri));
 				}
 
 				int metallicRoughnessIndex = gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index;
@@ -415,17 +415,17 @@ namespace Utils
 				{
 					const tinygltf::Texture& gltfTexture = model.textures[metallicRoughnessIndex];
 					const tinygltf::Image& gltfImage = model.images[gltfTexture.source];
-					material->setAttribute(c_pbrMaterialAttributes, "metallicRoughnessTexture", TextureManager::getInstance().getTextureView(gltfImage.uri));
+					material->setAttribute("metallicRoughnessTexture", TextureManager::getInstance().getTextureView(gltfImage.uri));
 				}
 
 				auto& metallicFactor = gltfMaterial.pbrMetallicRoughness.metallicFactor;
-				material->setAttribute(c_pbrMaterialAttributes, "metallicFactor", (float) metallicFactor);
+				material->setAttribute("metallicFactor", (float) metallicFactor);
 
 				auto& roughnessFactor = gltfMaterial.pbrMetallicRoughness.roughnessFactor;
-				material->setAttribute(c_pbrMaterialAttributes, "roughnessFactor", (float)roughnessFactor);
+				material->setAttribute("roughnessFactor", (float)roughnessFactor);
 
-				material->setAttribute(c_unlitMaterialAttributes, "colorFactor", glm::vec4(1.0, 0.5, 0.0, 1.0));
-				material->setAttribute(c_unlit2MaterialAttributes, "colorFactor", glm::vec4(0.0));
+				material->setAttribute("unlitMaterialModel", "colorFactor", glm::vec4(1.0, 0.5, 0.0, 1.0)); //TODO remove
+				material->setAttribute("unlit2MaterialModel", "colorFactor", glm::vec4(0.0));
 
 				meshRenderer.material = material;
 

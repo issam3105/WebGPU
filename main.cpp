@@ -39,6 +39,16 @@ using namespace glm;
 
 constexpr float PI = 3.14159265358979323846f;
 
+const std::string c_pbrMaterialAttributes = "pbrMaterialModel";
+const std::string c_unlitMaterialAttributes = "unlitMaterialModel";
+const std::string c_unlit2MaterialAttributes = "unlit2MaterialModel"; //TODO remove ?
+
+const std::string c_pbrSceneAttributes = "pbrSceneAttributes";
+const std::string c_pbrNodeAttributes = "pbrNodeAttributes";
+const std::string c_unlitSceneAttributes = "unlitSceneAttributes";
+const std::string c_backgroundSceneAttributes = "backgroundSceneModel";
+const std::string c_diltationSceneAttributes = "dilatationSceneModel";
+
 #ifdef WEBGPU_BACKEND_WGPU
 TextureFormat swapChainFormat = surface.getPreferredFormat(adapter);
 #else
@@ -244,12 +254,12 @@ int main(int, char**) {
 	backgroundShader->addVertexOutput("normal", 1, VertexFormat::Float32x3);
 	backgroundShader->addVertexOutput("uv", 2, VertexFormat::Float32x2);
 
-	Issam::Attributed backgroundShaderAttributes;
+	Issam::AttributeGroup backgroundShaderAttributes(Issam::Binding::Scene);
 	backgroundShaderAttributes.addAttribute("backgroundFactor", glm::vec4(1.0f));
 	backgroundShaderAttributes.addAttribute("backgroundTexture", whiteTextureView);
 	backgroundShaderAttributes.addAttribute("defaultSampler", defaultSampler);
-	Issam::AttributedManager::getInstance().add(Issam::c_backgroundSceneAttributes, backgroundShaderAttributes);
-	backgroundShader->addAttributes(Issam::c_backgroundSceneAttributes, Shader::Binding::Scene); 
+	Issam::AttributedManager::getInstance().add(c_backgroundSceneAttributes, backgroundShaderAttributes);
+	backgroundShader->addGroup(c_backgroundSceneAttributes); 
 
 	Shader* diltationShader = new Shader();
 	diltationShader->setUserCode(Utils::loadFile(DATA_DIR  "/dilatation.wgsl"));
@@ -262,12 +272,12 @@ int main(int, char**) {
 	diltationShader->addVertexOutput("normal", 1, VertexFormat::Float32x3);
 	diltationShader->addVertexOutput("uv", 2, VertexFormat::Float32x2);
 
-	Issam::Attributed diltationShaderAttributes;
+	Issam::AttributeGroup diltationShaderAttributes(Issam::Binding::Scene);
 	diltationShaderAttributes.addAttribute("viewTexel", glm::vec4(1.0f / m_winWidth, 1.0f/ m_winHeight, 0.0, 0.0));
 	diltationShaderAttributes.addAttribute("source", whiteTextureView);
 	diltationShaderAttributes.addAttribute("defaultSampler", defaultSampler);
-	Issam::AttributedManager::getInstance().add(Issam::c_diltationSceneAttributes, diltationShaderAttributes);
-	diltationShader->addAttributes(Issam::c_diltationSceneAttributes, Shader::Binding::Scene);
+	Issam::AttributedManager::getInstance().add(c_diltationSceneAttributes, diltationShaderAttributes);
+	diltationShader->addGroup(c_diltationSceneAttributes);
 
 	Shader* pbrShader = new Shader();
 	pbrShader->setUserCode(Utils::loadFile(DATA_DIR  "/pbr.wgsl"));
@@ -281,7 +291,7 @@ int main(int, char**) {
 	pbrShader->addVertexOutput("uv", 2, VertexFormat::Float32x2);
 	pbrShader->addVertexOutput("worldPosition", 3, VertexFormat::Float32x4);
 
-	Issam::Attributed pbrMaterialAttributes;
+	Issam::AttributeGroup pbrMaterialAttributes(Issam::Binding::Material);
 	pbrMaterialAttributes.addAttribute("baseColorFactor", glm::vec4(1.0f));
 	pbrMaterialAttributes.addAttribute("metallicFactor", 0.5f);
 	pbrMaterialAttributes.addAttribute("roughnessFactor", 0.5f);
@@ -291,21 +301,21 @@ int main(int, char**) {
 	pbrMaterialAttributes.addAttribute("defaultSampler", defaultSampler);
 	Issam::AttributedManager::getInstance().add(c_pbrMaterialAttributes, pbrMaterialAttributes);
 
-	Issam::Attributed pbrSceneAttributes;
+	Issam::AttributeGroup pbrSceneAttributes(Issam::Binding::Scene);
 	pbrSceneAttributes.addAttribute("view", mat4(1.0));
 	pbrSceneAttributes.addAttribute("projection", mat4(1.0));
 	pbrSceneAttributes.addAttribute("cameraPosition", vec4(0.0));
 	pbrSceneAttributes.addAttribute("lightDirection", vec4(1.0));
 
-	Issam::AttributedManager::getInstance().add(Issam::c_pbrSceneAttributes, pbrSceneAttributes);
+	Issam::AttributedManager::getInstance().add(c_pbrSceneAttributes, pbrSceneAttributes);
 
-	Issam::Attributed pbrNodeAttributes;
+	Issam::AttributeGroup pbrNodeAttributes(Issam::Binding::Node);
 	pbrNodeAttributes.addAttribute("model", mat4(1.0));
-	Issam::AttributedManager::getInstance().add(Issam::c_pbrNodeAttributes, pbrNodeAttributes);
+	Issam::AttributedManager::getInstance().add(c_pbrNodeAttributes, pbrNodeAttributes);
 
-	pbrShader->addAttributes(c_pbrMaterialAttributes, Shader::Binding::Material);
-	pbrShader->addAttributes(Issam::c_pbrSceneAttributes, Shader::Binding::Scene);
-	pbrShader->addAttributes(Issam::c_pbrNodeAttributes, Shader::Binding::Node);
+	pbrShader->addGroup(c_pbrMaterialAttributes);
+	pbrShader->addGroup(c_pbrSceneAttributes);
+	pbrShader->addGroup(c_pbrNodeAttributes);
 
 	Shader* unlitShader = new Shader();
 	unlitShader->setUserCode(Utils::loadFile(DATA_DIR  "/unlit.wgsl"));
@@ -319,20 +329,19 @@ int main(int, char**) {
 	unlitShader->addVertexOutput("uv", 2, VertexFormat::Float32x2);
 	//unlitShader->addVertexOutput("worldPosition", 3, VertexFormat::Float32x4);
 
-	Issam::Attributed unlitMaterialAttributes;
+	Issam::AttributeGroup unlitMaterialAttributes(Issam::Binding::Material);
 	unlitMaterialAttributes.addAttribute("colorFactor", glm::vec4(1.0f));
 	unlitMaterialAttributes.addAttribute("colorTexture", whiteTextureView);
 	unlitMaterialAttributes.addAttribute("defaultSampler", defaultSampler);
 	Issam::AttributedManager::getInstance().add(c_unlitMaterialAttributes, unlitMaterialAttributes);
-	unlitShader->addAttributes(c_unlitMaterialAttributes, Shader::Binding::Material);
+	unlitShader->addGroup(c_unlitMaterialAttributes);
 
-	Issam::Attributed unlitSceneAttributes;
+	Issam::AttributeGroup unlitSceneAttributes(Issam::Binding::Scene);
 	unlitSceneAttributes.addAttribute("view", mat4(1.0));
 	unlitSceneAttributes.addAttribute("projection", mat4(1.0));
-	Issam::AttributedManager::getInstance().add(Issam::c_unlitSceneAttributes, unlitSceneAttributes);
-	unlitShader->addAttributes(Issam::c_unlitSceneAttributes, Shader::Binding::Scene);
-
-	unlitShader->addAttributes(Issam::c_pbrNodeAttributes, Shader::Binding::Node); //le meme que PBR
+	Issam::AttributedManager::getInstance().add(c_unlitSceneAttributes, unlitSceneAttributes);
+	unlitShader->addGroup(c_unlitSceneAttributes);
+	unlitShader->addGroup(c_pbrNodeAttributes); //le meme que PBR
 
 
 	//TODO Remove 
@@ -348,14 +357,14 @@ int main(int, char**) {
 	unlit2Shader->addVertexOutput("uv", 2, VertexFormat::Float32x2);
 	//unlitShader->addVertexOutput("worldPosition", 3, VertexFormat::Float32x4);
 
-	Issam::Attributed unlit2MaterialAttributes;
+	Issam::AttributeGroup unlit2MaterialAttributes(Issam::Binding::Material);
 	unlit2MaterialAttributes.addAttribute("colorFactor", glm::vec4(1.0f));
 	unlit2MaterialAttributes.addAttribute("colorTexture", whiteTextureView);
 	unlit2MaterialAttributes.addAttribute("defaultSampler", defaultSampler);
 	Issam::AttributedManager::getInstance().add(c_unlit2MaterialAttributes, unlit2MaterialAttributes);
-	unlit2Shader->addAttributes(c_unlit2MaterialAttributes, Shader::Binding::Material);
-	unlit2Shader->addAttributes(Issam::c_unlitSceneAttributes, Shader::Binding::Scene);
-	unlit2Shader->addAttributes(Issam::c_pbrNodeAttributes, Shader::Binding::Node);
+	unlit2Shader->addGroup(c_unlit2MaterialAttributes);
+	unlit2Shader->addGroup(c_unlitSceneAttributes);
+	unlit2Shader->addGroup(c_pbrNodeAttributes);
 	
 	glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos) {
 		if (m_drag.active) {

@@ -13,29 +13,17 @@ using namespace glm;
 #include "attributed.h"
 #include "managers.h"
 
-const std::string c_pbrMaterialAttributes = "pbrMaterialModel";
-const std::string c_unlitMaterialAttributes = "unlitMaterialModel";
-const std::string c_unlit2MaterialAttributes = "unlit2MaterialModel"; //TODO remove ?
-
-//class MaterialModel : public Issam::Attributed {
-//public:
-//	MaterialModel()
-//	{	
-//	};
-//	~MaterialModel() = default;
-//};
-
-
-
 
 class Material 
 {
 public:
 	Material()
 	{
-		m_attributeds[c_pbrMaterialAttributes] = new Issam::AttributedRuntime(c_pbrMaterialAttributes);
-		m_attributeds[c_unlitMaterialAttributes] = new Issam::AttributedRuntime(c_unlitMaterialAttributes);
-		m_attributeds[c_unlit2MaterialAttributes] = new Issam::AttributedRuntime(c_unlit2MaterialAttributes);
+		auto& groups = Issam::AttributedManager::getInstance().getAll(Issam::Binding::Material);
+		for (auto& groupId : groups)
+		{
+			m_attributeds[groupId] = new Issam::AttributedRuntime(groupId);
+		}
 		
 	};
 	~Material() = default;

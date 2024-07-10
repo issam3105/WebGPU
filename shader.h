@@ -29,12 +29,12 @@ public:
 		m_shaderModule.release();
 	}
 	
-	enum class Binding : uint8_t
-	{
-		Material = 0,
-		Node,
-		Scene
-	};
+	//enum class Binding : uint8_t
+	//{
+	//	Material = 0,
+	//	Node,
+	//	Scene
+	//};
 
 	void setUserCode(std::string userCode)
 	{
@@ -102,9 +102,9 @@ public:
 
 		std::string vertexUniformsStr = "";
 		int group = 0;
-		addVertexUniformsStr(vertexUniformsStr, group, Binding::Material);
-		addVertexUniformsStr(vertexUniformsStr, group, Binding::Node);
-		addVertexUniformsStr(vertexUniformsStr, group, Binding::Scene);
+		addVertexUniformsStr(vertexUniformsStr, group, Issam::Binding::Material);
+		addVertexUniformsStr(vertexUniformsStr, group, Issam::Binding::Node);
+		addVertexUniformsStr(vertexUniformsStr, group, Issam::Binding::Scene);
 
 		m_shaderSource = vertexInputOutputStr + vertexUniformsStr + m_shaderSource;
 
@@ -136,9 +136,9 @@ public:
 			return m_bindGroupLayouts;
 
 		m_bindGroupLayouts.clear();
-		addbindGroup(Binding::Material);
-		addbindGroup(Binding::Node);
-		addbindGroup(Binding::Scene);
+		addbindGroup(Issam::Binding::Material);
+		addbindGroup(Issam::Binding::Node);
+		addbindGroup(Issam::Binding::Scene);
 		m_dirtyBindGroupLayouts = false;
 		return m_bindGroupLayouts;
 	}
@@ -146,9 +146,9 @@ public:
 
 	
 
-	void addTexture(const std::string& name, TextureView defaultTextureView, Binding binding) { m_textures.push_back({ name, defaultTextureView, binding }); }
-	void addSampler(const std::string& name, Sampler defaultSampler, Binding binding) { m_samplers.push_back({ name, defaultSampler, binding }); }
-	void addUniform(std::string name, const UniformValue& defaultValue, Binding binding) {
+	void addTexture(const std::string& name, TextureView defaultTextureView, Issam::Binding binding) { m_textures.push_back({ name, defaultTextureView, binding }); }
+	void addSampler(const std::string& name, Sampler defaultSampler, Issam::Binding binding) { m_samplers.push_back({ name, defaultSampler, binding }); }
+	void addUniform(std::string name, const UniformValue& defaultValue, Issam::Binding binding) {
 		Uniform uniform;
 		uniform.name = name;
 		uniform.value = defaultValue;
@@ -156,7 +156,7 @@ public:
 	};
 
 	Uniform& getUniform(std::string name) {
-		auto it = std::find_if(m_uniforms.begin(), m_uniforms.end(), [name](const std::pair<Uniform, Binding>& obj) {
+		auto it = std::find_if(m_uniforms.begin(), m_uniforms.end(), [name](const std::pair<Uniform, Issam::Binding>& obj) {
 			return obj.first.name == name;
 		});
 		assert(it != m_uniforms.end());
@@ -164,28 +164,31 @@ public:
 	}
 
 	bool hasUniform(std::string name) {
-		auto it = std::find_if(m_uniforms.begin(), m_uniforms.end(), [name](const std::pair<Uniform, Binding>& obj) {
+		auto it = std::find_if(m_uniforms.begin(), m_uniforms.end(), [name](const std::pair<Uniform, Issam::Binding>& obj) {
 			return obj.first.name == name;
 		});
 		return (it != m_uniforms.end());
 	}
 
-	void setUniform(std::string name, const UniformValue& value, Binding binding)
+	void setUniform(std::string name, const UniformValue& value, Issam::Binding binding)
 	{
 		auto& uniform = getUniform(name);
 		uniform.value = value;
 	}
 
-	const std::string& getAttributedId(Binding binding)
+	const std::string& getAttributedId(Issam::Binding binding)
 	{
 		return m_attributes[binding];
 	}
 
-	void addAttributes(const std::string& materialModelId, Binding binding) { 
-		m_attributes[binding] = materialModelId;
+	void addGroup(const std::string& groupId) { 
+		
 	//	m_material = material; 
-		auto materialModel = Issam::AttributedManager::getInstance().get(materialModelId);
-		auto attributes = materialModel.getAttributes();
+		auto attributesGroup = Issam::AttributedManager::getInstance().get(groupId);
+		auto attributes = attributesGroup.getAttributes();
+		Issam::Binding binding = attributesGroup.getBinding();
+		m_attributes[binding] = groupId;
+
 		for (auto attrib : attributes)
 		{
 			if (std::holds_alternative< UniformValue>(attrib.value))
@@ -209,15 +212,15 @@ public:
 
 private:
 //	Material* m_material = nullptr;
-	std::vector<std::pair<Uniform, Binding>> m_uniforms{};
-	std::vector<std::tuple<std::string, TextureView, Binding> > m_textures{};
-	std::vector<std::tuple<std::string, Sampler, Binding>> m_samplers{};
+	std::vector<std::pair<Uniform, Issam::Binding>> m_uniforms{};
+	std::vector<std::tuple<std::string, TextureView, Issam::Binding> > m_textures{};
+	std::vector<std::tuple<std::string, Sampler, Issam::Binding>> m_samplers{};
 	std::vector<BindGroupLayout> m_bindGroupLayouts{};
 	bool m_dirtyBindGroupLayouts = true;
 
-	std::unordered_map<Binding, std::string> m_attributes{};
+	std::unordered_map<Issam::Binding, std::string> m_attributes{};
 
-	std::vector<Uniform> getUniformsByBinding(Binding binding) {
+	std::vector<Uniform> getUniformsByBinding(Issam::Binding binding) {
 		std::vector<Uniform> result;
 		for (const auto& [uniform, bind] : m_uniforms) {
 			if (bind == binding) {
@@ -227,7 +230,7 @@ private:
 		return result;
 	}
 
-	std::vector<std::pair<std::string, TextureView>> getTexturesByBinding(Binding binding) {
+	std::vector<std::pair<std::string, TextureView>> getTexturesByBinding(Issam::Binding binding) {
 		std::vector<std::pair<std::string, TextureView>> result;
 		for (const auto& [name, view , bind] : m_textures) {
 			if (bind == binding) {
@@ -237,7 +240,7 @@ private:
 		return result;
 	}
 
-	std::vector<std::pair<std::string, Sampler>> getSamplersByBinding(Binding binding) {
+	std::vector<std::pair<std::string, Sampler>> getSamplersByBinding(Issam::Binding binding) {
 		std::vector<std::pair<std::string, Sampler>> result;
 		for (const auto& [name, sampler, bind] : m_samplers) {
 			if (bind == binding) {
@@ -261,13 +264,13 @@ private:
 		}
 	}
 
-	std::string toString(Binding binding)
+	std::string toString(Issam::Binding binding)
 	{
 		switch (binding)
 		{
-		case Shader::Binding::Material: return "Material";
-		case Shader::Binding::Node:     return "Node";
-		case Shader::Binding::Scene:    return "Scene";
+		case Issam::Binding::Material: return "Material";
+		case Issam::Binding::Node:     return "Node";
+		case Issam::Binding::Scene:    return "Scene";
 		default: assert(false);
 		}
 	}
@@ -280,7 +283,7 @@ private:
 		return result;
 	}
 
-	void addVertexUniformsStr(std::string& vertexUniformsStr, int& group, Binding binding)
+	void addVertexUniformsStr(std::string& vertexUniformsStr, int& group, Issam::Binding binding)
 	{
 		int bindingIdx = 0;
 		bool usedGroupe = false;
@@ -320,7 +323,7 @@ private:
 		if (usedGroupe) group++;
 	}
 
-	void addbindGroup(Binding binding)
+	void addbindGroup(Issam::Binding binding)
 	{
 		const std::vector<Uniform>& materialUniforms = getUniformsByBinding(binding);
 		int bindingIdx = 0;

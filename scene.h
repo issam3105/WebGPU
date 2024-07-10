@@ -18,12 +18,6 @@
 using namespace glm;
 
 namespace Issam {
-	const std::string c_pbrSceneAttributes = "pbrSceneAttributes";
-	const std::string c_pbrNodeAttributes = "pbrNodeAttributes";
-	const std::string c_unlitSceneAttributes = "unlitSceneAttributes";
-	const std::string c_backgroundSceneAttributes = "backgroundSceneModel";
-	const std::string c_diltationSceneAttributes = "dilatationSceneModel";
-
 	//Components
 	struct Name {
 		std::string name;
@@ -38,24 +32,46 @@ namespace Issam {
 	{
 	public:
 		WorldTransform() {
-			m_attributes = new AttributedRuntime(Issam::c_pbrNodeAttributes);
-			m_attributes->setAttribute("model", m_matrix);
+			auto& groups = Issam::AttributedManager::getInstance().getAll(Issam::Binding::Node);
+			for (auto& groupId : groups)
+			{
+				m_attributeds[groupId] = new Issam::AttributedRuntime(groupId);
+			}
+			setAttribute("model", m_matrix);
 		}
 		WorldTransform(glm::mat4 transform): m_matrix( transform)
 		{
-			m_attributes = new AttributedRuntime(Issam::c_pbrNodeAttributes);
-			m_attributes->setAttribute("model", m_matrix);
+			auto& groups = Issam::AttributedManager::getInstance().getAll(Issam::Binding::Node);
+			for (auto& groupId : groups)
+			{
+				m_attributeds[groupId] = new Issam::AttributedRuntime(groupId);
+			}
+			setAttribute("model", m_matrix);
 		}
 		~WorldTransform() { /*delete m_attributes;*/ };
 		void setTransform(glm::mat4 transform) { 
 			m_matrix = transform;
-			m_attributes->setAttribute("model", m_matrix);
+			setAttribute("model", m_matrix);
 		}
+
+		void setAttribute(const std::string& name, const Issam::AttributeValue& value)
+		{
+			for (auto attributed : m_attributeds)
+			{
+				if (attributed.second->hasAttribute(name))
+					attributed.second->setAttribute(name, value);
+			}
+		}
+
 		const glm::mat4& getTransform() const{ return m_matrix; }
-		BindGroup getBindGroup(BindGroupLayout bindGroupLayout) { return m_attributes->getBindGroup(bindGroupLayout); }
+		Issam::AttributedRuntime* getAttibutedRuntime(const std::string& attributedId)
+		{
+			return m_attributeds[attributedId];
+		}
+		//BindGroup getBindGroup(BindGroupLayout bindGroupLayout) { return m_attributes->getBindGroup(bindGroupLayout); }
 	private:
 		glm::mat4 m_matrix = glm::mat4(1.0);
-		AttributedRuntime* m_attributes;
+		std::unordered_map<std::string, Issam::AttributedRuntime*> m_attributeds{};
 	};
 
 	struct Filters {
@@ -104,10 +120,12 @@ namespace Issam {
 
 		Scene()
 		{
-			m_attributeds[Issam::c_pbrSceneAttributes] = new AttributedRuntime(Issam::c_pbrSceneAttributes);
-			m_attributeds[Issam::c_unlitSceneAttributes] = new AttributedRuntime(Issam::c_unlitSceneAttributes);
-			m_attributeds[Issam::c_backgroundSceneAttributes] = new AttributedRuntime(Issam::c_backgroundSceneAttributes);
-			m_attributeds[Issam::c_diltationSceneAttributes] = new AttributedRuntime(Issam::c_diltationSceneAttributes);
+			auto& groups = Issam::AttributedManager::getInstance().getAll(Issam::Binding::Scene);
+			for (auto& groupId : groups)
+			{
+				m_attributeds[groupId] = new AttributedRuntime(groupId);
+			}
+		
 
 			m_registry.on_update<Hierarchy>().connect<&Scene::updateWorldTransforms>(*this);
 			m_registry.on_update<LocalTransform>().connect<&Scene::updateWorldTransforms>(*this);

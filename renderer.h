@@ -74,8 +74,8 @@ public:
 				renderPass.setPipeline(pipeline);
 				Shader* shader = pass->getShader();
 				auto& layouts = shader->getBindGroupLayouts();
-				auto& attribSceneId = shader->getAttributedId(Shader::Binding::Scene);
-				renderPass.setBindGroup(2, m_scene->getAttibutedRuntime(attribSceneId)->getBindGroup(layouts[static_cast<int>(Shader::Binding::Scene)]), 0, nullptr); //Scene uniforms
+				auto& attribSceneId = shader->getAttributedId(Issam::Binding::Scene);
+				renderPass.setBindGroup(2, m_scene->getAttibutedRuntime(attribSceneId)->getBindGroup(layouts[static_cast<int>(Issam::Binding::Scene)]), 0, nullptr); //Scene uniforms
 				auto view = m_scene->getRegistry().view<const Issam::WorldTransform, Issam::Filters, Issam::MeshRenderer, Issam::Hierarchy>();
 				for (auto entity : view) 
 				{
@@ -93,9 +93,10 @@ public:
 					{
 						Material* material = meshRenderer.material;
 						//Issam::AttributedRuntime* nodeAttributes = transform.getAttributedRuntime();
-						auto& attribMaterialId = shader->getAttributedId(Shader::Binding::Material);
-						renderPass.setBindGroup(0, material->getAttibutedRuntime(attribMaterialId)->getBindGroup(layouts[static_cast<int>(Shader::Binding::Material)]), 0, nullptr); //Material
-						renderPass.setBindGroup(1, transform.getBindGroup(layouts[static_cast<int>(Shader::Binding::Node)]), 0, nullptr); //Node model
+						auto& attribMaterialId = shader->getAttributedId(Issam::Binding::Material);
+						auto& attribNodelId = shader->getAttributedId(Issam::Binding::Node);
+						renderPass.setBindGroup(0, material->getAttibutedRuntime(attribMaterialId)->getBindGroup(layouts[static_cast<int>(Issam::Binding::Material)]), 0, nullptr); //Material
+						renderPass.setBindGroup(1, transform.getAttibutedRuntime(attribNodelId)->getBindGroup(layouts[static_cast<int>(Issam::Binding::Node)]), 0, nullptr); //Node model
 						renderPass.setVertexBuffer(0, mesh->getVertexBuffer()->getBuffer(), 0, mesh->getVertexBuffer()->getSize());
 						if (mesh->getIndexBuffer() != nullptr)
 						{
@@ -113,7 +114,7 @@ public:
 				renderPass.setPipeline(pipeline);
 				Shader* shader = pass->getShader();
 				auto& layouts = shader->getBindGroupLayouts();
-				auto& attribSceneId = shader->getAttributedId(Shader::Binding::Scene);
+				auto& attribSceneId = shader->getAttributedId(Issam::Binding::Scene);
 				renderPass.setBindGroup(0, m_scene->getAttibutedRuntime(attribSceneId)->getBindGroup(layouts[0]), 0, nullptr); //TODO layouts[0] ?
 				if (fullScreenMesh)
 				{
