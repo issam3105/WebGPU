@@ -74,8 +74,12 @@ public:
 				renderPass.setPipeline(pipeline);
 				Shader* shader = pass->getShader();
 				auto& layouts = shader->getBindGroupLayouts();
+
 				auto& attribSceneId = shader->getAttributedId(Issam::Binding::Scene);
+				uint32_t dynamicOffsetScene = pass->getUniformBufferVersion(Issam::Binding::Scene) * sizeof(UniformsData);
+				size_t dynamicOffsetCountScene = m_scene->getAttibutedRuntime(attribSceneId)->getNumVersions() - 1;
 				renderPass.setBindGroup(2, m_scene->getAttibutedRuntime(attribSceneId)->getBindGroup(layouts[static_cast<int>(Issam::Binding::Scene)]), 0, nullptr); //Scene uniforms
+
 				auto view = m_scene->getRegistry().view<const Issam::WorldTransform, Issam::Filters, Issam::MeshRenderer, Issam::Hierarchy>();
 				for (auto entity : view) 
 				{
@@ -92,11 +96,17 @@ public:
 					if (mesh)
 					{
 						Material* material = meshRenderer.material;
-						//Issam::AttributedRuntime* nodeAttributes = transform.getAttributedRuntime();
+
 						auto& attribMaterialId = shader->getAttributedId(Issam::Binding::Material);
+						uint32_t dynamicOffsetMaterial = pass->getUniformBufferVersion(Issam::Binding::Material) * sizeof(UniformsData);
+						size_t dynamicOffsetCountMaterial = material->getAttibutedRuntime(attribMaterialId)->getNumVersions() - 1;
+						renderPass.setBindGroup(0, material->getAttibutedRuntime(attribMaterialId)->getBindGroup(layouts[static_cast<int>(Issam::Binding::Material)]), dynamicOffsetCountMaterial, &dynamicOffsetMaterial); //Material
+
 						auto& attribNodelId = shader->getAttributedId(Issam::Binding::Node);
-						renderPass.setBindGroup(0, material->getAttibutedRuntime(attribMaterialId)->getBindGroup(layouts[static_cast<int>(Issam::Binding::Material)]), 0, nullptr); //Material
-						renderPass.setBindGroup(1, transform.getAttibutedRuntime(attribNodelId)->getBindGroup(layouts[static_cast<int>(Issam::Binding::Node)]), 0, nullptr); //Node model
+						uint32_t dynamicOffsetNode = pass->getUniformBufferVersion(Issam::Binding::Node) * sizeof(UniformsData);
+						size_t dynamicOffsetCountNode = transform.getAttibutedRuntime(attribNodelId)->getNumVersions() - 1;
+						renderPass.setBindGroup(1, transform.getAttibutedRuntime(attribNodelId)->getBindGroup(layouts[static_cast<int>(Issam::Binding::Node)]), dynamicOffsetCountNode, &dynamicOffsetNode); //Node model
+						
 						renderPass.setVertexBuffer(0, mesh->getVertexBuffer()->getBuffer(), 0, mesh->getVertexBuffer()->getSize());
 						if (mesh->getIndexBuffer() != nullptr)
 						{

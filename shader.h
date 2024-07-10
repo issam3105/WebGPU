@@ -325,6 +325,8 @@ private:
 
 	void addbindGroup(Issam::Binding binding)
 	{
+		const std::string groupId = getAttributedId(binding);
+		auto& attributesGroup = Issam::AttributedManager::getInstance().get(groupId);
 		const std::vector<Uniform>& materialUniforms = getUniformsByBinding(binding);
 		int bindingIdx = 0;
 		bool usedGroupe = false;
@@ -339,6 +341,7 @@ private:
 			uniformsBindingLayout.visibility = ShaderStage::Vertex | ShaderStage::Fragment;
 			uniformsBindingLayout.buffer.type = BufferBindingType::Uniform;
 			uniformsBindingLayout.buffer.minBindingSize = sizeof(UniformsData);
+			uniformsBindingLayout.buffer.hasDynamicOffset = attributesGroup.getVersionCount() > 1 ? true : false;
 			bindingLayoutEntries.push_back(uniformsBindingLayout);
 		}
 

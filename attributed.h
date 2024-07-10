@@ -32,7 +32,10 @@ namespace Issam {
 
 	class AttributeGroup {
 	public:
-		AttributeGroup(Binding binding = Binding::Material) : m_binding(binding) {};
+		AttributeGroup(Binding binding = Binding::Material, int versionCount = 1) :
+			m_binding(binding) ,
+			m_versionCount(versionCount)
+		{};
 		void addAttribute(std::string name, const AttributeValue& defaultValue) {
 			Attribute attribute;
 			attribute.name = name;
@@ -42,9 +45,11 @@ namespace Issam {
 
 		std::vector<Attribute>& getAttributes() { return m_attributes; }	
 		const Binding& getBinding()const { return m_binding; }
+		const int getVersionCount()const { return m_versionCount; }
 	protected:
 		std::vector<Attribute> m_attributes{};
 		Binding m_binding{ Binding::Material };
+		int m_versionCount = 1;
 	};
 
 	class AttributedManager
@@ -62,7 +67,7 @@ namespace Issam {
 			m_attributeGroups[id] = attributeGroup;
 			return true;
 		}
-		Issam::AttributeGroup get(const std::string& id) {
+		const Issam::AttributeGroup& get(const std::string& id) {
 			return  m_attributeGroups[id];
 		}
 		void clear()
@@ -70,12 +75,12 @@ namespace Issam {
 			m_attributeGroups.clear();
 		}
 		std::unordered_map<std::string, Issam::AttributeGroup>& getAll() { return m_attributeGroups; }
-		std::vector<std::string> getAll(Binding binding) {
-			std::vector < std::string> list;
+		std::unordered_map<std::string, Issam::AttributeGroup> getAll(Binding binding) {
+			std::unordered_map<std::string, Issam::AttributeGroup> list;
 			for (auto& group : m_attributeGroups)
 			{
 				if (group.second.getBinding() == binding)
-					list.push_back(group.first);
+					list[group.first] = group.second;
 			}
 			return list;
 		}
@@ -85,8 +90,13 @@ namespace Issam {
 
 	class AttributedRuntime {
 	public:
-		AttributedRuntime(){};
-		AttributedRuntime(const std::string& attributesId) { setAttributes(attributesId); };
+		AttributedRuntime() = delete;
+
+		AttributedRuntime(const std::string& attributesId, size_t numVersions) {
+			m_uniformsBuffer = UniformsBuffer(numVersions);
+			m_numVersions = numVersions;
+			setAttributes(attributesId); 
+		};
 
 		void setAttributes(const std::string& attributesId)
 		{
@@ -100,7 +110,7 @@ namespace Issam {
 					if (std::holds_alternative< glm::vec4>(uniformValue) || std::holds_alternative< float>(uniformValue))
 					{
 						attribute.handle = m_uniformsBuffer.allocate<glm::vec4>();
-						setAttribute(attribute.name, attribute.value); //Apply default value
+						setAttribute(attribute.name, attribute.value); //Apply default value TODO Tout les versions
 					}
 					else if (std::holds_alternative< glm::mat4x4>(uniformValue))
 					{
@@ -139,13 +149,13 @@ namespace Issam {
 			return (it != m_attributes.end());
 		}
 
-		void setAttribute(std::string name, const AttributeValue& value)
+		void setAttribute(std::string name, const AttributeValue& value, size_t version = 0)
 		{
 			auto& attribute = getAttribute(name);
 			attribute.value = value;
 			if (std::holds_alternative< UniformValue>(value))
 			{
-				m_uniformsBuffer.set(attribute.handle, std::get <UniformValue >(value));
+				m_uniformsBuffer.set(attribute.handle, std::get <UniformValue >(value), version);
 			}
 			else if (std::holds_alternative<TextureView>(value))
 			{
@@ -200,11 +210,12 @@ namespace Issam {
 			dirtyBindGroup = false;
 			return bindGroup;
 		}
-
+		
+		size_t getNumVersions() { return m_numVersions; }
 	private:
 		std::vector<std::pair<std::string, TextureView> > m_textures{};
 		std::vector<std::pair<std::string, Sampler>> m_samplers{};
-		UniformsBuffer m_uniformsBuffer{};
+		UniformsBuffer m_uniformsBuffer;
 
 		void setTexture(const std::string& name, TextureView textureView)
 		{
@@ -228,6 +239,8 @@ namespace Issam {
 
 		BindGroup bindGroup{ nullptr };
 		bool dirtyBindGroup = true;
+
+		size_t m_numVersions = 1;
 
 		/*std::vector<std::pair<std::string, TextureView> > m_textures{};
 		std::vector<std::pair<std::string, Sampler>> m_samplers{};

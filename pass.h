@@ -87,7 +87,7 @@ public:
 
 	void setClearColor(bool clear) { m_clearColor = clear; }
 	void setClearColorValue(Color in_clearValue) { m_clearColorValue = in_clearValue; }
-
+	
 	enum class Type: uint8_t
 	{
 		SCENE = 0,
@@ -97,7 +97,17 @@ public:
 
 	void setType(Type type) { m_type = type; }
 	Type getType() { return m_type; }
+
+	void setUniformBufferVersion(Issam::Binding binding, size_t uniformBufferVersion) { m_uniformBufferVersion[binding] = uniformBufferVersion; }
+	size_t getUniformBufferVersion(Issam::Binding binding) {
+		if (m_uniformBufferVersion.find(binding) != m_uniformBufferVersion.end())
+			return m_uniformBufferVersion[binding];
+		else
+			return 0;
+	}
+
 private:
+	
 	RenderPassDepthStencilAttachment* depthStencilAttachment;
 	RenderPassColorAttachment* renderPassColorAttachment;
 	Shader* m_shader{ nullptr };
@@ -111,4 +121,6 @@ private:
 	Color m_clearColorValue{ 0.3, 0.3, 0.3, 1.0 };
 
 	Type m_type{ Type::SCENE };
+	//size_t m_uniformBufferVersion = 0;
+	std::unordered_map<Issam::Binding, size_t>m_uniformBufferVersion;
 };

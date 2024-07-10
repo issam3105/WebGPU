@@ -29,7 +29,7 @@ struct Uniform {
 class UniformsBuffer
 {
 public:
-	UniformsBuffer();
+	UniformsBuffer(size_t numVersions = 1);
 	
 	~UniformsBuffer() = default;
 
@@ -42,16 +42,18 @@ public:
 		return handle;
 	};
 
-	void set(uint16_t handle, const UniformValue& value);
+	void set(uint16_t handle, const UniformValue& value, size_t version = 0);
 
 	Buffer getBuffer() { return m_uniformBuffer; }
 
 private:
-	void setFloat(uint16_t offset, float value);
-	void setVec4(uint16_t offset, const glm::vec4& value);
-	void setMat4(uint16_t offset, const glm::mat4& value);
+	void setFloat(uint16_t offset, float value, size_t version);
+	void setVec4(uint16_t offset, const glm::vec4& value, size_t version);
+	void setMat4(uint16_t offset, const glm::mat4& value, size_t version);
 
-	UniformsData m_uniformsData{};
+	//UniformsData m_uniformsData{};
+	std::vector<UniformsData> m_uniformsData;
 	uint16_t m_uniformOffset = 0;
+	size_t m_numVersions = 1;
 	Buffer m_uniformBuffer{ nullptr };
 };

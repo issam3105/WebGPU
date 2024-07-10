@@ -424,8 +424,8 @@ namespace Utils
 				auto& roughnessFactor = gltfMaterial.pbrMetallicRoughness.roughnessFactor;
 				material->setAttribute("roughnessFactor", (float)roughnessFactor);
 
-				material->setAttribute("unlitMaterialModel", "colorFactor", glm::vec4(1.0, 0.5, 0.0, 1.0)); //TODO remove
-				material->setAttribute("unlit2MaterialModel", "colorFactor", glm::vec4(0.0));
+				material->setAttribute("unlitMaterialModel", "colorFactor", glm::vec4(1.0, 0.5, 0.0, 1.0), 0); 
+				material->setAttribute("unlitMaterialModel", "colorFactor", glm::vec4(0.0), 1);
 
 				meshRenderer.material = material;
 

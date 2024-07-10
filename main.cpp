@@ -329,7 +329,7 @@ int main(int, char**) {
 	unlitShader->addVertexOutput("uv", 2, VertexFormat::Float32x2);
 	//unlitShader->addVertexOutput("worldPosition", 3, VertexFormat::Float32x4);
 
-	Issam::AttributeGroup unlitMaterialAttributes(Issam::Binding::Material);
+	Issam::AttributeGroup unlitMaterialAttributes(Issam::Binding::Material, 2);
 	unlitMaterialAttributes.addAttribute("colorFactor", glm::vec4(1.0f));
 	unlitMaterialAttributes.addAttribute("colorTexture", whiteTextureView);
 	unlitMaterialAttributes.addAttribute("defaultSampler", defaultSampler);
@@ -343,28 +343,6 @@ int main(int, char**) {
 	unlitShader->addGroup(c_unlitSceneAttributes);
 	unlitShader->addGroup(c_pbrNodeAttributes); //le meme que PBR
 
-
-	//TODO Remove 
-	Shader* unlit2Shader = new Shader();
-	unlit2Shader->setUserCode(Utils::loadFile(DATA_DIR  "/unlit.wgsl"));
-	unlit2Shader->addVertexInput("position", 0, VertexFormat::Float32x3);
-	unlit2Shader->addVertexInput("normal", 1, VertexFormat::Float32x3);
-	unlit2Shader->addVertexInput("color", 2, VertexFormat::Float32x3);
-	unlit2Shader->addVertexInput("uv", 3, VertexFormat::Float32x2);
-
-	unlit2Shader->addVertexOutput("color", 0, VertexFormat::Float32x3);
-	unlit2Shader->addVertexOutput("normal", 1, VertexFormat::Float32x3);
-	unlit2Shader->addVertexOutput("uv", 2, VertexFormat::Float32x2);
-	//unlitShader->addVertexOutput("worldPosition", 3, VertexFormat::Float32x4);
-
-	Issam::AttributeGroup unlit2MaterialAttributes(Issam::Binding::Material);
-	unlit2MaterialAttributes.addAttribute("colorFactor", glm::vec4(1.0f));
-	unlit2MaterialAttributes.addAttribute("colorTexture", whiteTextureView);
-	unlit2MaterialAttributes.addAttribute("defaultSampler", defaultSampler);
-	Issam::AttributedManager::getInstance().add(c_unlit2MaterialAttributes, unlit2MaterialAttributes);
-	unlit2Shader->addGroup(c_unlit2MaterialAttributes);
-	unlit2Shader->addGroup(c_unlitSceneAttributes);
-	unlit2Shader->addGroup(c_pbrNodeAttributes);
 	
 	glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos) {
 		if (m_drag.active) {
@@ -503,13 +481,14 @@ int main(int, char**) {
 	//scene->setAttribute("source", TextureManager::getInstance().getTextureView(jpgFiles[1]));
 
 	Pass* unlit2Pass = new Pass();
-	unlit2Pass->setShader(unlit2Shader);
-	Pipeline* pipelineUnlit2 = new Pipeline("unlit2", unlit2Shader, swapChainFormat, depthTextureFormat, Pipeline::BlendingMode::Replace);
+	unlit2Pass->setShader(unlitShader);
+	Pipeline* pipelineUnlit2 = new Pipeline("unlit2", unlitShader, swapChainFormat, depthTextureFormat, Pipeline::BlendingMode::Replace);
 	unlit2Pass->setPipeline(pipelineUnlit2);
 	unlit2Pass->setDepthBuffer(depthBuffer);
 	unlit2Pass->setColorBuffer(colorBuffer);
 	unlit2Pass->addFilter("unlit");
 	unlit2Pass->setClearColor(false);
+	unlit2Pass->setUniformBufferVersion(Issam::Binding::Material, 1);
 
 	Pass* toScreenPass = new Pass();
 	toScreenPass->setShader(backgroundShader);

@@ -20,9 +20,9 @@ public:
 	Material()
 	{
 		auto& groups = Issam::AttributedManager::getInstance().getAll(Issam::Binding::Material);
-		for (auto& groupId : groups)
+		for (auto& [groupName, attributeGroup]: groups)
 		{
-			m_attributeds[groupId] = new Issam::AttributedRuntime(groupId);
+			m_attributeds[groupName] = new Issam::AttributedRuntime(groupName, attributeGroup.getVersionCount());
 		}
 		
 	};
@@ -37,9 +37,9 @@ public:
 		}
 	}
 
-	void setAttribute(const std::string& materialAttributesId, const std::string& name, const  Issam::AttributeValue& value)
+	void setAttribute(const std::string& materialAttributesId, const std::string& name, const  Issam::AttributeValue& value, size_t version = 0)
 	{
-		m_attributeds[materialAttributesId]->setAttribute(name, value);
+		m_attributeds[materialAttributesId]->setAttribute(name, value, version);
 	}
 
 	Issam::Attribute& getAttribute(const std::string& name)
