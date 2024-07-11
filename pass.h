@@ -11,13 +11,15 @@ class Pass
 public:
 	Pass()
 	{
+		m_renderPassColorAttachment = new RenderPassColorAttachment();
+		m_depthStencilAttachment = new RenderPassDepthStencilAttachment();
 	};
 	~Pass() {
 		m_depthBuffer.release();
 		//depthTexture.destroy(); TODO
 		//depthTexture.release();
-		delete depthStencilAttachment;
-		delete renderPassColorAttachment;
+		delete m_depthStencilAttachment;
+		delete m_renderPassColorAttachment;
 	};
 
 	void setShader(Shader* shader) { m_shader = shader; }
@@ -39,29 +41,28 @@ public:
 	const RenderPassDepthStencilAttachment* getRenderPassDepthStencilAttachment() {
 		if (m_depthBuffer)
 		{
-			depthStencilAttachment = new RenderPassDepthStencilAttachment();
 			// The view of the depth texture
-			depthStencilAttachment->view = m_depthBuffer;
+			m_depthStencilAttachment->view = m_depthBuffer;
 
 			// The initial value of the depth buffer, meaning "far"
-			depthStencilAttachment->depthClearValue = 1.0f;
+			m_depthStencilAttachment->depthClearValue = 1.0f;
 			// Operation settings comparable to the color attachment
-			depthStencilAttachment->depthLoadOp = LoadOp::Clear;
-			depthStencilAttachment->depthStoreOp = StoreOp::Store;
+			m_depthStencilAttachment->depthLoadOp = LoadOp::Clear;
+			m_depthStencilAttachment->depthStoreOp = StoreOp::Store;
 			// we could turn off writing to the depth buffer globally here
-			depthStencilAttachment->depthReadOnly = false;
+			m_depthStencilAttachment->depthReadOnly = false;
 
 			// Stencil setup, mandatory but unused
-			depthStencilAttachment->stencilClearValue = 0;
+			m_depthStencilAttachment->stencilClearValue = 0;
 #ifdef WEBGPU_BACKEND_WGPU
-			depthStencilAttachment->stencilLoadOp = LoadOp::Clear;
-			depthStencilAttachment->stencilStoreOp = StoreOp::Store;
+			m_depthStencilAttachment->stencilLoadOp = LoadOp::Clear;
+			m_depthStencilAttachment->stencilStoreOp = StoreOp::Store;
 #else
-			depthStencilAttachment->stencilLoadOp = LoadOp::Undefined;
-			depthStencilAttachment->stencilStoreOp = StoreOp::Undefined;
+			m_depthStencilAttachment->stencilLoadOp = LoadOp::Undefined;
+			m_depthStencilAttachment->stencilStoreOp = StoreOp::Undefined;
 #endif
-			depthStencilAttachment->stencilReadOnly = true;
-			return depthStencilAttachment;
+			m_depthStencilAttachment->stencilReadOnly = true;
+			return m_depthStencilAttachment;
 		}
 		else
 		{
@@ -70,13 +71,12 @@ public:
 	}
 
 	const RenderPassColorAttachment* getRenderPassColorAttachment(WGPUTextureView view) {
-		renderPassColorAttachment = new RenderPassColorAttachment();
-		renderPassColorAttachment->view = m_colorBuffer ? m_colorBuffer : view;
-		renderPassColorAttachment->resolveTarget = nullptr;
-		renderPassColorAttachment->loadOp = m_clearColor ? LoadOp::Clear : LoadOp::Load;
-		renderPassColorAttachment->storeOp = StoreOp::Store;
-		renderPassColorAttachment->clearValue = m_clearColorValue;
-		return renderPassColorAttachment;
+		m_renderPassColorAttachment->view = m_colorBuffer ? m_colorBuffer : view;
+		m_renderPassColorAttachment->resolveTarget = nullptr;
+		m_renderPassColorAttachment->loadOp = m_clearColor ? LoadOp::Clear : LoadOp::Load;
+		m_renderPassColorAttachment->storeOp = StoreOp::Store;
+		m_renderPassColorAttachment->clearValue = m_clearColorValue;
+		return m_renderPassColorAttachment;
 	}
 
 	void setPipeline(Pipeline* pipline) { m_pipline = pipline; }
@@ -108,8 +108,8 @@ public:
 
 private:
 	
-	RenderPassDepthStencilAttachment* depthStencilAttachment;
-	RenderPassColorAttachment* renderPassColorAttachment;
+	RenderPassDepthStencilAttachment* m_depthStencilAttachment;
+	RenderPassColorAttachment* m_renderPassColorAttachment;
 	Shader* m_shader{ nullptr };
 	Pipeline* m_pipline{ nullptr };
 	TextureView m_depthBuffer{ nullptr };
