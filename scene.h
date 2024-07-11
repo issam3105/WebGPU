@@ -227,13 +227,18 @@ namespace Issam {
 
 		void removeEntity(entt::entity entity)
 		{
+			if (!m_registry.valid(entity)) return;
 			if (hasComponent<Hierarchy>(entity))
 			{
 				const auto& hierarchy = getComponent<Hierarchy>(entity);
 				if (hierarchy.parent != entt::null && hasComponent<Hierarchy>(hierarchy.parent))
 					removeChild(hierarchy.parent, entity);
 
-				//TODO Children ?
+				// Copy children to a temporary vector to avoid modifying the container while iterating
+				std::vector<entt::entity> children = hierarchy.children;
+				for (auto child : children) {
+					removeEntity(child);
+				}
 			}
 			m_registry.destroy(entity);
 		}

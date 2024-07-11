@@ -205,6 +205,7 @@ bool rayIntersectsBoundingBox(const glm::vec3& rayOrigin, const glm::vec3& rayDi
 
 entt::entity pickedEntity = entt::null;
 entt::entity bBox = entt::null;
+entt::entity axes = entt::null;
 
 int main(int, char**) {
 	if (!glfwInit()) {
@@ -409,6 +410,12 @@ int main(int, char**) {
 								scene->removeEntity(bBox);
 								bBox = entt::null;
 							}
+
+							if (axes != entt::null)
+							{
+								scene->removeEntity(axes);
+								axes = entt::null;
+							}
 								
 							pickedEntity = entity;
 							auto& filters = scene->getComponent<Issam::Filters>(entity);
@@ -416,6 +423,9 @@ int main(int, char**) {
 							//	std::cout << "Ray intersects the bounding box at t = " << t << std::endl;
 						 	bBox = Utils::createBoundingBox(scene, mesh->getBoundingBox().first, mesh->getBoundingBox().second);
 							scene->addChild(pickedEntity, bBox);
+
+							axes = Utils::addAxes(scene);
+							scene->addChild(pickedEntity, axes);
 							//bBox = Utils::createBoundingBox(scene, aabb_min, aabb_max);
 						}
 						else {
@@ -569,7 +579,7 @@ int main(int, char**) {
 
 	//Issam::Node* selectedNode = nullptr;
 	std::vector<std::string> gltfFiles = GetFiles("C:/Dev/glTF-Sample-Models/2.0", ".gltf");
-	std::vector<entt::entity> gltfEntities;
+	entt::entity gltfEntity;
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
 
@@ -587,21 +597,12 @@ int main(int, char**) {
 						if (ImGui::Selectable(gltfFiles[i].c_str(), isSelected)) {
 							if (selectedGLTFIndex != -1)
 							{
-								for (auto& entity : gltfEntities)
-								{
-									scene->removeEntity(entity);
-								}
+								scene->removeEntity(gltfEntity);
 
-								if (bBox != entt::null)
-								{
-									scene->removeEntity(bBox);
-									bBox = entt::null;
-								}
-								
 								pickedEntity = entt::null;
 							}
 							selectedGLTFIndex = i;
-							gltfEntities = Utils::LoadGLTF(gltfFiles[i], scene);
+							gltfEntity = Utils::LoadGLTF(gltfFiles[i], scene);
 
 						}
 						if (isSelected) {

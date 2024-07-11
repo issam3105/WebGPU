@@ -71,6 +71,57 @@ namespace Utils
 		return cubeEntity;
 	}
 
+	entt::entity addLine(Issam::Scene* scene, glm::vec3 start, glm::vec3 end, glm::vec4 color) {
+		std::vector<Vertex> vertices;
+		vertices.push_back({ start});
+		vertices.push_back({ end });
+		std::vector<uint16_t> indices;
+		indices.push_back(0);
+		indices.push_back(1);
+
+		Mesh* lineMesh = new Mesh();
+		lineMesh->setVertices(vertices);
+		lineMesh->setIndices(indices);
+		static int idx = 0;
+		std::string meshId = "lineMesh" + std::to_string(idx++);
+		MeshManager::getInstance().add(meshId, lineMesh);
+
+		Issam::MeshRenderer meshRenderer{ meshId };
+		Material* material = new Material();
+		material->setAttribute("unlitMaterialModel", "colorFactor", color);
+		meshRenderer.material = material;
+
+		entt::entity lineEntity = scene->addEntity();
+		scene->addComponent<Issam::MeshRenderer>(lineEntity, meshRenderer);
+
+		Issam::Filters filters;
+		filters.add("debug");
+		scene->addComponent<Issam::Filters>(lineEntity, filters);
+		return lineEntity;
+	}
+
+	entt::entity addAxes(Issam::Scene* scene)
+	{
+		glm::vec4 red(1.0f, 0.0f, 0.0f, 1.0f);
+		glm::vec4 green(0.0f, 1.0f, 0.0f, 1.0f);
+		glm::vec4 blue(0.0f, 0.0f, 1.0f, 1.0f);
+
+		// Add X axis (red)
+		entt::entity x_axis = addLine(scene, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f, 0.0f, 0.0f), red);
+
+		// Add Y axis (green)
+		entt::entity y_axis= addLine(scene, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), green);
+
+		// Add Z axis (blue)
+		entt::entity z_axis =addLine(scene, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f), blue);
+
+		entt::entity axes = scene->addEntity();
+		scene->addChild(axes, x_axis);
+		scene->addChild(axes, y_axis);
+		scene->addChild(axes, z_axis);
+		return axes;
+	}
+
 	// Auxiliary function for loadTexture
 	static void writeMipMaps(
 		Texture texture,
@@ -260,13 +311,12 @@ namespace Utils
 	}
 
 
-	void loadMesh(const tinygltf::Model& model, const tinygltf::Mesh& mesh,entt::entity parent, Issam::Scene* scene, std::vector<entt::entity>& entities)
+	void loadMesh(const tinygltf::Model& model, const tinygltf::Mesh& mesh,entt::entity parent, Issam::Scene* scene)
 	{
 		int primitiveIdx = 0;
 		for (const auto& primitive : mesh.primitives)
 		{
 			entt::entity entity = scene->addEntity();
-			entities.push_back(entity);
 			scene->addChild(parent, entity);
 			std::vector<Vertex> vertices;
 			std::vector<uint16_t> indices;
@@ -432,7 +482,7 @@ namespace Utils
 		return "";
 	}
 
-	void loadNode(const tinygltf::Model& model, const tinygltf::Node& gltfNode, entt::entity entity, Issam::Scene* scene, int idx, std::vector<entt::entity>& entities) {
+	void loadNode(const tinygltf::Model& model, const tinygltf::Node& gltfNode, entt::entity entity, Issam::Scene* scene, int idx) {
 		static int nodeId = 0;
 		std::string nodeName = gltfNode.name;
 		if (nodeName.empty())
@@ -465,13 +515,12 @@ namespace Utils
 		}
 
 		if (gltfNode.mesh >= 0) {
-			loadMesh(model, model.meshes[gltfNode.mesh], entity, scene, entities);
+			loadMesh(model, model.meshes[gltfNode.mesh], entity, scene);
 		}
 
 		for (int childIndex : gltfNode.children) {
 			entt::entity childEntity = scene->addEntity();
-			entities.push_back(childEntity);
-			loadNode(model, model.nodes[childIndex], childEntity, scene,  childIndex, entities);
+			loadNode(model, model.nodes[childIndex], childEntity, scene,  childIndex);
 			scene->addChild(entity, childEntity);
 			//node->children.push_back(childNode);
 		}
@@ -479,8 +528,8 @@ namespace Utils
 
 
 
-	std::vector<entt::entity> LoadGLTF(const std::string& filepath, Issam::Scene* scene) {
-		std::vector<entt::entity> entities;
+	const entt::entity& LoadGLTF(const std::string& filepath, Issam::Scene* scene) {
+		entt::entity gltfEntity = scene->addEntity();
 		tinygltf::Model model;
 		tinygltf::TinyGLTF loader;
 		std::string err;
@@ -496,7 +545,7 @@ namespace Utils
 		}
 
 		if (!ret) {
-			return entities;
+			return gltfEntity;
 		}
 
 		std::string baseDir = GetBaseDir(filepath);
@@ -511,12 +560,12 @@ namespace Utils
 		
 		for (const auto& sceneNodeIndex : model.scenes[model.defaultScene].nodes) {
 			entt::entity rootNode = scene->addEntity();
-			entities.push_back(rootNode);
-			loadNode(model, model.nodes[sceneNodeIndex], rootNode, scene, sceneNodeIndex, entities);
+			scene->addChild(gltfEntity, rootNode);
+			loadNode(model, model.nodes[sceneNodeIndex], rootNode, scene, sceneNodeIndex);
 			//scene.push_back(rootNode);
 		}
 		
 		//return scene;
-		return entities;
+		return gltfEntity;
 	}
 }
