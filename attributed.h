@@ -211,7 +211,7 @@ namespace Issam {
 			return bindGroup;
 		}
 		
-		size_t getNumVersions() { return m_numVersions; }
+		const size_t& getNumVersions() { return m_numVersions; }
 	private:
 		std::vector<std::pair<std::string, TextureView> > m_textures{};
 		std::vector<std::pair<std::string, Sampler>> m_samplers{};

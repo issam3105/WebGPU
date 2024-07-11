@@ -54,6 +54,7 @@ public:
 		}
 
 		int passIdx = 0;
+		auto view = m_scene->getRegistry().view<const Issam::WorldTransform, Issam::Filters, Issam::MeshRenderer>();
 		for (auto& pass : m_passes)
 		{
 			RenderPassDescriptor renderPassDesc;
@@ -80,7 +81,7 @@ public:
 				size_t dynamicOffsetCountScene = m_scene->getAttibutedRuntime(attribSceneId)->getNumVersions() - 1;
 				renderPass.setBindGroup(2, m_scene->getAttibutedRuntime(attribSceneId)->getBindGroup(layouts[static_cast<int>(Issam::Binding::Scene)]), 0, nullptr); //Scene uniforms
 
-				auto view = m_scene->getRegistry().view<const Issam::WorldTransform, Issam::Filters, Issam::MeshRenderer, Issam::Hierarchy>();
+				
 				for (auto entity : view) 
 				{
 					const Issam::Filters& filters = view.get<Issam::Filters>(entity);
@@ -90,7 +91,7 @@ public:
 					});
 					if (!shouldDraw) continue;
 
-					Issam::MeshRenderer meshRenderer = view.get<Issam::MeshRenderer>(entity);
+					const Issam::MeshRenderer& meshRenderer = view.get<Issam::MeshRenderer>(entity);
 					auto transform = view.get<Issam::WorldTransform>(entity);
 					Mesh* mesh = MeshManager::getInstance().get(meshRenderer.meshId);
 					if (mesh)
