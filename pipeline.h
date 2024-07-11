@@ -19,7 +19,7 @@ public:
 	};
 
 
-	Pipeline(std::string label, Shader* shader, TextureFormat swapChainFormat, TextureFormat depthTextureFormat, BlendingMode blendingMode) {
+	Pipeline(std::string label, Shader* shader, TextureFormat swapChainFormat, TextureFormat depthTextureFormat, BlendingMode blendingMode, PrimitiveTopology primitiveTopology = PrimitiveTopology::TriangleList) {
 		//Creating render pipeline
 		RenderPipelineDescriptor pipelineDesc;
 		pipelineDesc.label = label.c_str();
@@ -67,7 +67,7 @@ public:
 		pipelineDesc.vertex.buffers = &vertexBufferLayout;
 
 		// Primitive assembly and rasterization
-		pipelineDesc.primitive.topology = PrimitiveTopology::TriangleList;
+		pipelineDesc.primitive.topology = primitiveTopology;
 		pipelineDesc.primitive.stripIndexFormat = IndexFormat::Undefined;
 		pipelineDesc.primitive.frontFace = FrontFace::CCW;
 		pipelineDesc.primitive.cullMode = CullMode::None;
@@ -82,7 +82,8 @@ public:
 
 		ColorTargetState colorTarget;
 		colorTarget.format = swapChainFormat;
-		colorTarget.blend = &getBlendState(blendingMode);
+		auto blendState = getBlendState(blendingMode);
+		colorTarget.blend = &blendState;
 		colorTarget.writeMask = ColorWriteMask::All; // We could write to only some of the color channels.
 
 		// We have only one target because our render pass has only one output color
@@ -92,9 +93,9 @@ public:
 
 		// Depth and stencil tests are not used here
 		//pipelineDesc.depthStencil = nullptr;
+		DepthStencilState depthStencilState = Default;
 		if (depthTextureFormat != TextureFormat::Undefined)
 		{
-			DepthStencilState depthStencilState = Default;
 			// Setup depth state
 			depthStencilState.depthCompare = CompareFunction::Less;
 			// Each time a fragment is blended into the target, we update the value of the Z-buffer
