@@ -204,6 +204,7 @@ bool rayIntersectsBoundingBox(const glm::vec3& rayOrigin, const glm::vec3& rayDi
 }
 
 entt::entity pickedEntity = entt::null;
+entt::entity bBox = entt::null;
 
 int main(int, char**) {
 	if (!glfwInit()) {
@@ -213,7 +214,7 @@ int main(int, char**) {
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-	GLFWwindow* window = glfwCreateWindow(m_winWidth, m_winHeight, "Learn WebGPU", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(m_winWidth, m_winHeight, "WebGPU Renderer", NULL, NULL);
 	if (!window) {
 		std::cerr << "Could not open window!" << std::endl;
 		return 1;
@@ -354,6 +355,7 @@ int main(int, char**) {
 			// Inertia
 			m_drag.velocity = delta - m_drag.previousDelta;
 			m_drag.previousDelta = delta;
+			updateViewMatrix(scene); 
 		}
 	});
 
@@ -373,8 +375,9 @@ int main(int, char**) {
 				glfwGetCursorPos(window, &xpos, &ypos);
 				m_drag.startMouse = vec2(-(float)xpos, (float)ypos);
 				m_drag.startCameraState = m_cameraState;
-				auto& camera = scene->getComponent<Issam::Camera>(cameraEntity);
+				updateViewMatrix(scene); 
 
+				auto& camera = scene->getComponent<Issam::Camera>(cameraEntity);
 				glm::mat4 viewMatrix = camera.m_view;
 				glm::mat4 projectionMatrix = camera.m_projection;
 				glm::vec3 rayOrigin = glm::vec3(glm::inverse(viewMatrix) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
@@ -383,6 +386,9 @@ int main(int, char**) {
 				for (auto entity : view)
 				{
 					Issam::MeshRenderer meshRenderer = view.get<Issam::MeshRenderer>(entity);
+					auto& entityFilters = scene->getComponent<Issam::Filters>(entity);
+					if (entityFilters.has("debug")) continue;
+
 					Mesh* mesh = MeshManager::getInstance().get(meshRenderer.meshId);
 					if (mesh)
 					{
@@ -398,11 +404,19 @@ int main(int, char**) {
 								auto& filters = scene->getComponent<Issam::Filters>(pickedEntity);
 								filters.remove("unlit");
 							}
+							if (bBox != entt::null)
+							{
+								scene->removeEntity(bBox);
+								bBox = entt::null;
+							}
 								
 							pickedEntity = entity;
 							auto& filters = scene->getComponent<Issam::Filters>(entity);
 							filters.add("unlit");
 							//	std::cout << "Ray intersects the bounding box at t = " << t << std::endl;
+						 	bBox = Utils::createBoundingBox(scene, mesh->getBoundingBox().first, mesh->getBoundingBox().second);
+							scene->addChild(pickedEntity, bBox);
+							//bBox = Utils::createBoundingBox(scene, aabb_min, aabb_max);
 						}
 						else {
 							//	std::cout << "Ray does not intersect the bounding box" << std::endl;
@@ -423,6 +437,7 @@ int main(int, char**) {
 	glfwSetScrollCallback(window, [](GLFWwindow* window, double xoffset, double yoffset) {
 		m_cameraState.zoom += m_drag.scrollSensitivity * static_cast<float>(yoffset);
 		m_cameraState.zoom = glm::clamp(m_cameraState.zoom, -20.0f, 20.0f);
+		updateViewMatrix(scene); 
 	});
 
 	glfwSetKeyCallback(window, [](GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -490,6 +505,14 @@ int main(int, char**) {
 	unlit2Pass->setClearColor(false);
 	unlit2Pass->setUniformBufferVersion(Issam::Binding::Material, 1);
 
+	Pass* debugPass = new Pass();
+	debugPass->setShader(unlitShader);
+	Pipeline* debugPassPipeline = new Pipeline("debugPass", unlitShader, swapChainFormat, depthTextureFormat, Pipeline::BlendingMode::Replace, PrimitiveTopology::LineList);
+	debugPass->setPipeline(debugPassPipeline);
+	debugPass->setDepthBuffer(depthBuffer);
+	debugPass->addFilter("debug");
+	debugPass->setClearColor(false);
+
 	Pass* toScreenPass = new Pass();
 	toScreenPass->setShader(backgroundShader);
 	Pipeline* backgroundPipeline = new Pipeline("toScreen", backgroundShader, swapChainFormat, TextureFormat::Undefined, Pipeline::BlendingMode::Over);
@@ -535,23 +558,20 @@ int main(int, char**) {
 	//scene->setAttribute("backgroundTexture", TextureManager::getInstance().getTextureView(jpgFiles[1]));
 
 	Renderer renderer;
-	//renderer.addPass(backgroundPass);
 	renderer.addPass(passPbr);
 	renderer.addPass(unlitPass);
-	//renderer.addPass(pbrPass2);
  	renderer.addPass(dilatationPass);
 	renderer.addPass(unlit2Pass); //to remove interior
 	renderer.addPass(toScreenPass);
+	renderer.addPass(debugPass);
 	renderer.addPass(imGuiPass);
 	renderer.setScene(scene);
 
 	//Issam::Node* selectedNode = nullptr;
 	std::vector<std::string> gltfFiles = GetFiles("C:/Dev/glTF-Sample-Models/2.0", ".gltf");
-
+	std::vector<entt::entity> gltfEntities;
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
-		
-	 	updateViewMatrix(scene); //TODO l'appeller qu'au besoin
 
 		{
 			imgui->begin();
@@ -567,13 +587,21 @@ int main(int, char**) {
 						if (ImGui::Selectable(gltfFiles[i].c_str(), isSelected)) {
 							if (selectedGLTFIndex != -1)
 							{
-								MeshManager::getInstance().clear();//MeshManager::getInstance().remove(gltfFiles[selectedGLTFIndex]);
-								//scene->clear();
+								for (auto& entity : gltfEntities)
+								{
+									scene->removeEntity(entity);
+								}
+
+								if (bBox != entt::null)
+								{
+									scene->removeEntity(bBox);
+									bBox = entt::null;
+								}
+								
 								pickedEntity = entt::null;
 							}
 							selectedGLTFIndex = i;
-							Utils::LoadGLTF(gltfFiles[i], scene);
-							//scene->setNodes(nodes);
+							gltfEntities = Utils::LoadGLTF(gltfFiles[i], scene);
 
 						}
 						if (isSelected) {
@@ -591,8 +619,9 @@ int main(int, char**) {
 
 				//Material* selectedMaterial = pickedNode->material;
 				glm::vec4 baseColorFactor = std::get<glm::vec4>(selectedMaterial->getUniform("baseColorFactor"));
-				ImGui::ColorEdit4("BaseColorFactor", (float*)&baseColorFactor);
-				selectedMaterial->setAttribute("baseColorFactor", baseColorFactor);
+				if(ImGui::ColorEdit4("BaseColorFactor", (float*)&baseColorFactor))
+					selectedMaterial->setAttribute("baseColorFactor", baseColorFactor);
+
 				{
 					static int selectedTextureIndex = -1;
 					std::vector<std::string> textureNames;
@@ -618,19 +647,22 @@ int main(int, char**) {
 					}
 				}
 				float metallicFactor = std::get<float>(selectedMaterial->getUniform("metallicFactor"));
-				ImGui::SliderFloat("MetallicFactor", &metallicFactor, 0.0 , 1.0);
-				selectedMaterial->setAttribute("metallicFactor", metallicFactor);
+				if(ImGui::SliderFloat("MetallicFactor", &metallicFactor, 0.0 , 1.0))
+					selectedMaterial->setAttribute("metallicFactor", metallicFactor);
 				
 				float roughnessFactor = std::get<float>(selectedMaterial->getUniform("roughnessFactor"));
-				ImGui::SliderFloat("RoughnessFactor", &roughnessFactor, 0.0, 1.0);
-				selectedMaterial->setAttribute("roughnessFactor", roughnessFactor);
+				if(ImGui::SliderFloat("RoughnessFactor", &roughnessFactor, 0.0, 1.0))
+					selectedMaterial->setAttribute("roughnessFactor", roughnessFactor);
 			}
 
 			static glm::vec3 lightDirection = glm::vec3(1.0);
-			ImGui::SliderFloat3("lightDirection", (float*)&lightDirection, -1.0, 1.0);
-			auto& light = scene->getComponent<Issam::Light>(lightEnitity);
-			light.m_direction = lightDirection;
-			scene->update<Issam::Light>(lightEnitity);
+			if (ImGui::SliderFloat3("lightDirection", (float*)&lightDirection, -1.0, 1.0))
+			{
+				auto& light = scene->getComponent<Issam::Light>(lightEnitity);
+				light.m_direction = lightDirection;
+				scene->update<Issam::Light>(lightEnitity);
+			}
+			
 			
 			/*static float translation[3] = { 0.0, 0.0, 0.0 };
 			static float rotation[3] = { 0.0, 0.0, 0.0 };
@@ -650,7 +682,6 @@ int main(int, char**) {
 		}
 
 		renderer.draw();
-
 	}
 
 	Context::getInstance().shutdownGraphics();

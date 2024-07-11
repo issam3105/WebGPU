@@ -19,70 +19,56 @@
 namespace fs = std::filesystem;
 namespace Utils
 {
-	bool loadGeometryFromObj(const fs::path& path) {
-		//std::vector<VertexAttributes> vertexData;
-		tinyobj::attrib_t attrib;
-		std::vector<tinyobj::shape_t> shapes;
-		std::vector<tinyobj::material_t> materials;
 
-		std::string warn;
-		std::string err;
-
-		// Call the core loading procedure of TinyOBJLoader
-		bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, path.string().c_str());
-
-		// Check errors
-		if (!warn.empty()) {
-			std::cout << warn << std::endl;
-		}
-
-		if (!err.empty()) {
-			std::cerr << err << std::endl;
-		}
-
-		if (!ret) {
-			return false;
-		}
-
-		// Filling in vertexData:
-		//vertexData.clear();
-		std::vector<Vertex> vertices;
-		for (const auto& shape : shapes) {
-			for (const auto& index : shape.mesh.indices) {
-				Vertex vertex = {};
-
-				vertex.position = {
-					attrib.vertices[3 * index.vertex_index + 0],
-					-attrib.vertices[3 * index.vertex_index + 2], // Add a minus to avoid mirroring
-					attrib.vertices[3 * index.vertex_index + 1]
-				};
-
-				// Also apply the transform to normals!!
-				if (!attrib.normals.empty()) {
-					vertex.normal = {
-						attrib.normals[3 * index.normal_index + 0],
-						-attrib.normals[3 * index.normal_index + 2],
-						attrib.normals[3 * index.normal_index + 1]
-					};
-				}
-
-				if (!attrib.texcoords.empty()) {
-					vertex.uv = {
-						attrib.texcoords[2 * index.texcoord_index + 0],
-						1- attrib.texcoords[2 * index.texcoord_index + 1]
-					};
-				}
-
-				vertices.push_back(vertex);
-			}
-		}
+	entt::entity createBoundingBox(Issam::Scene* scene, const vec3& point1, const vec3& point2) {
+		std::vector<Vertex> vertices(8);
+		//std::vector<uint16_t> indices = {
+		//	0, 1, 2, 2, 3, 0, // Front face
+		//	4, 5, 6, 6, 7, 4, // Back face
+		//	0, 1, 5, 5, 4, 0, // Bottom face
+		//	2, 3, 7, 7, 6, 2, // Top face
+		//	0, 3, 7, 7, 4, 0, // Left face
+		//	1, 2, 6, 6, 5, 1  // Right face
+		//};
+		std::vector<uint16_t> indices = {
+		   0, 1, 1, 2, 2, 3, 3, 0, // Bottom face
+		   4, 5, 5, 6, 6, 7, 7, 4, // Top face
+		   0, 4, 1, 5, 2, 6, 3, 7  // Vertical edges
+		};
 
 
-		Mesh* mesh = new Mesh();
-		mesh->setVertices(vertices);
-		MeshManager::getInstance().add("obj_1", mesh);
+		vec3 minPoint = glm::min(point1, point2);
+		vec3 maxPoint = glm::max(point1, point2);
 
-		return true;
+		vertices[0].position = vec3(minPoint.x, minPoint.y, minPoint.z);
+		vertices[1].position = vec3(maxPoint.x, minPoint.y, minPoint.z);
+		vertices[2].position = vec3(maxPoint.x, maxPoint.y, minPoint.z);
+		vertices[3].position = vec3(minPoint.x, maxPoint.y, minPoint.z);
+
+		vertices[4].position = vec3(minPoint.x, minPoint.y, maxPoint.z);
+		vertices[5].position = vec3(maxPoint.x, minPoint.y, maxPoint.z);
+		vertices[6].position = vec3(maxPoint.x, maxPoint.y, maxPoint.z);
+		vertices[7].position = vec3(minPoint.x, maxPoint.y, maxPoint.z);
+
+		Mesh* cubeMesh = new Mesh();
+		cubeMesh->setVertices(vertices);
+		cubeMesh->setIndices(indices);
+		static int idx = 0;
+		std::string meshId = "cubeMesh" + std::to_string(idx++);
+		MeshManager::getInstance().add(meshId, cubeMesh);
+
+		entt::entity cubeEntity = scene->addEntity();
+		Issam::MeshRenderer meshRenderer{ meshId };
+		Material* material = new Material();
+		material->setAttribute("unlitMaterialModel", "colorFactor", glm::vec4(1.0, 0.0, 0.0, 1.0));
+		meshRenderer.material = material;
+		scene->addComponent<Issam::MeshRenderer>(cubeEntity, meshRenderer);
+
+		Issam::Filters filters;
+		filters.add("debug");
+		scene->addComponent<Issam::Filters>(cubeEntity, filters);
+
+		return cubeEntity;
 	}
 
 	// Auxiliary function for loadTexture
@@ -274,12 +260,13 @@ namespace Utils
 	}
 
 
-	void loadMesh(const tinygltf::Model& model, const tinygltf::Mesh& mesh,entt::entity parent, Issam::Scene* scene)
+	void loadMesh(const tinygltf::Model& model, const tinygltf::Mesh& mesh,entt::entity parent, Issam::Scene* scene, std::vector<entt::entity>& entities)
 	{
 		int primitiveIdx = 0;
 		for (const auto& primitive : mesh.primitives)
 		{
 			entt::entity entity = scene->addEntity();
+			entities.push_back(entity);
 			scene->addChild(parent, entity);
 			std::vector<Vertex> vertices;
 			std::vector<uint16_t> indices;
@@ -445,7 +432,7 @@ namespace Utils
 		return "";
 	}
 
-	void loadNode(const tinygltf::Model& model, const tinygltf::Node& gltfNode, entt::entity entity, Issam::Scene* scene, int idx) {
+	void loadNode(const tinygltf::Model& model, const tinygltf::Node& gltfNode, entt::entity entity, Issam::Scene* scene, int idx, std::vector<entt::entity>& entities) {
 		static int nodeId = 0;
 		std::string nodeName = gltfNode.name;
 		if (nodeName.empty())
@@ -478,12 +465,13 @@ namespace Utils
 		}
 
 		if (gltfNode.mesh >= 0) {
-			loadMesh(model, model.meshes[gltfNode.mesh], entity, scene);
+			loadMesh(model, model.meshes[gltfNode.mesh], entity, scene, entities);
 		}
 
 		for (int childIndex : gltfNode.children) {
 			entt::entity childEntity = scene->addEntity();
-			loadNode(model, model.nodes[childIndex], childEntity, scene,  childIndex);
+			entities.push_back(childEntity);
+			loadNode(model, model.nodes[childIndex], childEntity, scene,  childIndex, entities);
 			scene->addChild(entity, childEntity);
 			//node->children.push_back(childNode);
 		}
@@ -491,8 +479,8 @@ namespace Utils
 
 
 
-	void LoadGLTF(const std::string& filepath, Issam::Scene* scene) {
-		//std::vector<Issam::Node*> scene;
+	std::vector<entt::entity> LoadGLTF(const std::string& filepath, Issam::Scene* scene) {
+		std::vector<entt::entity> entities;
 		tinygltf::Model model;
 		tinygltf::TinyGLTF loader;
 		std::string err;
@@ -508,7 +496,7 @@ namespace Utils
 		}
 
 		if (!ret) {
-			return ;
+			return entities;
 		}
 
 		std::string baseDir = GetBaseDir(filepath);
@@ -523,11 +511,12 @@ namespace Utils
 		
 		for (const auto& sceneNodeIndex : model.scenes[model.defaultScene].nodes) {
 			entt::entity rootNode = scene->addEntity();
-			loadNode(model, model.nodes[sceneNodeIndex], rootNode, scene, sceneNodeIndex);
+			entities.push_back(rootNode);
+			loadNode(model, model.nodes[sceneNodeIndex], rootNode, scene, sceneNodeIndex, entities);
 			//scene.push_back(rootNode);
 		}
 		
 		//return scene;
-		return;
+		return entities;
 	}
 }

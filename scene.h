@@ -227,6 +227,14 @@ namespace Issam {
 
 		void removeEntity(entt::entity entity)
 		{
+			if (hasComponent<Hierarchy>(entity))
+			{
+				const auto& hierarchy = getComponent<Hierarchy>(entity);
+				if (hierarchy.parent != entt::null && hasComponent<Hierarchy>(hierarchy.parent))
+					removeChild(hierarchy.parent, entity);
+
+				//TODO Children ?
+			}
 			m_registry.destroy(entity);
 		}
 
