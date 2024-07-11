@@ -79,7 +79,12 @@ namespace Issam {
 		void add(std::string filter) { filters.push_back(filter); }
 		void remove(std::string filter) {
 			auto it = std::find(filters.begin(), filters.end(), filter);
-			filters.erase(it);
+			if(it != filters.end())
+				filters.erase(it);
+		}
+		bool has(std::string filter) {
+			auto it = std::find(filters.begin(), filters.end(), filter);
+			return it != filters.end();
 		}
 	public:
 		std::vector<std::string> filters;
@@ -128,6 +133,7 @@ namespace Issam {
 		
 
 			m_registry.on_update<Hierarchy>().connect<&Scene::updateWorldTransforms>(*this);
+			m_registry.on_construct<LocalTransform>().connect<&Scene::updateWorldTransforms>(*this);
 			m_registry.on_update<LocalTransform>().connect<&Scene::updateWorldTransforms>(*this);
 
 			m_registry.on_update<Camera>().connect<&Scene::onCameraModified>(*this);
@@ -248,7 +254,16 @@ namespace Issam {
 		//Slots
 		void updateWorldTransforms(entt::registry& registry, entt::entity entity)
 		{
-			calculateWorldTransforms(entity);
+			glm::mat4 parentTransform = glm::mat4(1.0);
+			if (hasComponent<Hierarchy>(entity))
+			{
+				const auto& hierarchy = getComponent<Hierarchy>(entity);
+				if(hierarchy.parent != entt::null)
+				   parentTransform = m_registry.get_or_emplace<WorldTransform>(hierarchy.parent).getTransform();
+			}
+			
+
+			calculateWorldTransforms(entity, parentTransform);
 		}
 
 		void onCameraModified(entt::registry& registry, entt::entity entity) {
