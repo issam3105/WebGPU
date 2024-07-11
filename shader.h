@@ -110,7 +110,7 @@ public:
 
 		// Setup the actual payload of the shader code descriptor
 		shaderCodeDesc.code = m_shaderSource.c_str();
-		std::cout << m_shaderSource << std::endl;
+		//std::cout << m_shaderSource << std::endl;
 
 		m_shaderModule = Context::getInstance().getDevice().createShaderModule(shaderDesc);
 		m_shaderModule.getCompilationInfo([](CompilationInfoRequestStatus status, const CompilationInfo& compilationInfo) {
