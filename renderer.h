@@ -154,7 +154,8 @@ public:
 		m_queue.submit(command);
 		command.release();
 
-		Context::getInstance().getSwapChain().getCurrentTextureView().release();
+		nextTexture.release();
+
 		Context::getInstance().getSwapChain().present();
 	};
 
