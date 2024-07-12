@@ -550,6 +550,7 @@ bool ImGui_ImplWGPU_CreateDeviceObjects()
 
     // Create render pipeline
     WGPURenderPipelineDescriptor graphics_pipeline_desc = {};
+    graphics_pipeline_desc.label = "imgui";
     graphics_pipeline_desc.primitive.topology = WGPUPrimitiveTopology_TriangleList;
     graphics_pipeline_desc.primitive.stripIndexFormat = WGPUIndexFormat_Undefined;
     graphics_pipeline_desc.primitive.frontFace = WGPUFrontFace_CW;

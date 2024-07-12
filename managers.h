@@ -1,6 +1,5 @@
 #pragma once
 
-#include <webgpu/webgpu.hpp>
 
 #include "context.h"
 #include "mesh.h"

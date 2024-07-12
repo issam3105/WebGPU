@@ -1,7 +1,5 @@
 #pragma once
 
-//#define WEBGPU_CPP_IMPLEMENTATION
-#include <webgpu/webgpu.hpp>
 
 #include "context.h"
 
@@ -26,10 +24,10 @@ public:
 		bufferDesc.size = m_size;
 		bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Vertex;
 		bufferDesc.mappedAtCreation = false;
-		m_buffer = Context::getInstance().getDevice().createBuffer(bufferDesc);
+		m_buffer = Context::getInstance().getDevice().CreateBuffer(&bufferDesc);
 
 		// Upload geometry data to the buffer
-		Context::getInstance().getDevice().getQueue().writeBuffer(m_buffer, 0, m_data, bufferDesc.size);
+		Context::getInstance().getDevice().GetQueue().WriteBuffer(m_buffer, 0, m_data, bufferDesc.size);
 	};
 
 	~VertexBuffer() {};
@@ -73,10 +71,10 @@ public:
 		bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Index;
 
 		bufferDesc.size = (bufferDesc.size + 3) & ~3; // round up to the next multiple of 4
-		m_buffer = Context::getInstance().getDevice().createBuffer(bufferDesc);
+		m_buffer = Context::getInstance().getDevice().CreateBuffer(&bufferDesc);
 
 		// Upload geometry data to the buffer
-		Context::getInstance().getDevice().getQueue().writeBuffer(m_buffer, 0, m_data, bufferDesc.size);
+		Context::getInstance().getDevice().GetQueue().WriteBuffer(m_buffer, 0, m_data, bufferDesc.size);
 	};
 	~IndexBuffer() {};
 

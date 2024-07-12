@@ -8,11 +8,13 @@
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
 
+#include<string>
+#include<vector>
 
-#include <webgpu/webgpu.hpp>
 
 #define UNIFORMS_MAX 64
 
+#include <webgpu/webgpu_cpp.h>
 using namespace wgpu;
 
 using UniformValue = std::variant<float, glm::vec4, glm::mat4>;

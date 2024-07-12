@@ -13,9 +13,9 @@ UniformsBuffer::UniformsBuffer(size_t numVersions)
 	// Make sure to flag the buffer as BufferUsage::Uniform
 	bufferDesc.usage = BufferUsage::CopyDst | BufferUsage::Uniform;
 	bufferDesc.mappedAtCreation = false;
-	m_uniformBuffer = Context::getInstance().getDevice().createBuffer(bufferDesc);
+	m_uniformBuffer = Context::getInstance().getDevice().CreateBuffer(&bufferDesc);
 
-	Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, 0, &m_uniformsData, sizeof(UniformsData) * numVersions);
+	Context::getInstance().getDevice().GetQueue().WriteBuffer(m_uniformBuffer, 0, &m_uniformsData, sizeof(UniformsData) * numVersions);
 };
 
 void UniformsBuffer::setFloat(uint16_t offset, float value, size_t version) {
@@ -63,5 +63,5 @@ void UniformsBuffer::set(uint16_t handle, const UniformValue& value, size_t vers
 		assert(false);
 
 	size_t offset = version * sizeof(UniformsData);
-	Context::getInstance().getDevice().getQueue().writeBuffer(m_uniformBuffer, offset, m_uniformsData[version].data(), sizeof(UniformsData));
+	Context::getInstance().getDevice().GetQueue().WriteBuffer(m_uniformBuffer, offset, m_uniformsData[version].data(), sizeof(UniformsData));
 }

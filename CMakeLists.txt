@@ -45,14 +45,13 @@ endif()
 
 add_subdirectory(ext/glfw)
 add_subdirectory(ext/webgpu)
-add_subdirectory(ext/glfw3webgpu)
 add_subdirectory(ext/glm)
 add_subdirectory(ext/imgui)
 add_subdirectory(ext/tinygltf)
 add_subdirectory(ext/entt)
 
 
-target_link_libraries(App PRIVATE webgpu glfw glfw3webgpu glm imgui tinygltf EnTT::EnTT)
+target_link_libraries(App PRIVATE webgpu glfw glm imgui tinygltf EnTT::EnTT dawncpp dawn_utils dawn_glfw)
 
 
 target_compile_definitions(App PRIVATE

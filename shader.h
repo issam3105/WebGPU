@@ -1,7 +1,5 @@
 #pragma once
 
-//#define WEBGPU_CPP_IMPLEMENTATION
-#include <webgpu/webgpu.hpp>
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_FORCE_LEFT_HANDED
@@ -26,7 +24,6 @@ public:
 	Shader() {};
 
 	~Shader() {
-		m_shaderModule.release();
 	}
 	
 	//enum class Binding : uint8_t
@@ -80,10 +77,10 @@ public:
 		// Use the extension mechanism to load a WGSL shader source code
 		ShaderModuleWGSLDescriptor shaderCodeDesc;
 		// Set the chained struct's header
-		shaderCodeDesc.chain.next = nullptr;
-		shaderCodeDesc.chain.sType = SType::ShaderModuleWGSLDescriptor;
+		//shaderCodeDesc.chain.next = nullptr;
+		//shaderCodeDesc.sType = SType::ShaderModuleWGSLDescriptor;
 		// Connect the chain
-		shaderDesc.nextInChain = &shaderCodeDesc.chain;
+		shaderDesc.nextInChain = &shaderCodeDesc;
 
 		std::string vertexInputOutputStr = "struct VertexInput {\n";
 		for (const auto vertexInput : m_vertexInputs)
@@ -112,20 +109,22 @@ public:
 		shaderCodeDesc.code = m_shaderSource.c_str();
 		//std::cout << m_shaderSource << std::endl;
 
-		m_shaderModule = Context::getInstance().getDevice().createShaderModule(shaderDesc);
-		m_shaderModule.getCompilationInfo([](CompilationInfoRequestStatus status, const CompilationInfo& compilationInfo) {
-			if (status == WGPUCompilationInfoRequestStatus_Success) {
-				for (size_t i = 0; i < compilationInfo.messageCount; ++i) {
-					const WGPUCompilationMessage& message = compilationInfo.messages[i];
-					std::cerr << "Shader compilation message (" << message.type << "): " << message.message << std::endl;
+		m_shaderModule = Context::getInstance().getDevice().CreateShaderModule(&shaderDesc);
+		
+		auto callback = [](WGPUCompilationInfoRequestStatus status, struct WGPUCompilationInfo const* compilationInfo, void* userdata) {
+			if (status == WGPUCompilationInfoRequestStatus::WGPUCompilationInfoRequestStatus_Success) {
+				for (size_t i = 0; i < compilationInfo->messageCount; ++i) {
+					const WGPUCompilationMessage& message = compilationInfo->messages[i];
+					std::cerr << "Shader compilation message: " << message.message << std::endl; //(" << message.type << ")
 					std::cerr << " - Line: " << message.lineNum << ", Column: " << message.linePos << std::endl;
 					std::cerr << " - Offset: " << message.offset << ", Length: " << message.length << std::endl;
 				}
 			}
 			else {
-				std::cerr << "Failed to get shader compilation info: " << status << std::endl;
+				std::cerr << "Failed to get shader compilation info " << std::endl;
 			}
-		});
+		};
+		m_shaderModule.GetCompilationInfo(callback, nullptr);
 		assert(m_shaderModule);
 		m_dirtyShaderModule = false;
 		return m_shaderModule;
@@ -334,7 +333,7 @@ private:
 		if (!materialUniforms.empty())
 		{
 			usedGroupe = true;
-			BindGroupLayoutEntry uniformsBindingLayout = Default;
+			BindGroupLayoutEntry uniformsBindingLayout;
 			// The binding index as used in the @binding attribute in the shader
 			uniformsBindingLayout.binding = bindingIdx++;
 			// The stage that needs to access this resource
@@ -352,11 +351,11 @@ private:
 			for (const auto& texture : materialTextures)
 			{
 				// The texture binding
-				BindGroupLayoutEntry textureBindingLayout = Default;
+				BindGroupLayoutEntry textureBindingLayout;
 				textureBindingLayout.binding = bindingIdx++;
 				textureBindingLayout.visibility = ShaderStage::Fragment;
 				textureBindingLayout.texture.sampleType = TextureSampleType::Float;
-				textureBindingLayout.texture.viewDimension = TextureViewDimension::_2D;
+				textureBindingLayout.texture.viewDimension = TextureViewDimension::e2D;
 				bindingLayoutEntries.push_back(textureBindingLayout);
 			}
 		}
@@ -368,7 +367,7 @@ private:
 			for (const auto& sampler : m_samplers)
 			{
 				// The texture sampler binding
-				BindGroupLayoutEntry samplerBindingLayout = Default;
+				BindGroupLayoutEntry samplerBindingLayout;
 				samplerBindingLayout.binding = bindingIdx++;
 				samplerBindingLayout.visibility = ShaderStage::Fragment;
 				samplerBindingLayout.sampler.type = SamplerBindingType::Filtering;
@@ -382,7 +381,7 @@ private:
 			BindGroupLayoutDescriptor bindGroupLayoutDesc{};
 			bindGroupLayoutDesc.entryCount = (uint32_t)bindingLayoutEntries.size();;
 			bindGroupLayoutDesc.entries = bindingLayoutEntries.data();
-			m_bindGroupLayouts.push_back(Context::getInstance().getDevice().createBindGroupLayout(bindGroupLayoutDesc));
+			m_bindGroupLayouts.push_back(Context::getInstance().getDevice().CreateBindGroupLayout(&bindGroupLayoutDesc));
 		}
 	}
 

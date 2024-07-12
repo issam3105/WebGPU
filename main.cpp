@@ -1,4 +1,3 @@
-#include <glfw3webgpu.h>
 #include <GLFW/glfw3.h>
 
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -127,19 +126,19 @@ glm::mat4 computeRotationMatrix(const glm::vec3& rotation) {
 	return rz * ry * rx;
 }
 
-TextureView createBuffer(uint32_t width, uint32_t height, WGPUTextureFormat format)
+TextureView createBuffer(uint32_t width, uint32_t height, TextureFormat format)
 {
 	// Create the depth texture
 	TextureDescriptor textureDesc;
-	textureDesc.dimension = TextureDimension::_2D;
+	textureDesc.dimension = TextureDimension::e2D;
 	textureDesc.format = format;
 	textureDesc.mipLevelCount = 1;
 	textureDesc.sampleCount = 1;
 	textureDesc.size = { width, height, 1 };
 	textureDesc.usage = TextureUsage::RenderAttachment | TextureUsage::TextureBinding;
 	textureDesc.viewFormatCount = 1;
-	textureDesc.viewFormats = (WGPUTextureFormat*)&format;
-	Texture depthTexture = Context::getInstance().getDevice().createTexture(textureDesc);
+	textureDesc.viewFormats = (TextureFormat*)&format;
+	Texture depthTexture = Context::getInstance().getDevice().CreateTexture(&textureDesc);
 
 	// Create the view of the depth texture manipulated by the rasterizer
 	TextureViewDescriptor textureViewDesc;
@@ -148,9 +147,9 @@ TextureView createBuffer(uint32_t width, uint32_t height, WGPUTextureFormat form
 	textureViewDesc.arrayLayerCount = 1;
 	textureViewDesc.baseMipLevel = 0;
 	textureViewDesc.mipLevelCount = 1;
-	textureViewDesc.dimension = TextureViewDimension::_2D;
+	textureViewDesc.dimension = TextureViewDimension::e2D;
 	textureViewDesc.format = format;
-	return depthTexture.createView(textureViewDesc);
+	return depthTexture.CreateView(&textureViewDesc);
 }
 
 glm::vec3 getRayFromMouse(float mouseX, float mouseY, const glm::mat4& viewMatrix, const glm::mat4& projectionMatrix, int screenWidth, int screenHeight) {
@@ -454,7 +453,7 @@ int main(int, char**) {
 	{
 	});
 
-	ImGUIWrapper* imgui = new ImGUIWrapper(window, swapChainFormat, depthTextureFormat); //After glfw callbacks
+	ImGUIWrapper* imgui = new ImGUIWrapper(window, swapChainFormat, TextureFormat::Depth24PlusStencil8); //After glfw callbacks
 	
 	scene = new Issam::Scene();
 
@@ -483,7 +482,7 @@ int main(int, char**) {
 	unlitPass->setColorBuffer(tmpColorBuffer);
 	unlitPass->addFilter("unlit");
 	unlitPass->setClearColor(true);
-	unlitPass->setClearColorValue(Color(0.0,0.0,0.0,0.0));
+	unlitPass->setClearColorValue(Color({ 0.0, 0.0, 0.0, 0.0 }));
 
 	//Pass* pbrPass2 = new Pass(pbrShader);
 	////Pipeline* pipelineUnlit = new Pipeline(unlitShader, swapChainFormat, depthTextureFormat);
@@ -533,12 +532,13 @@ int main(int, char**) {
 	//scene->setAttribute("backgroundTexture", tmpColorBuffer);
 
 	
+	TextureView imGuiDepthBuffer = createBuffer(m_winWidth, m_winHeight, TextureFormat::Depth24PlusStencil8);
 	Pass* imGuiPass = new Pass();
-	imGuiPass->setDepthBuffer(depthBuffer);
+	imGuiPass->setDepthBuffer(imGuiDepthBuffer);
 	imGuiPass->setType(Pass::Type::CUSTUM);
 	imGuiPass->setWrapper(imgui);
 	imGuiPass->setClearColor(false);
-
+	imGuiPass->setUseStencil(true);
 
 	vec3 focalPoint(0.0, 0.0, -2.0);
 	float angle2 = 3.0f * PI / 4.0f;

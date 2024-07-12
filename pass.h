@@ -1,7 +1,5 @@
 #pragma once
 
-#define WEBGPU_CPP_IMPLEMENTATION
-#include <webgpu/webgpu.hpp>
 
 #include "context.h"
 #include "imgui_wrapper.h"
@@ -15,7 +13,7 @@ public:
 		m_depthStencilAttachment = new RenderPassDepthStencilAttachment();
 	};
 	~Pass() {
-		m_depthBuffer.release();
+	//	m_depthBuffer.release();
 		//depthTexture.destroy(); TODO
 		//depthTexture.release();
 		delete m_depthStencilAttachment;
@@ -54,14 +52,19 @@ public:
 
 			// Stencil setup, mandatory but unused
 			m_depthStencilAttachment->stencilClearValue = 0;
-#ifdef WEBGPU_BACKEND_WGPU
-			m_depthStencilAttachment->stencilLoadOp = LoadOp::Clear;
-			m_depthStencilAttachment->stencilStoreOp = StoreOp::Store;
-#else
-			m_depthStencilAttachment->stencilLoadOp = LoadOp::Undefined;
-			m_depthStencilAttachment->stencilStoreOp = StoreOp::Undefined;
-#endif
-			m_depthStencilAttachment->stencilReadOnly = true;
+
+			if (!m_useStencil)
+			{
+				m_depthStencilAttachment->stencilLoadOp = LoadOp::Undefined;
+				m_depthStencilAttachment->stencilStoreOp = StoreOp::Undefined;
+			}
+			else
+			{
+				m_depthStencilAttachment->stencilLoadOp = LoadOp::Clear;
+				m_depthStencilAttachment->stencilStoreOp = StoreOp::Store;
+			}
+
+			m_depthStencilAttachment->stencilReadOnly = m_useStencil ? false : true;
 			return m_depthStencilAttachment;
 		}
 		else
@@ -70,7 +73,7 @@ public:
 		}
 	}
 
-	const RenderPassColorAttachment* getRenderPassColorAttachment(WGPUTextureView view) {
+	const RenderPassColorAttachment* getRenderPassColorAttachment(TextureView view) {
 		m_renderPassColorAttachment->view = m_colorBuffer ? m_colorBuffer : view;
 		m_renderPassColorAttachment->resolveTarget = nullptr;
 		m_renderPassColorAttachment->loadOp = m_clearColor ? LoadOp::Clear : LoadOp::Load;
@@ -87,7 +90,7 @@ public:
 
 	void setClearColor(bool clear) { m_clearColor = clear; }
 	void setClearColorValue(Color in_clearValue) { m_clearColorValue = in_clearValue; }
-	
+	void setUseStencil(bool active = true) { m_useStencil = active; }
 	enum class Type: uint8_t
 	{
 		SCENE = 0,
@@ -119,7 +122,7 @@ private:
 
 	bool m_clearColor = true;
 	Color m_clearColorValue{ 0.3, 0.3, 0.3, 1.0 };
-
+	bool m_useStencil = false;
 	Type m_type{ Type::SCENE };
 	//size_t m_uniformBufferVersion = 0;
 	std::unordered_map<Issam::Binding, size_t>m_uniformBufferVersion;

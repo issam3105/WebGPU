@@ -206,7 +206,7 @@ namespace Issam {
 			bindGroupDesc.entryCount = static_cast<uint32_t>(bindGroupEntries.size());
 			bindGroupDesc.entries = bindGroupEntries.data();
 			bindGroupDesc.layout = bindGroupLayout;
-			bindGroup = Context::getInstance().getDevice().createBindGroup(bindGroupDesc);
+			bindGroup = Context::getInstance().getDevice().CreateBindGroup(&bindGroupDesc);
 			dirtyBindGroup = false;
 			return bindGroup;
 		}

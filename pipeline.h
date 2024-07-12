@@ -1,6 +1,4 @@
 #pragma once
-#define WEBGPU_CPP_IMPLEMENTATION
-#include <webgpu/webgpu.hpp>
 
 #include "context.h"
 #include "shader.h"
@@ -93,7 +91,7 @@ public:
 
 		// Depth and stencil tests are not used here
 		//pipelineDesc.depthStencil = nullptr;
-		DepthStencilState depthStencilState = Default;
+		DepthStencilState depthStencilState = {};
 		if (depthTextureFormat != TextureFormat::Undefined)
 		{
 			// Setup depth state
@@ -102,9 +100,6 @@ public:
 			depthStencilState.depthWriteEnabled = true;
 			// Store the format in a variable as later parts of the code depend on it
 			depthStencilState.format = depthTextureFormat;
-			// Deactivate the stencil alltogether
-			depthStencilState.stencilReadMask = 0;
-			depthStencilState.stencilWriteMask = 0;
 
 			pipelineDesc.depthStencil = &depthStencilState;
 		}
@@ -125,14 +120,13 @@ public:
 		// Create the pipeline layout
 		PipelineLayoutDescriptor layoutDesc{};
 		layoutDesc.bindGroupLayoutCount = shader->getBindGroupLayouts().size();
-		layoutDesc.bindGroupLayouts = (WGPUBindGroupLayout*)shader->getBindGroupLayouts().data();
-		PipelineLayout layout = Context::getInstance().getDevice().createPipelineLayout(layoutDesc);
+		layoutDesc.bindGroupLayouts = shader->getBindGroupLayouts().data();
+		PipelineLayout layout = Context::getInstance().getDevice().CreatePipelineLayout(&layoutDesc);
 		pipelineDesc.layout = layout;
 
-		m_pipeline = Context::getInstance().getDevice().createRenderPipeline(pipelineDesc);
+		m_pipeline = Context::getInstance().getDevice().CreateRenderPipeline(&pipelineDesc);
 	};
 	~Pipeline() {
-		m_pipeline.release();
 	};
 
 	const RenderPipeline getRenderPipeline() const { return m_pipeline; }

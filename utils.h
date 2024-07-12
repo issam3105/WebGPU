@@ -5,8 +5,6 @@
 #include <filesystem>
 #include <fstream>
 
-#define WEBGPU_CPP_IMPLEMENTATION
-#include <webgpu/webgpu.hpp>
 
 #include "context.h"
 #include "scene.h"
@@ -129,7 +127,7 @@ namespace Utils
 		uint32_t mipLevelCount,
 		const unsigned char* pixelData)
 	{
-		Queue queue = Context::getInstance().getDevice().getQueue();
+		Queue queue = Context::getInstance().getDevice().GetQueue();
 
 		// Arguments telling which part of the texture we upload to
 		ImageCopyTexture destination;
@@ -176,7 +174,7 @@ namespace Utils
 			destination.mipLevel = level;
 			source.bytesPerRow = 4 * mipLevelSize.width;
 			source.rowsPerImage = mipLevelSize.height;
-			queue.writeTexture(destination, pixels.data(), pixels.size(), source, mipLevelSize);
+			queue.WriteTexture(&destination, pixels.data(), pixels.size(), &source, &mipLevelSize);
 
 			previousLevelPixels = std::move(pixels);
 			previousMipLevelSize = mipLevelSize;
@@ -184,7 +182,7 @@ namespace Utils
 			mipLevelSize.height /= 2;
 		}
 
-		queue.release();
+		//queue.release();
 	}
 
 	static uint32_t bit_width(uint32_t m) {
@@ -200,7 +198,7 @@ namespace Utils
 
 		// Use the width, height, channels and data variables here
 		TextureDescriptor textureDesc;
-		textureDesc.dimension = TextureDimension::_2D;
+		textureDesc.dimension = TextureDimension::e2D;
 		textureDesc.format = TextureFormat::RGBA8Unorm; // by convention for bmp, png and jpg file. Be careful with other formats.
 		textureDesc.size = { (unsigned int)width, (unsigned int)height, 1 };
 		textureDesc.mipLevelCount = bit_width(std::max(textureDesc.size.width, textureDesc.size.height));
@@ -208,7 +206,7 @@ namespace Utils
 		textureDesc.usage = TextureUsage::TextureBinding | TextureUsage::CopyDst;
 		textureDesc.viewFormatCount = 0;
 		textureDesc.viewFormats = nullptr;
-		Texture texture = Context::getInstance().getDevice().createTexture(textureDesc);
+		Texture texture = Context::getInstance().getDevice().CreateTexture(&textureDesc);
 
 		// Upload data to the GPU texture
 		writeMipMaps(texture, textureDesc.size, textureDesc.mipLevelCount, pixelData);
@@ -223,9 +221,9 @@ namespace Utils
 			textureViewDesc.arrayLayerCount = 1;
 			textureViewDesc.baseMipLevel = 0;
 			textureViewDesc.mipLevelCount = textureDesc.mipLevelCount;
-			textureViewDesc.dimension = TextureViewDimension::_2D;
+			textureViewDesc.dimension = TextureViewDimension::e2D;
 			textureViewDesc.format = textureDesc.format;
-			*pTextureView = texture.createView(textureViewDesc);
+			*pTextureView = texture.CreateView(&textureViewDesc);
 		}
 
 		return texture;
@@ -239,12 +237,12 @@ namespace Utils
 		textureDesc.size = textureSize;
 		textureDesc.format = wgpu::TextureFormat::RGBA8Unorm;
 		textureDesc.usage = wgpu::TextureUsage::CopyDst | wgpu::TextureUsage::TextureBinding;
-		textureDesc.dimension = wgpu::TextureDimension::_2D;
+		textureDesc.dimension = wgpu::TextureDimension::e2D;
 		textureDesc.mipLevelCount = 1;
 		textureDesc.sampleCount = 1;
 
 		// Create the texture
-		Texture texture = Context::getInstance().getDevice().createTexture(textureDesc);
+		Texture texture = Context::getInstance().getDevice().CreateTexture(&textureDesc);
 
 		// Define the white pixel data
 		uint8_t whitePixel[4] = { 255, 255, 255, 255 };
@@ -263,7 +261,7 @@ namespace Utils
 
 		// Write the white pixel data to the texture
 
-		Context::getInstance().getDevice().getQueue().writeTexture(imageCopyTexture, whitePixel, sizeof(whitePixel), textureDataLayout, textureSize);
+		Context::getInstance().getDevice().GetQueue().WriteTexture(&imageCopyTexture, whitePixel, sizeof(whitePixel), &textureDataLayout, &textureSize);
 
 		if (pTextureView) {
 			TextureViewDescriptor textureViewDesc;
@@ -272,9 +270,9 @@ namespace Utils
 			textureViewDesc.arrayLayerCount = 1;
 			textureViewDesc.baseMipLevel = 0;
 			textureViewDesc.mipLevelCount = textureDesc.mipLevelCount;
-			textureViewDesc.dimension = TextureViewDimension::_2D;
+			textureViewDesc.dimension = TextureViewDimension::e2D;
 			textureViewDesc.format = textureDesc.format;
-			*pTextureView = texture.createView(textureViewDesc);
+			*pTextureView = texture.CreateView(&textureViewDesc);
 		}
 
 		return texture;
@@ -307,7 +305,7 @@ namespace Utils
 		samplerDesc.lodMaxClamp = 8.0f;
 		samplerDesc.compare = CompareFunction::Undefined;
 		samplerDesc.maxAnisotropy = 1;
-		return Context::getInstance().getDevice().createSampler(samplerDesc);
+		return Context::getInstance().getDevice().CreateSampler(&samplerDesc);
 	}
 
 

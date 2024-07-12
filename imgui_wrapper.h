@@ -1,7 +1,5 @@
 #pragma once
 
-#define WEBGPU_CPP_IMPLEMENTATION
-#include <webgpu/webgpu.hpp>
 
 #include "context.h"
 
@@ -27,7 +25,7 @@ public:
 		// Setup Platform/Renderer backends
 		ImGui_ImplGlfw_InitForOther(window, true);
 		//	ImGui_ImplGlfw_InstallCallbacks(window);
-		ImGui_ImplWGPU_Init(Context::getInstance().getDevice(), 3, swapChainFormat, depthTextureFormat);
+		ImGui_ImplWGPU_Init(Context::getInstance().getDevice().Get(), 3, static_cast<WGPUTextureFormat>(swapChainFormat), static_cast<WGPUTextureFormat>(depthTextureFormat));
 	};
 	~ImGUIWrapper()
 	{
@@ -50,6 +48,6 @@ public:
 		// Convert the UI defined above into low-level drawing commands
 		ImGui::Render();
 		// Execute the low-level drawing commands on the WebGPU backend
-		ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), renderPass);
+		ImGui_ImplWGPU_RenderDrawData(ImGui::GetDrawData(), renderPass.Get());
 	}
 };
