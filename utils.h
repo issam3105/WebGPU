@@ -60,7 +60,7 @@ namespace Utils
 		entt::entity cubeEntity = scene->addEntity();
 		Issam::MeshRenderer meshRenderer{ meshId };
 		Material* material = new Material();
-		material->setAttribute("unlitMaterialModel", "colorFactor", glm::vec4(1.0, 0.0, 0.0, 1.0));
+		material->setAttribute("unlitMaterialModel", "colorFactor", glm::vec4(1.0, 0.0, 1.0, 1.0));
 		meshRenderer.material = material;
 		scene->addComponent<Issam::MeshRenderer>(cubeEntity, meshRenderer);
 

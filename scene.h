@@ -225,7 +225,7 @@ namespace Issam {
 			m_registry.patch<Hierarchy>(parent);
 		}
 
-		void removeEntity(entt::entity entity)
+		void removeEntity(entt::entity entity, bool recursively= true)
 		{
 			if (!m_registry.valid(entity)) return;
 			if (hasComponent<Hierarchy>(entity))
@@ -234,10 +234,13 @@ namespace Issam {
 				if (hierarchy.parent != entt::null && hasComponent<Hierarchy>(hierarchy.parent))
 					removeChild(hierarchy.parent, entity);
 
-				// Copy children to a temporary vector to avoid modifying the container while iterating
-				std::vector<entt::entity> children = hierarchy.children;
-				for (auto child : children) {
-					removeEntity(child);
+				if (recursively)
+				{
+					// Copy children to a temporary vector to avoid modifying the container while iterating
+					std::vector<entt::entity> children = hierarchy.children;
+					for (auto child : children) {
+						removeEntity(child);
+					}
 				}
 			}
 			m_registry.destroy(entity);
