@@ -521,6 +521,7 @@ int main(int, char**) {
 	debugPass->setDepthBuffer(depthBuffer);
 	debugPass->addFilter("debug");
 	debugPass->setClearColor(false);
+//	debugPass->setClearDepth(false);
 
 	Pass* toScreenPass = new Pass();
 	toScreenPass->setShader(backgroundShader);

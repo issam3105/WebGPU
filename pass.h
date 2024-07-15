@@ -45,7 +45,7 @@ public:
 			// The initial value of the depth buffer, meaning "far"
 			m_depthStencilAttachment->depthClearValue = 1.0f;
 			// Operation settings comparable to the color attachment
-			m_depthStencilAttachment->depthLoadOp = LoadOp::Clear;
+			m_depthStencilAttachment->depthLoadOp = m_clearDepth ? LoadOp::Clear : LoadOp::Load;
 			m_depthStencilAttachment->depthStoreOp = StoreOp::Store;
 			// we could turn off writing to the depth buffer globally here
 			m_depthStencilAttachment->depthReadOnly = false;
@@ -109,6 +109,7 @@ public:
 			return 0;
 	}
 
+	void setClearDepth(bool clear) { m_clearDepth = clear; }
 private:
 	
 	RenderPassDepthStencilAttachment* m_depthStencilAttachment;
@@ -122,6 +123,7 @@ private:
 
 	bool m_clearColor = true;
 	Color m_clearColorValue{ 0.3, 0.3, 0.3, 1.0 };
+	bool m_clearDepth = true;
 	bool m_useStencil = false;
 	Type m_type{ Type::SCENE };
 	//size_t m_uniformBufferVersion = 0;
