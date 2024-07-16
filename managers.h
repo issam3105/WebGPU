@@ -21,10 +21,10 @@ public:
 	};
 
 	bool add(const std::string& id, TextureView textureView) {
-		m_textures[id] = std::make_shared<wgpu::TextureView>(textureView);
+		m_textures[id] = textureView;
 		return true; }
 	TextureView getTextureView(const std::string& id) {
-		return  *m_textures[id].get(); 
+		return  m_textures[id]; 
 	}
 
 	bool remove(const std::string& id)
@@ -41,9 +41,9 @@ public:
 	{
 		m_textures.clear();
 	}
-	std::unordered_map<std::string, std::shared_ptr<TextureView>>& getAll() { return m_textures; }
+	std::unordered_map<std::string, TextureView>& getAll() { return m_textures; }
 private:
-	std::unordered_map<std::string, std::shared_ptr<TextureView>> m_textures{};
+	std::unordered_map<std::string, TextureView> m_textures{};
 };
 
 class SamplerManager
@@ -57,19 +57,19 @@ public:
 		return samplerManager;
 	};
 
-	bool add(const std::string& id, Sampler textureView) {
-		m_samplers[id] = std::make_shared<wgpu::Sampler>(textureView);
+	bool add(const std::string& id, Sampler sampler) {
+		m_samplers[id] = sampler;
 		return true;
 	}
 	Sampler getSampler(const std::string& id) {
-		return  *m_samplers[id].get();
+		return  m_samplers[id];
 	}
 	void clear()
 	{
 		m_samplers.clear();
 	}
-	std::unordered_map<std::string, std::shared_ptr<Sampler>>& getAll() { return m_samplers; }
+	std::unordered_map<std::string, Sampler>& getAll() { return m_samplers; }
 private:
-	std::unordered_map<std::string, std::shared_ptr<Sampler>> m_samplers{};
+	std::unordered_map<std::string, Sampler> m_samplers{};
 };
 
