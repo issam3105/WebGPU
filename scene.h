@@ -91,7 +91,7 @@ namespace Issam {
 	};
 
 	struct MeshRenderer {
-		std::string meshId{};
+		MeshPtr mesh;
 		Material* material = nullptr;
 
 		~MeshRenderer() {

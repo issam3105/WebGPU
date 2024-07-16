@@ -48,15 +48,14 @@ namespace Utils
 		vertices[6].position = vec3(maxPoint.x, maxPoint.y, maxPoint.z);
 		vertices[7].position = vec3(minPoint.x, maxPoint.y, maxPoint.z);
 
-		Mesh* cubeMesh = new Mesh();
+		MeshPtr cubeMesh = std::make_shared<Mesh>();
+
 		cubeMesh->setVertices(vertices);
 		cubeMesh->setIndices(indices);
-		static int idx = 0;
-		std::string meshId = "cubeMesh" + std::to_string(idx++);
-		MeshManager::getInstance().add(meshId, cubeMesh);
 
 		entt::entity cubeEntity = scene->addEntity();
-		Issam::MeshRenderer meshRenderer{ meshId };
+		Issam::MeshRenderer meshRenderer;
+		meshRenderer.mesh = cubeMesh;
 		Material* material = new Material();
 		material->setAttribute("unlitMaterialModel", "colorFactor", glm::vec4(1.0, 0.0, 1.0, 1.0));
 		meshRenderer.material = material;
@@ -77,14 +76,12 @@ namespace Utils
 		indices.push_back(0);
 		indices.push_back(1);
 
-		Mesh* lineMesh = new Mesh();
+		MeshPtr lineMesh =std::make_shared<Mesh>();
 		lineMesh->setVertices(vertices);
 		lineMesh->setIndices(indices);
-		static int idx = 0;
-		std::string meshId = "lineMesh" + std::to_string(idx++);
-		MeshManager::getInstance().add(meshId, lineMesh);
 
-		Issam::MeshRenderer meshRenderer{ meshId };
+		Issam::MeshRenderer meshRenderer;
+		meshRenderer.mesh = lineMesh;
 		Material* material = new Material();
 		material->setAttribute("unlitMaterialModel", "colorFactor", color);
 		meshRenderer.material = material;
@@ -388,7 +385,7 @@ namespace Utils
 
 				vertices.push_back(vertex);
 			}
-			Mesh* myMesh = new Mesh();
+			MeshPtr myMesh = std::make_shared<Mesh>();
 			myMesh->setVertices(vertices);
 
 			if (primitive.indices != -1)
@@ -420,16 +417,9 @@ namespace Utils
 				myMesh->setIndices(indices);
 			}
 			
-			static int meshId = 0;
-			std::string meshID = mesh.name;
-			if(meshID.empty())
-			     meshID = "mesh_" + std::to_string(meshId++);
 
-			std::string primitiveName = meshID + "_prim"+ std::to_string(primitiveIdx++);
-
-			Issam::MeshRenderer meshRenderer{ primitiveName };
-
-			MeshManager::getInstance().add(primitiveName, myMesh);
+			Issam::MeshRenderer meshRenderer;
+			meshRenderer.mesh = myMesh;
 			if (primitive.material != -1)
 			{
 				Material* material = new Material();

@@ -5,30 +5,6 @@
 #include "mesh.h"
 #include "shader.h"
 
-class MeshManager
-{
-public:
-	///
-	static MeshManager& getInstance() {
-		static MeshManager meshManager;
-		return meshManager;
-	};
-
-	bool add(const std::string& id, Mesh* mesh) { m_meshes[id] = mesh; return true; }
-	bool remove(const std::string& id) {
-		m_meshes.erase(id); 
-		return true; 
-	}
-	bool clear()
-	{
-	    m_meshes.clear();
-		return true;
-	}
-	Mesh* get(const std::string& id) { return  m_meshes[id]; }
-	std::unordered_map<std::string, Mesh*> getAll() { return m_meshes; }
-private:
-	std::unordered_map<std::string, Mesh*> m_meshes;
-};
 
 
 

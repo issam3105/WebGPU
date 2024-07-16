@@ -389,7 +389,7 @@ int main(int, char**) {
 					auto& entityFilters = scene->getComponent<Issam::Filters>(entity);
 					if (entityFilters.has("debug")) continue;
 
-					Mesh* mesh = MeshManager::getInstance().get(meshRenderer.meshId);
+					Mesh* mesh = meshRenderer.mesh.get();
 					if (mesh)
 					{
 						auto& transform = view.get<Issam::WorldTransform>(entity);

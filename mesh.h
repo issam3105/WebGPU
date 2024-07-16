@@ -14,8 +14,7 @@ using namespace glm;
 class VertexBuffer
 {
 public:
-	VertexBuffer(void* vertexData, size_t size, int vertexCount) :
-		m_data(vertexData),
+	VertexBuffer(const void* vertexData, size_t size, int vertexCount) :
 		m_count(vertexCount)
 	{
 		// Create vertex buffer
@@ -27,21 +26,12 @@ public:
 		m_buffer = Context::getInstance().getDevice().CreateBuffer(&bufferDesc);
 
 		// Upload geometry data to the buffer
-		Context::getInstance().getDevice().GetQueue().WriteBuffer(m_buffer, 0, m_data, bufferDesc.size);
+		Context::getInstance().getDevice().GetQueue().WriteBuffer(m_buffer, 0, vertexData, bufferDesc.size);
 	};
 
-	~VertexBuffer() {};
-
-	//void addVertexAttrib(const std::string& attribName, int location, VertexFormat format, int offset)
-	//{
-	//	VertexAttribute vertexAttribute;
-	//	vertexAttribute.shaderLocation = location;
-	//	vertexAttribute.format = format;
-	//	vertexAttribute.offset = offset;
-	//	m_vertexAttribs.push_back(vertexAttribute);
-	//}
-	//void setAttribsStride(uint64_t attribsStride) { m_attribsStride = attribsStride; }
-
+	~VertexBuffer() {
+		m_buffer.Destroy();
+	};
 
 	const Buffer& getBuffer()const { return m_buffer; }
 	const uint64_t getSize() const { return m_size; }
@@ -49,20 +39,16 @@ public:
 
 private:
 	Buffer m_buffer{ nullptr };
-	void* m_data;
 	size_t  m_size;
 	int m_count{ 0 };
-	//std::vector<VertexAttribute> m_vertexAttribs;
-	//uint64_t m_attribsStride = 0;
-
+	
 	friend class Mesh;
 };
 
 class IndexBuffer
 {
 public:
-	IndexBuffer(void* indexData, size_t size, int indexCount) :
-		m_data(indexData),
+	IndexBuffer(const void* indexData, size_t size, int indexCount) :
 		m_count(indexCount)
 	{
 		m_size = size ;
@@ -74,9 +60,11 @@ public:
 		m_buffer = Context::getInstance().getDevice().CreateBuffer(&bufferDesc);
 
 		// Upload geometry data to the buffer
-		Context::getInstance().getDevice().GetQueue().WriteBuffer(m_buffer, 0, m_data, bufferDesc.size);
+		Context::getInstance().getDevice().GetQueue().WriteBuffer(m_buffer, 0, indexData, bufferDesc.size);
 	};
-	~IndexBuffer() {};
+	~IndexBuffer() {
+		m_buffer.Destroy();
+	};
 
 	const Buffer& getBuffer()const { return m_buffer; }
 	const size_t getSize() const { return m_size; }
@@ -84,7 +72,6 @@ public:
 
 private:
 	Buffer m_buffer{ nullptr };
-	void* m_data;
 	size_t  m_size;
 	int m_count{ 0 };
 };
@@ -105,12 +92,12 @@ public:
 		delete m_vertexBuffer;
 		delete m_indexBuffer;
 	};
-	void setVertices(std::vector<Vertex> vertices) { 
+	void setVertices(const std::vector<Vertex>& vertices) { 
 		m_vertices = vertices; 
 		int vertexCount = static_cast<int>(vertices.size());
 		m_vertexBuffer = new VertexBuffer(vertices.data(), vertices.size() * sizeof(Vertex), vertexCount);
 	}
-	void setIndices(std::vector<uint16_t> indices) { 
+	void setIndices(const std::vector<uint16_t>& indices) { 
 		m_indices = indices; 
 		int indexCount = static_cast<int>(indices.size());
 		m_indexBuffer = new IndexBuffer(indices.data(), indices.size() * sizeof(uint16_t), indexCount);
@@ -142,7 +129,7 @@ public:
 
 private:
 
-	VertexBuffer* m_vertexBuffer;
+	VertexBuffer* m_vertexBuffer{ nullptr };
 	IndexBuffer* m_indexBuffer{ nullptr };
 
 	std::vector<uint16_t> m_indices;
@@ -151,3 +138,5 @@ private:
 	std::pair<glm::vec3, glm::vec3> m_boundingBox;
 	bool m_dirtyBoundingBox = true;;
 };
+
+using MeshPtr = std::shared_ptr<Mesh>;

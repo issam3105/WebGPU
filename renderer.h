@@ -90,7 +90,7 @@ public:
 
 					const Issam::MeshRenderer& meshRenderer = view.get<Issam::MeshRenderer>(entity);
 					auto transform = view.get<Issam::WorldTransform>(entity);
-					Mesh* mesh = MeshManager::getInstance().get(meshRenderer.meshId);
+					Mesh* mesh = meshRenderer.mesh.get();
 					if (mesh)
 					{
 						Material* material = meshRenderer.material;
