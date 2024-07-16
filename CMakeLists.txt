@@ -9,10 +9,11 @@ list(APPEND sources
    main.cpp 
    webgpu-utils.cpp
    uniformsBuffer.cpp
+   gltfLoader.cpp
+   utils.cpp
 )
 
 list(APPEND sources
-    tiny_obj_loader.h 
     context.h 
 	shader.h 
 	pipeline.h 
@@ -26,6 +27,7 @@ list(APPEND sources
 	uniformsBuffer.h
 	material.h
 	attributed.h
+	gltfLoader.h
 )
 
 add_executable(App ${sources})

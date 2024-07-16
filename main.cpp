@@ -5,9 +5,6 @@
 #include <glm/glm.hpp>
 #include <glm/ext.hpp>
 
-#define TINYOBJLOADER_IMPLEMENTATION // add this to exactly 1 of your C++ files
-#include "tiny_obj_loader.h"
-
 #include <entt/entt.hpp>
 
 #include <iostream>
@@ -28,6 +25,7 @@
 #include "utils.h"
 #include "renderer.h"
 #include "material.h"
+#include "gltfLoader.h"
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -107,12 +105,15 @@ void updateViewMatrix(Issam::Scene* scene) {
 	scene->update<Issam::Camera>(cameraEntity);
 }
 
-std::vector<std::string> GetFiles(const std::string& directoryPath, std::string extension) {
+std::vector<std::string> GetFiles(const std::string& directoryPath, std::vector<std::string> extensions) {
 	std::vector<std::string> gltfFiles;
 
 	for (const auto& entry : fs::recursive_directory_iterator(directoryPath)) {
-		if (entry.is_regular_file() && entry.path().extension() == extension) {
-			gltfFiles.push_back(entry.path().string());
+		for (auto& extension : extensions)
+		{
+			if (entry.is_regular_file() && entry.path().extension() == extension) {
+				gltfFiles.push_back(entry.path().string());
+			}
 		}
 	}
 
@@ -222,16 +223,13 @@ int main(int, char**) {
 
 	Context::getInstance().initGraphics(window, m_winWidth, m_winHeight, swapChainFormat);
 
-	std::vector<std::string> jpgFiles = GetFiles(DATA_DIR, ".jpg");
-	std::vector<std::string> pngFiles = GetFiles(DATA_DIR, ".png");
-	jpgFiles.insert(jpgFiles.end(), pngFiles.begin(), pngFiles.end());
-
-
+	std::vector<std::string> jpgFiles = GetFiles(DATA_DIR, { ".jpg", ".png" });
+	
 	std::unordered_map<std::string, std::shared_ptr<wgpu::TextureView>> textures{};
 	for (auto& file : jpgFiles)
 	{
 		TextureView textureView =nullptr;
-		Texture gltfTexture = Utils::loadTexture(file, &textureView);
+		Texture gltfTexture = Utils::loadImageFromPath(file, &textureView);
 		TextureManager().getInstance().add(file, textureView);
 	}
 
@@ -579,8 +577,10 @@ int main(int, char**) {
 	renderer.setScene(scene);
 
 	//Issam::Node* selectedNode = nullptr;
-	std::vector<std::string> gltfFiles = GetFiles("C:/Dev/glTF-Sample-Models/2.0", ".gltf");
+	std::vector<std::string> gltfFiles = GetFiles("C:/Dev/glTF-Sample-Models/2.0", { ".gltf", ".glb" });
 	entt::entity gltfEntity;
+	GltfLoader gltfLoader(scene);
+
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
 
@@ -598,12 +598,11 @@ int main(int, char**) {
 						if (ImGui::Selectable(gltfFiles[i].c_str(), isSelected)) {
 							if (selectedGLTFIndex != -1)
 							{
-								scene->removeEntity(gltfEntity);
-
+								gltfLoader.unload();
 								pickedEntity = entt::null;
 							}
 							selectedGLTFIndex = i;
-							gltfEntity = Utils::LoadGLTF(gltfFiles[i], scene);
+							gltfLoader.load(gltfFiles[i]);
 
 						}
 						if (isSelected) {

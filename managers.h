@@ -26,6 +26,17 @@ public:
 	TextureView getTextureView(const std::string& id) {
 		return  *m_textures[id].get(); 
 	}
+
+	bool remove(const std::string& id)
+	{
+		auto& it =m_textures.find(id);
+		if (it != m_textures.end())
+		{
+			m_textures.erase(it); //TODO vérifier si ça appelle bien le destructeur de TextureView
+			return true;
+		}
+		return false;
+	}
 	void clear()
 	{
 		m_textures.clear();
