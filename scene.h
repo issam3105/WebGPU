@@ -32,7 +32,7 @@ namespace Issam {
 	{
 	public:
 		WorldTransform() {
-			auto& groups = Issam::AttributedManager::getInstance().getAll(Issam::Binding::Node);
+			auto const & groups = Issam::AttributedManager::getInstance().getAll(Issam::Binding::Node);
 			for (auto& [groupName, attributeGroup] : groups)
 			{
 				m_attributeds[groupName] = new Issam::AttributedRuntime(groupName, attributeGroup.getVersionCount());
@@ -41,7 +41,7 @@ namespace Issam {
 		}
 		WorldTransform(glm::mat4 transform): m_matrix( transform)
 		{
-			auto& groups = Issam::AttributedManager::getInstance().getAll(Issam::Binding::Node);
+			auto const & groups = Issam::AttributedManager::getInstance().getAll(Issam::Binding::Node);
 			for (auto& [groupName, attributeGroup] : groups)
 			{
 				m_attributeds[groupName] = new Issam::AttributedRuntime(groupName, attributeGroup.getVersionCount());
@@ -125,7 +125,7 @@ namespace Issam {
 
 		Scene()
 		{
-			auto& groups = Issam::AttributedManager::getInstance().getAll(Issam::Binding::Scene);
+			auto const & groups = Issam::AttributedManager::getInstance().getAll(Issam::Binding::Scene);
 			for (auto& [groupName, attributeGroup] : groups)
 			{
 				m_attributeds[groupName] = new Issam::AttributedRuntime(groupName, attributeGroup.getVersionCount());

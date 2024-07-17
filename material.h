@@ -18,7 +18,7 @@ class Material
 public:
 	Material()
 	{
-		auto& groups = Issam::AttributedManager::getInstance().getAll(Issam::Binding::Material);
+		auto const & groups = Issam::AttributedManager::getInstance().getAll(Issam::Binding::Material);
 		for (auto& [groupName, attributeGroup]: groups)
 		{
 			m_attributeds[groupName] = new Issam::AttributedRuntime(groupName, attributeGroup.getVersionCount());
@@ -60,6 +60,8 @@ public:
 				return  std::get<UniformValue>(attributed.second->getAttribute(name).value);
 			}
 		}
+                static UniformValue val;
+                return val;
 	}
 
 	Issam::AttributedRuntime* getAttibutedRuntime(const std::string& attributedId)

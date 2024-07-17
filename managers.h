@@ -29,7 +29,7 @@ public:
 
 	bool remove(const std::string& id)
 	{
-		auto& it =m_textures.find(id);
+		auto it =m_textures.find(id);
 		if (it != m_textures.end())
 		{
 			m_textures.erase(it);
