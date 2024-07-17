@@ -30,14 +30,6 @@ namespace Utils
 
 	std::string getFileExtension(const std::string& filePath);
 	
-	// Auxiliary function for loadTexture
-	static void writeMipMaps(
-		Texture texture,
-		Extent3D textureSize,
-		uint32_t mipLevelCount,
-		const unsigned char* pixelData);
-
-	static uint32_t bit_width(uint32_t m);
 	Texture loadTexture(unsigned char* pixelData, int& width, int& height, int& channels, TextureView* pTextureView = nullptr);
 
 	Texture loadImageFromPath(const std::string& path, TextureView* pTextureView = nullptr);

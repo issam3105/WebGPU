@@ -344,6 +344,9 @@ int main(int, char**) {
 
 	
 	glfwSetCursorPosCallback(window, [](GLFWwindow* window, double xpos, double ypos) {
+		ImGuiIO& io = ImGui::GetIO();
+		if (io.WantCaptureMouse) return;
+
 		if (m_drag.active) {
 			vec2 currentMouse = vec2((float)xpos, (float)ypos);
 			vec2 delta = (currentMouse - m_drag.startMouse) * m_drag.sensitivity;
@@ -442,6 +445,8 @@ int main(int, char**) {
 	});
 
 	glfwSetScrollCallback(window, [](GLFWwindow* window, double xoffset, double yoffset) {
+		ImGuiIO& io = ImGui::GetIO();
+		if (io.WantCaptureMouse) return;
 		m_cameraState.zoom += m_drag.scrollSensitivity * static_cast<float>(yoffset);
 		m_cameraState.zoom = glm::clamp(m_cameraState.zoom, -20.0f, 20.0f);
 		updateViewMatrix(scene); 

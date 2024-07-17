@@ -32,7 +32,7 @@ public:
 		auto& it =m_textures.find(id);
 		if (it != m_textures.end())
 		{
-			m_textures.erase(it); //TODO vérifier si ça appelle bien le destructeur de TextureView
+			m_textures.erase(it);
 			return true;
 		}
 		return false;

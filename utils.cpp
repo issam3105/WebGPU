@@ -204,7 +204,7 @@ std::string Utils::getFileExtension(const std::string& filePath) {
 }
 
 // Auxiliary function for loadTexture
-static void Utils::writeMipMaps(
+static void writeMipMaps(
 	Texture texture,
 	Extent3D textureSize,
 	uint32_t mipLevelCount,
@@ -268,7 +268,7 @@ static void Utils::writeMipMaps(
 	//queue.release();
 }
 
-static uint32_t Utils::bit_width(uint32_t m) {
+static uint32_t bit_width(uint32_t m) {
 	if (m == 0) return 0;
 	else { uint32_t w = 0; while (m >>= 1) ++w; return w; }
 }

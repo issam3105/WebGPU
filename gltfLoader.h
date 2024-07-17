@@ -5,14 +5,10 @@
 #include <fstream>
 #include <regex>
 
-#include "scene.h"
-
+#include <entt/entt.hpp>
 #include "tiny_gltf.h"
 
-#include <entt/entt.hpp>
-
-#include "utils.h"
-
+#include "scene.h"
 
 const std::regex base64Pattern(R"(data:image/(\w+);base64,)");
 

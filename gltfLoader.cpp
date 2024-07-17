@@ -1,8 +1,7 @@
 #include "gltfLoader.h"
 
 #include "material.h"
-
-
+#include "utils.h"
 #include "stb_image.h"
 
 void GltfLoader::load(const std::string& filepath) {
