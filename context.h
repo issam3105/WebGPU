@@ -12,7 +12,7 @@ using namespace wgpu;
 class Context
 {
 public:
-	static Context& Context::getInstance()
+	static Context& getInstance()
 	{
 		static Context ctx;
 		return ctx;

@@ -338,17 +338,17 @@ void GltfLoader::loadNode(const tinygltf::Model& model, const tinygltf::Node& gl
 	const glm::vec3 T =
 		gltfNode.translation.empty()
 		? glm::vec3(0.0)
-		: glm::make_vec3(gltfNode.translation.data());
+		: glm::make_vec3((float*)gltfNode.translation.data());
 
 	const glm::quat R =
 		gltfNode.rotation.empty()
 		? glm::quat()
-		: glm::make_quat(gltfNode.rotation.data());
+		: glm::make_quat((float*)gltfNode.rotation.data());
 
 	const glm::vec3 S =
 		gltfNode.scale.empty()
 		? glm::vec3(1.0)
-		: glm::make_vec3(gltfNode.scale.data());
+		: glm::make_vec3((float*)gltfNode.scale.data());
 
 	//node->setTransform(glm::translate(glm::mat4(1.0), T) * glm::mat4_cast(R) * glm::scale(glm::mat4(1.0), S));
 	scene->setLocalTransform(entity, glm::translate(glm::mat4(1.0), T) * glm::mat4_cast(R) * glm::scale(glm::mat4(1.0), S));

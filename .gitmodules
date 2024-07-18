@@ -1,0 +1,7 @@
+[submodule "entt"]
+    path = ext/entt
+    url = https://github.com/skypjack/entt
+
+[submodule "tinygltf"]
+    path = ext/tinygltf
+    url = https://github.com/syoyo/tinygltf.git

@@ -102,7 +102,8 @@ public:
 	Type getType() { return m_type; }
 
 	void setUniformBufferVersion(Issam::Binding binding, size_t uniformBufferVersion) { m_uniformBufferVersion[binding] = uniformBufferVersion; }
-	const size_t& getUniformBufferVersion(Issam::Binding binding) {
+
+	size_t getUniformBufferVersion(Issam::Binding binding) {
 		if (m_uniformBufferVersion.find(binding) != m_uniformBufferVersion.end())
 			return m_uniformBufferVersion[binding];
 		else

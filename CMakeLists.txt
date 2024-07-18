@@ -38,12 +38,13 @@ set_target_properties(App PROPERTIES
     COMPILE_WARNING_AS_ERROR OFF
 )
 
-if (MSVC)
-    target_compile_options(App PRIVATE /W3)
-else()
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     target_compile_options(App PRIVATE -Wall -Wextra -pedantic)
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    #   target_compile_options(App PRIVATE -Wall -Wextra -pedantic)
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    target_compile_options(App PRIVATE /W3)
 endif()
-
 
 add_subdirectory(ext/glfw)
 add_subdirectory(ext/webgpu)

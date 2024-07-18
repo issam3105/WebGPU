@@ -21,6 +21,7 @@ public:
 		//Creating render pipeline
 		RenderPipelineDescriptor pipelineDesc;
 		pipelineDesc.label = label.c_str();
+                pipelineDesc.depthStencil = nullptr;
 
 		// Vertex fetch
 		std::vector<VertexAttribute> m_vertexAttribs;
