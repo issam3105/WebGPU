@@ -38,7 +38,7 @@ public:
 
 		m_adapter = RequestAdapter(m_instance, &adapterOpts);
 		assert(m_adapter);
-		//	inspectAdapter(m_adapter);
+		//inspectAdapter(m_adapter.Get());
 
 			//Requesting device...
 		DeviceDescriptor deviceDesc;
@@ -46,6 +46,14 @@ public:
 	//	deviceDesc.requiredFeaturesCount = 0;
 		deviceDesc.requiredLimits = nullptr;
 		deviceDesc.defaultQueue.label = "The default queue";
+		
+		std::vector<FeatureName> requiredFeatures = {
+		    FeatureName::Float32Filterable
+		};
+
+		deviceDesc.requiredFeatures = requiredFeatures.data();
+		deviceDesc.requiredFeatureCount = static_cast<uint32_t>(requiredFeatures.size());
+
 		m_device = RequestDevice(m_adapter, &deviceDesc);
 		//m_device = m_adapter.requestDevice(deviceDesc);
 		assert(m_device);

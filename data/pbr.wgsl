@@ -67,6 +67,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	let L = lightDirection;
 	let H = normalize(V + L);
 	
+	//let reflectedDir = reflect(V, N);
+	//let envmap = textureSample(environmentMap, defaultSampler, reflectedDir.xy).rgb;
+	
 	let baseColor = textureSample(baseColorTexture, defaultSampler, in.uv) * u_material.baseColorFactor;
 	let metallicRoughnessTex = textureSample(metallicRoughnessTexture, defaultSampler, in.uv);
 	let metallic = metallicRoughnessTex.b * u_material.metallicFactor.x;

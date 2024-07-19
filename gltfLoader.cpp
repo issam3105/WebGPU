@@ -117,7 +117,7 @@ Texture GltfLoader::loadImageFromBase64(const std::string& base64, TextureView* 
 	if (!data) {
 		std::cerr << "Failed to load image from Base64 data" << std::endl;
 	}
-	return Utils::loadTexture(data, width, height, channels, pTextureView);
+	return Utils::loadTexture(data, width, height, channels, TextureFormat::RGBA8Unorm, pTextureView);
 }
 
 Texture GltfLoader::loadImageFromVector(const std::vector<unsigned char>& imageVector, TextureView* pTextureView) {
@@ -126,7 +126,7 @@ Texture GltfLoader::loadImageFromVector(const std::vector<unsigned char>& imageV
 	if (!data) {
 		std::cerr << "Failed to load image from vector data" << std::endl;
 	}
-	return Utils::loadTexture(data, width, height, channels, pTextureView);
+	return Utils::loadTexture(data, width, height, channels, TextureFormat::RGBA8Unorm, pTextureView);
 }
 
 // Load image from GLTF buffer
@@ -141,7 +141,7 @@ Texture GltfLoader::loadImageFromBuffer(const tinygltf::Model& model, const tiny
 		std::cerr << "Failed to load image from GLTF buffer" << std::endl;
 	}
 
-	return Utils::loadTexture(data, width, height, channels, pTextureView);
+	return Utils::loadTexture(data, width, height, channels, TextureFormat::RGBA8Unorm, pTextureView);
 }
 
 std::string GltfLoader::generateTextureId(const std::string& uri, const std::string& baseDir, int source)

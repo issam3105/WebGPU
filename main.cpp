@@ -233,6 +233,11 @@ int main(int, char**) {
 		TextureManager().getInstance().add(file, textureView);
 	}
 
+	TextureView hdrTextureView = nullptr;
+	Texture hdrTexture = Utils::loadImageFromPath(DATA_DIR "/venice_sunset_2k.hdr", &hdrTextureView, true);
+	TextureManager().getInstance().add("venice_sunset_2k", hdrTextureView);
+
+
 	TextureView whiteTextureView = nullptr;
 	Texture  whiteTexture = Utils::CreateWhiteTexture(&whiteTextureView);
 	TextureManager().getInstance().add("whiteTex", whiteTextureView);
@@ -297,6 +302,7 @@ int main(int, char**) {
 
 	pbrMaterialAttributes.addAttribute("baseColorTexture", whiteTextureView);
 	pbrMaterialAttributes.addAttribute("metallicRoughnessTexture", whiteTextureView);
+	pbrMaterialAttributes.addAttribute("environmentMap", hdrTextureView);
 	pbrMaterialAttributes.addAttribute("defaultSampler", defaultSampler);
 	Issam::AttributedManager::getInstance().add(c_pbrMaterialAttributes, pbrMaterialAttributes);
 

@@ -30,7 +30,7 @@ namespace Utils
 
 	std::string getFileExtension(const std::string& filePath);
 	
-	Texture loadTexture(unsigned char* pixelData, int& width, int& height, int& channels, TextureView* pTextureView = nullptr);
+	Texture loadTexture(void* pixelData, int& width, int& height, int& channels, TextureFormat format, TextureView* pTextureView = nullptr);
 
-	Texture loadImageFromPath(const std::string& path, TextureView* pTextureView = nullptr);
+	Texture loadImageFromPath(const std::string& path, TextureView* pTextureView = nullptr, bool hdr = false);
 }
