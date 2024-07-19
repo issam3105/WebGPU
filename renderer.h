@@ -46,7 +46,10 @@ public:
 		commandEncoderDesc.label = "Command Encoder";
 		CommandEncoder encoder = Context::getInstance().getDevice().CreateCommandEncoder(&commandEncoderDesc);
 
-		TextureView nextTexture = Context::getInstance().getSwapChain().GetCurrentTextureView();
+		SurfaceTexture surfaceTexture;
+		Context::getInstance().getSurface().GetCurrentTexture(&surfaceTexture);
+
+		TextureView nextTexture = surfaceTexture.texture.CreateView();
 		if (!nextTexture) {
 			std::cerr << "Cannot acquire next swap chain texture" << std::endl;
 		}
@@ -151,7 +154,7 @@ public:
 		commands.push_back(command);
 		m_queue.Submit(commands.size(), commands.data());
 
-		Context::getInstance().getSwapChain().Present();
+		Context::getInstance().getSurface().Present();
 	};
 
 	void addPass(Pass* pass)

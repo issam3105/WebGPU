@@ -30,9 +30,8 @@ public:
 		}
 
 		//Requesting adapter...
-		m_surface = glfw::CreateSurfaceForWindow(m_instance, window);
 		RequestAdapterOptions adapterOpts;
-		adapterOpts.compatibleSurface = m_surface;
+		adapterOpts.compatibleSurface = nullptr;
 		adapterOpts.backendType = BackendType::Vulkan;
 		adapterOpts.powerPreference = PowerPreference::HighPerformance;
 
@@ -68,15 +67,21 @@ public:
 
 		m_device.SetUncapturedErrorCallback(onUncapturedError, nullptr);
 
-		//Creating swapchain...
-		SwapChainDescriptor swapChainDesc;
-		swapChainDesc.width = width;
-		swapChainDesc.height = height;
-		swapChainDesc.usage = TextureUsage::RenderAttachment;
-		swapChainDesc.format = swapChainFormat;
-		swapChainDesc.presentMode = PresentMode::Fifo; //Immediate
-		m_swapChain = m_device.CreateSwapChain(m_surface, &swapChainDesc);
-		assert(m_swapChain);
+	//	//Creating swapchain...
+		m_surface = glfw::CreateSurfaceForWindow(m_instance, window);
+		SurfaceConfiguration config;
+		config.device = m_device;
+		config.format = swapChainFormat;
+		config.usage = TextureUsage::RenderAttachment;
+		config.width = static_cast<uint32_t>(width);
+		config.height = static_cast<uint32_t>(height);
+		config.presentMode = PresentMode::Fifo,
+		m_surface.Configure(&config);
+	}
+
+	Surface getSurface()
+	{
+		return m_surface;
 	}
 
 	void shutdownGraphics()
@@ -84,7 +89,6 @@ public:
 	}
 
 	Device getDevice() { return m_device; }
-	SwapChain getSwapChain() { return m_swapChain; }
 
 private:
 	Device RequestDevice(Adapter& instance, DeviceDescriptor const* descriptor) {
@@ -145,7 +149,6 @@ private:
 	Context() = default;
 
 	Device m_device = nullptr;
-	SwapChain m_swapChain = nullptr;
 	Instance m_instance = nullptr;
 	Surface m_surface = nullptr;
 	Adapter m_adapter = nullptr;
