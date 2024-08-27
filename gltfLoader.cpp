@@ -337,18 +337,31 @@ void GltfLoader::loadNode(const tinygltf::Model& model, const tinygltf::Node& gl
 
 	const glm::vec3 T =
 		gltfNode.translation.empty()
-		? glm::vec3(0.0)
-		: glm::make_vec3((float*)gltfNode.translation.data());
+		? glm::vec3(0.0f)
+		: glm::vec3(
+			(float)(gltfNode.translation[0]),
+			(float)(gltfNode.translation[1]),
+			(float)(gltfNode.translation[2])
+		);
 
 	const glm::quat R =
 		gltfNode.rotation.empty()
 		? glm::quat()
-		: glm::make_quat((float*)gltfNode.rotation.data());
+		: glm::quat(
+			(float)(gltfNode.rotation[3]),
+			(float)(gltfNode.rotation[0]),
+			(float)(gltfNode.rotation[1]),
+			(float)(gltfNode.rotation[2])  
+		);
 
 	const glm::vec3 S =
 		gltfNode.scale.empty()
-		? glm::vec3(1.0)
-		: glm::make_vec3((float*)gltfNode.scale.data());
+		? glm::vec3(1.0f)
+		: glm::vec3(
+			(float)(gltfNode.scale[0]),
+			(float)(gltfNode.scale[1]),
+			(float)(gltfNode.scale[2])
+		);
 
 	//node->setTransform(glm::translate(glm::mat4(1.0), T) * glm::mat4_cast(R) * glm::scale(glm::mat4(1.0), S));
 	scene->setLocalTransform(entity, glm::translate(glm::mat4(1.0), T) * glm::mat4_cast(R) * glm::scale(glm::mat4(1.0), S));
