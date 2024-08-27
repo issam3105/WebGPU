@@ -10,6 +10,10 @@ class Renderer
 public:
 	Renderer()
 	{
+		
+	};
+	void init()
+	{
 		m_queue = Context::getInstance().getDevice().GetQueue();
 
 		std::vector<Vertex> vertices;
@@ -35,7 +39,7 @@ public:
 
 		fullScreenMesh = new Mesh();
 		fullScreenMesh->setVertices(vertices);
-	};
+	}
 	~Renderer() {
 		delete fullScreenMesh;
 	};
@@ -144,7 +148,10 @@ public:
 
 			renderPass.End();
 		}
-		Context::getInstance().getDevice().Tick();
+#if  !defined(__EMSCRIPTEN__)
+		Context::getInstance().getDevice().Tick(); 
+#endif
+		
 
 		CommandBufferDescriptor cmdBufferDescriptor;
 		cmdBufferDescriptor.label = "Command buffer";
@@ -154,7 +161,10 @@ public:
 		commands.push_back(command);
 		m_queue.Submit(commands.size(), commands.data());
 
-		Context::getInstance().getSurface().Present();
+#if  !defined(__EMSCRIPTEN__)
+		Context::getInstance().getSurface().Present(); 
+#endif
+		
 	};
 
 	void addPass(Pass* pass)

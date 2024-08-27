@@ -29,6 +29,10 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
+#if defined(__EMSCRIPTEN__)
+	#include <emscripten.h>
+#endif
+
 using namespace wgpu;
 namespace fs = std::filesystem;
 
@@ -38,7 +42,6 @@ constexpr float PI = 3.14159265358979323846f;
 
 const std::string c_pbrMaterialAttributes = "pbrMaterialModel";
 const std::string c_unlitMaterialAttributes = "unlitMaterialModel";
-const std::string c_unlit2MaterialAttributes = "unlit2MaterialModel"; //TODO remove ?
 
 const std::string c_pbrSceneAttributes = "pbrSceneAttributes";
 const std::string c_pbrNodeAttributes = "pbrNodeAttributes";
@@ -206,19 +209,26 @@ bool rayIntersectsBoundingBox(const glm::vec3& rayOrigin, const glm::vec3& rayDi
 entt::entity pickedEntity = entt::null;
 entt::entity bBox = entt::null;
 entt::entity axes = entt::null;
+GLFWwindow* window = nullptr;
+ImGUIWrapper* imgui = nullptr;
+entt::entity lightEnitity;
+Renderer renderer;
 
-int main(int, char**) {
+std::vector<std::string> gltfFiles;
+GltfLoader gltfLoader;
+
+void init() {
 	if (!glfwInit()) {
 		std::cerr << "Could not initialize GLFW!" << std::endl;
-		return 1;
+		//return 1;
 	}
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-	GLFWwindow* window = glfwCreateWindow(m_winWidth, m_winHeight, "WebGPU Renderer", NULL, NULL);
+	window = glfwCreateWindow(m_winWidth, m_winHeight, "WebGPU Renderer", NULL, NULL);
 	if (!window) {
 		std::cerr << "Could not open window!" << std::endl;
-		return 1;
+		//return 1;
 	}
 
 	Context::getInstance().initGraphics(window, m_winWidth, m_winHeight, swapChainFormat);
@@ -462,7 +472,7 @@ int main(int, char**) {
 	{
 	});
 
-	ImGUIWrapper* imgui = new ImGUIWrapper(window, swapChainFormat, TextureFormat::Depth24PlusStencil8); //After glfw callbacks
+	imgui = new ImGUIWrapper(window, swapChainFormat, TextureFormat::Depth24PlusStencil8); //After glfw callbacks
 	
 	scene = new Issam::Scene();
 
@@ -570,14 +580,14 @@ int main(int, char**) {
 	camera.m_projection = proj;
 	scene->addComponent<Issam::Camera>(cameraEntity, camera);
 
-	entt::entity lightEnitity = scene->addEntity();
+	lightEnitity = scene->addEntity();
 	Issam::Light light;
 	light.m_direction = vec3(0.5, -0.9, 0.1);
 	scene->addComponent<Issam::Light>(lightEnitity, light);
 
 	//scene->setAttribute("backgroundTexture", TextureManager::getInstance().getTextureView(jpgFiles[1]));
 
-	Renderer renderer;
+	renderer.init();
 	renderer.addPass(passPbr);
 	renderer.addPass(unlitPass);
  	renderer.addPass(dilatationPass);
@@ -587,119 +597,137 @@ int main(int, char**) {
 	renderer.addPass(imGuiPass);
 	renderer.setScene(scene);
 
-	//Issam::Node* selectedNode = nullptr;
-	std::vector<std::string> gltfFiles = GetFiles("C:/Dev/glTF-Sample-Models/2.0", { ".gltf", ".glb" });
-	entt::entity gltfEntity;
-	GltfLoader gltfLoader(scene);
+	gltfFiles = GetFiles(DATA_DIR, { ".gltf", ".glb" });
+	gltfLoader.setScene(scene);
 
-	while (!glfwWindowShouldClose(window)) {
-		glfwPollEvents();
+	//return 0;
+}
 
-		{
-			imgui->begin();
-			
+void updateGUI()
+{
+	imgui->begin();
+	ImGui::Begin("Material Editor");
+	{
 
-			ImGui::Begin("Material Editor");
-			{
-				
-				static int selectedGLTFIndex = -1;
-				if (ImGui::BeginCombo("GLTF Files", selectedGLTFIndex == -1 ? "Select a GLTF" : gltfFiles[selectedGLTFIndex].c_str())) {
-					for (int i = 0; i < gltfFiles.size(); i++) {
-						bool isSelected = (selectedGLTFIndex == i);
-						if (ImGui::Selectable(gltfFiles[i].c_str(), isSelected)) {
-							if (selectedGLTFIndex != -1)
-							{
-								gltfLoader.unload();
-								pickedEntity = entt::null;
-							}
-							selectedGLTFIndex = i;
-							gltfLoader.load(gltfFiles[i]);
-
-						}
-						if (isSelected) {
-							ImGui::SetItemDefaultFocus();
-						}
+		static int selectedGLTFIndex = -1;
+		if (ImGui::BeginCombo("GLTF Files", selectedGLTFIndex == -1 ? "Select a GLTF" : gltfFiles[selectedGLTFIndex].c_str())) {
+			for (int i = 0; i < gltfFiles.size(); i++) {
+				bool isSelected = (selectedGLTFIndex == i);
+				if (ImGui::Selectable(gltfFiles[i].c_str(), isSelected)) {
+					if (selectedGLTFIndex != -1)
+					{
+						gltfLoader.unload();
+						pickedEntity = entt::null;
 					}
-					ImGui::EndCombo();
+					selectedGLTFIndex = i;
+					gltfLoader.load(gltfFiles[i]);
+
+				}
+				if (isSelected) {
+					ImGui::SetItemDefaultFocus();
 				}
 			}
-			
-
-			if (pickedEntity != entt::null && scene->getRegistry().valid(pickedEntity)/*&& pickedEntity->material*/)
-			{
-				Material* selectedMaterial = scene->getComponent<Issam::MeshRenderer>(pickedEntity).material;
-
-				//Material* selectedMaterial = pickedNode->material;
-				glm::vec4 baseColorFactor = std::get<glm::vec4>(selectedMaterial->getUniform("baseColorFactor"));
-				if(ImGui::ColorEdit4("BaseColorFactor", (float*)&baseColorFactor))
-					selectedMaterial->setAttribute("baseColorFactor", baseColorFactor);
-
-				{
-					static int selectedTextureIndex = -1;
-					std::vector<std::string> textureNames;
-					for (const auto& texturePair : TextureManager::getInstance().getAll()) {
-						textureNames.push_back(texturePair.first);
-					}
-
-					if (ImGui::BeginCombo("BaseColorTexture", selectedTextureIndex == -1 ? "Select a texture" : textureNames[selectedTextureIndex].c_str())) {
-						for (int i = 0; i < textureNames.size(); i++) {
-							bool isSelected = (selectedTextureIndex == i);
-							if (ImGui::Selectable(textureNames[i].c_str(), isSelected)) {
-								selectedTextureIndex = i;
-								//	std::cout << "Selected texture: " << textureNames[i] << std::endl;
-								selectedMaterial->setAttribute("baseColorTexture", TextureManager::getInstance().getTextureView(textureNames[i]));
-								
-								
-							}
-							if (isSelected) {
-								ImGui::SetItemDefaultFocus();
-							}
-						}
-						ImGui::EndCombo();
-					}
-				}
-				float metallicFactor = std::get<float>(selectedMaterial->getUniform("metallicFactor"));
-				if(ImGui::SliderFloat("MetallicFactor", &metallicFactor, 0.0 , 1.0))
-					selectedMaterial->setAttribute("metallicFactor", metallicFactor);
-				
-				float roughnessFactor = std::get<float>(selectedMaterial->getUniform("roughnessFactor"));
-				if(ImGui::SliderFloat("RoughnessFactor", &roughnessFactor, 0.0, 1.0))
-					selectedMaterial->setAttribute("roughnessFactor", roughnessFactor);
-			}
-
-			static glm::vec3 lightDirection = glm::vec3(1.0);
-			if (ImGui::SliderFloat3("lightDirection", (float*)&lightDirection, -1.0, 1.0))
-			{
-				auto& light = scene->getComponent<Issam::Light>(lightEnitity);
-				light.m_direction = lightDirection;
-				scene->update<Issam::Light>(lightEnitity);
-			}
-			
-			
-			/*static float translation[3] = { 0.0, 0.0, 0.0 };
-			static float rotation[3] = { 0.0, 0.0, 0.0 };
-			static float scale[3] = { 1.0, 1.0, 1.0 };
-			ImGui::InputFloat3("Translation", translation);
-			ImGui::InputFloat3("Rotation", rotation);
-			ImGui::InputFloat3("Scale", scale);
-			glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), glm::make_vec3(translation));
-			glm::mat4 rotationMatrix = computeRotationMatrix(glm::make_vec3(rotation));
-			glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), glm::make_vec3(scale));
-			glm::mat4 transformation = translationMatrix * rotationMatrix * scaleMatrix;
-			shader->setUniform("model", transformation);*/
-
-			ImGuiIO& io = ImGui::GetIO();
-			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
-			ImGui::End();
+			ImGui::EndCombo();
 		}
-
-		renderer.draw();
 	}
 
+
+	if (pickedEntity != entt::null && scene->getRegistry().valid(pickedEntity)/*&& pickedEntity->material*/)
+	{
+		Material* selectedMaterial = scene->getComponent<Issam::MeshRenderer>(pickedEntity).material;
+
+		//Material* selectedMaterial = pickedNode->material;
+		glm::vec4 baseColorFactor = std::get<glm::vec4>(selectedMaterial->getUniform("baseColorFactor"));
+		if (ImGui::ColorEdit4("BaseColorFactor", (float*)&baseColorFactor))
+			selectedMaterial->setAttribute("baseColorFactor", baseColorFactor);
+
+		{
+			static int selectedTextureIndex = -1;
+			std::vector<std::string> textureNames;
+			for (const auto& texturePair : TextureManager::getInstance().getAll()) {
+				textureNames.push_back(texturePair.first);
+			}
+
+			if (ImGui::BeginCombo("BaseColorTexture", selectedTextureIndex == -1 ? "Select a texture" : textureNames[selectedTextureIndex].c_str())) {
+				for (int i = 0; i < textureNames.size(); i++) {
+					bool isSelected = (selectedTextureIndex == i);
+					if (ImGui::Selectable(textureNames[i].c_str(), isSelected)) {
+						selectedTextureIndex = i;
+						//	std::cout << "Selected texture: " << textureNames[i] << std::endl;
+						selectedMaterial->setAttribute("baseColorTexture", TextureManager::getInstance().getTextureView(textureNames[i]));
+
+
+					}
+					if (isSelected) {
+						ImGui::SetItemDefaultFocus();
+					}
+				}
+				ImGui::EndCombo();
+			}
+		}
+		float metallicFactor = std::get<float>(selectedMaterial->getUniform("metallicFactor"));
+		if (ImGui::SliderFloat("MetallicFactor", &metallicFactor, 0.0, 1.0))
+			selectedMaterial->setAttribute("metallicFactor", metallicFactor);
+
+		float roughnessFactor = std::get<float>(selectedMaterial->getUniform("roughnessFactor"));
+		if (ImGui::SliderFloat("RoughnessFactor", &roughnessFactor, 0.0, 1.0))
+			selectedMaterial->setAttribute("roughnessFactor", roughnessFactor);
+	}
+
+	static glm::vec3 lightDirection = glm::vec3(1.0);
+	if (ImGui::SliderFloat3("lightDirection", (float*)&lightDirection, -1.0, 1.0))
+	{
+		auto& light = scene->getComponent<Issam::Light>(lightEnitity);
+		light.m_direction = lightDirection;
+		scene->update<Issam::Light>(lightEnitity);
+	}
+
+
+	/*static float translation[3] = { 0.0, 0.0, 0.0 };
+	static float rotation[3] = { 0.0, 0.0, 0.0 };
+	static float scale[3] = { 1.0, 1.0, 1.0 };
+	ImGui::InputFloat3("Translation", translation);
+	ImGui::InputFloat3("Rotation", rotation);
+	ImGui::InputFloat3("Scale", scale);
+	glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), glm::make_vec3(translation));
+	glm::mat4 rotationMatrix = computeRotationMatrix(glm::make_vec3(rotation));
+	glm::mat4 scaleMatrix = glm::scale(glm::mat4(1.0f), glm::make_vec3(scale));
+	glm::mat4 transformation = translationMatrix * rotationMatrix * scaleMatrix;
+	shader->setUniform("model", transformation);*/
+
+	ImGuiIO& io = ImGui::GetIO();
+	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+	ImGui::End();
+}
+
+void update()
+{
+	glfwPollEvents();
+	updateGUI();
+    renderer.draw();
+}
+
+void finish()
+{
 	Context::getInstance().shutdownGraphics();
-	
-	glfwDestroyWindow(window);
+
+    glfwDestroyWindow(window);
 	glfwTerminate();
+}
+
+
+int main(int argc, char* argv[])
+{
+	init();
+#if defined(__EMSCRIPTEN__)
+	emscripten_set_main_loop(update, 0, false);
+#else
+	while (!glfwWindowShouldClose(window))
+	{
+		update();
+	}
+	finish();
+#endif    
 
 	return 0;
 }

@@ -15,9 +15,12 @@ const std::regex base64Pattern(R"(data:image/(\w+);base64,)");
 class GltfLoader
 {
 public:
-	GltfLoader() = delete;
-	GltfLoader(Issam::Scene* scene) : m_scene(scene) {};
+	GltfLoader() = default;
 	~GltfLoader() = default;
+
+	void setScene(Issam::Scene* scene) {
+		m_scene = scene;
+	}
 
 	void load(const std::string& filepath);
 	void unload();

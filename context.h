@@ -1,7 +1,13 @@
 #pragma once
 
 #include <GLFW/glfw3.h>
+
+#if defined(__EMSCRIPTEN__)
+#include <emscripten/emscripten.h>
+#else
 #include <webgpu/webgpu_glfw.h>
+#endif
+
 #include <webgpu/webgpu_cpp.h>
 
 #include "webgpu-utils.h"
@@ -68,7 +74,16 @@ public:
 		m_device.SetUncapturedErrorCallback(onUncapturedError, nullptr);
 
 	//	//Creating swapchain...
-		m_surface = glfw::CreateSurfaceForWindow(m_instance, window);
+#if defined(__EMSCRIPTEN__)
+		wgpu::SurfaceDescriptorFromCanvasHTMLSelector canvasDesc{};
+		canvasDesc.selector = "#canvas";
+
+		wgpu::SurfaceDescriptor surfaceDesc{ .nextInChain = &canvasDesc };
+		m_surface = m_instance.CreateSurface(&surfaceDesc);
+#else
+		m_surface = wgpu::glfw::CreateSurfaceForWindow(m_instance, window);
+#endif
+
 		SurfaceConfiguration config;
 		config.device = m_device;
 		config.format = swapChainFormat;
@@ -115,6 +130,11 @@ private:
 		instance.RequestDevice(descriptor, onDeviceRequestEnded, &userData);
 
 		// assert(userData.requestEnded);
+#if __EMSCRIPTEN__
+		while (!userData.requestEnded) {
+			emscripten_sleep(100);
+		}
+#endif
 
 		return userData.device;
 	}
@@ -143,7 +163,11 @@ private:
 		instance.RequestAdapter(options, onAdapterRequestEnded, &userData);
 
 		// assert(userData.requestEnded);
-
+#if __EMSCRIPTEN__
+		while (!userData.requestEnded) {
+			emscripten_sleep(100);
+		}
+#endif
 		return userData.adapter;
 	}
 	Context() = default;
