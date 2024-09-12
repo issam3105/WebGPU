@@ -29,8 +29,12 @@ namespace Utils
 	std::string GetBaseDir(const std::string& filepath);
 
 	std::string getFileExtension(const std::string& filePath);
+
+	std::vector<std::string> getFiles(const std::string& directoryPath, std::vector<std::string> extensions);
 	
 	Texture loadTexture(void* pixelData, int& width, int& height, int& channels, TextureFormat format, TextureView* pTextureView = nullptr);
 
 	Texture loadImageFromPath(const std::string& path, TextureView* pTextureView = nullptr, bool hdr = false);
+
+	TextureView createBuffer(uint32_t width, uint32_t height, TextureFormat format);
 }

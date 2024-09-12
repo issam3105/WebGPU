@@ -331,3 +331,45 @@ Texture Utils::loadImageFromPath(const std::string& path, TextureView* pTextureV
 
 	return loadTexture(data, width, height, channels, format, pTextureView);
 }
+
+std::vector<std::string> Utils::getFiles(const std::string& directoryPath, std::vector<std::string> extensions)
+{
+	std::vector<std::string> files;
+
+	for (const auto& entry : fs::recursive_directory_iterator(directoryPath)) {
+		for (auto& extension : extensions)
+		{
+			if (entry.is_regular_file() && entry.path().extension() == extension) {
+				files.push_back(entry.path().string());
+			}
+		}
+	}
+
+	return files;
+}
+
+TextureView Utils::createBuffer(uint32_t width, uint32_t height, TextureFormat format)
+{
+	// Create the depth texture
+	TextureDescriptor textureDesc;
+	textureDesc.dimension = TextureDimension::e2D;
+	textureDesc.format = format;
+	textureDesc.mipLevelCount = 1;
+	textureDesc.sampleCount = 1;
+	textureDesc.size = { width, height, 1 };
+	textureDesc.usage = TextureUsage::RenderAttachment | TextureUsage::TextureBinding;
+	textureDesc.viewFormatCount = 1;
+	textureDesc.viewFormats = (TextureFormat*)&format;
+	Texture depthTexture = Context::getInstance().getDevice().CreateTexture(&textureDesc);
+
+	// Create the view of the depth texture manipulated by the rasterizer
+	TextureViewDescriptor textureViewDesc;
+	textureViewDesc.aspect = TextureAspect::All;;//TODO TextureAspect::DepthOnly; for depth
+	textureViewDesc.baseArrayLayer = 0;
+	textureViewDesc.arrayLayerCount = 1;
+	textureViewDesc.baseMipLevel = 0;
+	textureViewDesc.mipLevelCount = 1;
+	textureViewDesc.dimension = TextureViewDimension::e2D;
+	textureViewDesc.format = format;
+	return depthTexture.CreateView(&textureViewDesc);
+}

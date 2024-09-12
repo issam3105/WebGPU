@@ -28,6 +28,7 @@ list(APPEND sources
 	material.h
 	attributed.h
 	gltfLoader.h
+	app.h
 )
 
 add_executable(App ${sources})
