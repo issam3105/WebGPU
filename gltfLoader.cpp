@@ -293,7 +293,7 @@ void GltfLoader::loadMesh(const tinygltf::Model& model, const tinygltf::Mesh& me
 				const tinygltf::Texture& gltfTexture = model.textures[baseColorTextureIndex];
 				//	const tinygltf::Image& gltfImage = model.images[gltfTexture.source];
 				std::string id = m_sourceToId.find(gltfTexture.source)->second;
-				material->setAttribute("baseColorTexture", TextureManager::getInstance().getTextureView(id));
+				material->setAttribute("baseColorTexture", TextureManager::getInstance().get(id));
 			}
 
 			int metallicRoughnessIndex = gltfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index;
@@ -302,7 +302,7 @@ void GltfLoader::loadMesh(const tinygltf::Model& model, const tinygltf::Mesh& me
 				const tinygltf::Texture& gltfTexture = model.textures[metallicRoughnessIndex];
 				//const tinygltf::Image& gltfImage = model.images[gltfTexture.source];
 				std::string id = m_sourceToId.find(gltfTexture.source)->second;
-				material->setAttribute("metallicRoughnessTexture", TextureManager::getInstance().getTextureView(id));
+				material->setAttribute("metallicRoughnessTexture", TextureManager::getInstance().get(id));
 			}
 
 			auto& metallicFactor = gltfMaterial.pbrMetallicRoughness.metallicFactor;

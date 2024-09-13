@@ -500,7 +500,7 @@ public:
 						if (ImGui::Selectable(textureNames[i].c_str(), isSelected)) {
 							selectedTextureIndex = i;
 							//	std::cout << "Selected texture: " << textureNames[i] << std::endl;
-							selectedMaterial->setAttribute("baseColorTexture", TextureManager::getInstance().getTextureView(textureNames[i]));
+							selectedMaterial->setAttribute("baseColorTexture", TextureManager::getInstance().get(textureNames[i]));
 
 
 						}

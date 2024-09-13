@@ -1,75 +1,46 @@
 #pragma once
-
-
 #include "context.h"
 #include "mesh.h"
 #include "shader.h"
 
 
-
-
-
-class TextureManager
-{
+template <typename T>
+class ResourceManager {
 public:
-	TextureManager() = default;
-	~TextureManager() = default;
+    static ResourceManager& getInstance() {
+        static ResourceManager resourceManager;
+        return resourceManager;
+    }
 
-	static TextureManager& getInstance() {
-		static TextureManager textureManager;
-		return textureManager;
-	};
+    bool add(const std::string& id, T resource) {
+        m_resources[id] = resource;
+        return true;
+    }
 
-	bool add(const std::string& id, TextureView textureView) {
-		m_textures[id] = textureView;
-		return true; }
-	TextureView getTextureView(const std::string& id) {
-		return  m_textures[id]; 
-	}
+    T get(const std::string& id) {
+        return m_resources[id];
+    }
 
-	bool remove(const std::string& id)
-	{
-		auto it =m_textures.find(id);
-		if (it != m_textures.end())
-		{
-			m_textures.erase(it);
-			return true;
-		}
-		return false;
-	}
-	void clear()
-	{
-		m_textures.clear();
-	}
-	std::unordered_map<std::string, TextureView>& getAll() { return m_textures; }
+    bool remove(const std::string& id) {
+        auto it = m_resources.find(id);
+        if (it != m_resources.end()) {
+            m_resources.erase(it);
+            return true;
+        }
+        return false;
+    }
+
+    void clear() {
+        m_resources.clear();
+    }
+
+    std::unordered_map<std::string, T>& getAll() {
+        return m_resources;
+    }
+
 private:
-	std::unordered_map<std::string, TextureView> m_textures{};
+    std::unordered_map<std::string, T> m_resources{};
 };
 
-class SamplerManager
-{
-public:
-	SamplerManager() = default;
-	~SamplerManager() = default;
-
-	static SamplerManager& getInstance() {
-		static SamplerManager samplerManager;
-		return samplerManager;
-	};
-
-	bool add(const std::string& id, Sampler sampler) {
-		m_samplers[id] = sampler;
-		return true;
-	}
-	Sampler getSampler(const std::string& id) {
-		return  m_samplers[id];
-	}
-	void clear()
-	{
-		m_samplers.clear();
-	}
-	std::unordered_map<std::string, Sampler>& getAll() { return m_samplers; }
-private:
-	std::unordered_map<std::string, Sampler> m_samplers{};
-};
-
+using TextureManager = ResourceManager<TextureView>;
+using SamplerManager = ResourceManager<Sampler>;
