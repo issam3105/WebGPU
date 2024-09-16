@@ -12,6 +12,7 @@
 #include "shader.h"
 #include "material.h"
 #include "attributed.h"
+#include "mesh.h"
 
 #include <entt/entt.hpp>
 
@@ -95,7 +96,7 @@ namespace Issam {
 		Material* material = nullptr;
 
 		~MeshRenderer() {
-			//TODO Fuite mémoire !!
+			//TODO Fuite mï¿½moire !!
 			//delete material;
 			//MeshManager::getInstance().remove(meshId);
 		}

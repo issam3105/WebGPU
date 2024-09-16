@@ -20,7 +20,7 @@
 #include "pipeline.h"
 #include "pass.h"
 #include "mesh.h"
-#include "managers.h"
+#include "resourceManager.h"
 #include "imgui_wrapper.h"
 #include "utils.h"
 #include "renderer.h"

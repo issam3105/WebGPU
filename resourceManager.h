@@ -1,8 +1,5 @@
 #pragma once
 #include "context.h"
-#include "mesh.h"
-#include "shader.h"
-
 
 template <typename T>
 class ResourceManager {
@@ -13,12 +10,22 @@ public:
     }
 
     bool add(const std::string& id, T resource) {
+        if (has(id)) {
+            throw std::runtime_error("Resource with ID " + id + " already exists.");
+        }
         m_resources[id] = resource;
         return true;
     }
 
-    T get(const std::string& id) {
+    const T& get(const std::string& id) {
+        if (!has(id)) {
+            throw std::runtime_error("Resource with ID " + id + " does not exist.");
+        }
         return m_resources[id];
+    }
+
+    bool has(const std::string& id) {
+        return m_resources.find(id) != m_resources.end();
     }
 
     bool remove(const std::string& id) {
@@ -27,7 +34,7 @@ public:
             m_resources.erase(it);
             return true;
         }
-        return false;
+        throw std::runtime_error("Resource with ID " + id + " does not exist.");
     }
 
     void clear() {
@@ -38,7 +45,7 @@ public:
         return m_resources;
     }
 
-private:
+protected:
     std::unordered_map<std::string, T> m_resources{};
 };
 

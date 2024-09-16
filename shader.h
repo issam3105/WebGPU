@@ -325,7 +325,13 @@ private:
 	void addbindGroup(Issam::Binding binding)
 	{
 		const std::string groupId = getAttributedId(binding);
-		auto& attributesGroup = Issam::AttributedManager::getInstance().get(groupId);
+		bool hasDynamicOffset = false;
+		if(Issam::AttributedManager::getInstance().has(groupId))	
+		{
+			auto& attributesGroup = Issam::AttributedManager::getInstance().get(groupId);
+			if(attributesGroup.getVersionCount()> 1) hasDynamicOffset = true;
+		}
+		
 		const std::vector<Uniform>& materialUniforms = getUniformsByBinding(binding);
 		int bindingIdx = 0;
 		bool usedGroupe = false;
@@ -340,7 +346,7 @@ private:
 			uniformsBindingLayout.visibility = ShaderStage::Vertex | ShaderStage::Fragment;
 			uniformsBindingLayout.buffer.type = BufferBindingType::Uniform;
 			uniformsBindingLayout.buffer.minBindingSize = sizeof(UniformsData);
-			uniformsBindingLayout.buffer.hasDynamicOffset = attributesGroup.getVersionCount() > 1 ? true : false;
+			uniformsBindingLayout.buffer.hasDynamicOffset = hasDynamicOffset;
 			bindingLayoutEntries.push_back(uniformsBindingLayout);
 		}
 

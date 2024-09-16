@@ -10,7 +10,6 @@ using namespace glm;
 
 #include "uniformsBuffer.h"
 #include "attributed.h"
-#include "managers.h"
 
 
 class Material 

@@ -18,7 +18,7 @@ list(APPEND sources
 	shader.h 
 	pipeline.h 
 	pass.h 
-	managers.h 
+	resourceManager.h 
 	imgui_wrapper.h 
 	utils.h 
 	renderer.h 

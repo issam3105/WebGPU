@@ -3,6 +3,7 @@
 
 #include "context.h"
 #include "scene.h"
+#include "mesh.h"
 
 
 class Renderer
@@ -176,8 +177,7 @@ public:
 		m_scene = scene;
 		
 	}
-	//void setCamera(Issam::Camera* camera) { m_scene->camera = camera; }
-	//Issam::Camera* getCamera() { return m_scene->camera; }
+
 private:
 	
 	Queue m_queue{ nullptr };

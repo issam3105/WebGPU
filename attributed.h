@@ -8,6 +8,7 @@
 
 #include "context.h"
 #include "uniformsBuffer.h"
+#include "resourceManager.h"
 
 using namespace glm;
 
@@ -52,40 +53,24 @@ namespace Issam {
 		int m_versionCount = 1;
 	};
 
-	class AttributedManager
+	class AttributedManager : public ResourceManager<Issam::AttributeGroup>
 	{
 	public:
-		AttributedManager() = default;
-		~AttributedManager() = default;
-
+	     // Redéfinir getInstance pour renvoyer une instance d'AttributedManager
 		static AttributedManager& getInstance() {
 			static AttributedManager attributedManager;
 			return attributedManager;
-		};
+		}
 
-		bool add(const std::string& id, Issam::AttributeGroup attributeGroup) {
-			m_attributeGroups[id] = attributeGroup;
-			return true;
-		}
-		const Issam::AttributeGroup& get(const std::string& id) {
-			return  m_attributeGroups[id];
-		}
-		void clear()
-		{
-			m_attributeGroups.clear();
-		}
-		std::unordered_map<std::string, Issam::AttributeGroup>& getAll() { return m_attributeGroups; }
 		std::unordered_map<std::string, Issam::AttributeGroup> getAll(Binding binding) {
 			std::unordered_map<std::string, Issam::AttributeGroup> list;
-			for (auto& group : m_attributeGroups)
+			for (auto& group : m_resources)
 			{
 				if (group.second.getBinding() == binding)
 					list[group.first] = group.second;
 			}
 			return list;
 		}
-	private:
-		std::unordered_map<std::string, Issam::AttributeGroup> m_attributeGroups{};
 	};
 
 	class AttributedRuntime {
@@ -151,6 +136,7 @@ namespace Issam {
 
 		void setAttribute(std::string name, const AttributeValue& value, size_t version = 0)
 		{
+			assert(version < m_numVersions);
 			auto& attribute = getAttribute(name);
 			attribute.value = value;
 			if (std::holds_alternative< UniformValue>(value))
