@@ -64,6 +64,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     vec3f(0.0, 1.0, 0.0),
 );
 
+    let ambientLight = vec3f(0.2); // Intensité de la lumière ambiante
     let V = normalize(u_scene.cameraPosition.xyz - in.worldPosition.xyz);
 	let N = normalize(in.normal);
 	//let L = normalize(lightPositions[i] - WorldPos);
@@ -113,6 +114,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
       // Lo += G;
 	
     }
+
+    // Ajouter la lumière ambiante
+    Lo += ambientLight * baseColor.rgb;
+
 	// Gamma-correction
 //	let srgb_color = pow(baseColor.rgb * shading, vec3f(2.2));
 	//return vec4f(srgb_color, baseColor.a);
