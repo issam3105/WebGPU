@@ -6,7 +6,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
 	var out: VertexOutput;
 	out.position = u_scene.projection * u_scene.view * u_node.model * vec4f(in.position, 1.0);
 	out.color = in.color;
-	out.normal = in.normal;
+	out.normal = (u_node.model * vec4f(in.normal, 1.0)).xyz; 
 	out.uv = in.uv;
 	
 	out.worldPosition = u_node.model * vec4f(in.position, 1.0);
@@ -57,15 +57,19 @@ fn fresnelSchlick(cosTheta : f32, F0 : vec3f) -> vec3f
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4f {
     //let lightDirection = vec3f(0.5, -0.9, 0.1);
-	let lightDirection = u_scene.lightDirection.xyz;
-	
+	//let lightDirection = u_scene.lightDirection.xyz;
+	let lightDirections = array<vec3f, 3>(
+    u_scene.lightDirection.xyz,
+    vec3f(-1.0, 0.0, 0.0),
+    vec3f(0.0, 1.0, 0.0),
+);
+
     let V = normalize(u_scene.cameraPosition.xyz - in.worldPosition.xyz);
 	let N = normalize(in.normal);
 	//let L = normalize(lightPositions[i] - WorldPos);
 	//let lightPosition = vec3f(0.5, -0.9, 0.1);
 	//let L = normalize(lightDirection - in.worldPosition.xyz);
-	let L = lightDirection;
-	let H = normalize(V + L);
+	
 	
 	//let reflectedDir = reflect(V, N);
 	//let envmap = textureSample(environmentMap, defaultSampler, reflectedDir.xy).rgb;
@@ -77,33 +81,38 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4f {
 	
 	var  F0 = vec3f(0.04); 
     F0 = mix(F0, baseColor.xyz, metallic);
-	
-	let NDF = DistributionGGX(N, H, roughness); 
-	let G   = GeometrySmith(N, V, L, roughness); 
-	let F    = fresnelSchlick(max(dot(H, V), 0.0), F0);
-	
-    let numerator    = NDF * G * F; 
-    let denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001; // + 0.0001 to prevent divide by zero
-    let specular = numerator / denominator;
-	
-	// kS is equal to Fresnel
-    let kS = F;
-    // for energy conservation, the diffuse and specular light can't
-    // be above 1.0 (unless the surface emits light); to preserve this
-    // relationship the diffuse component (kD) should equal 1.0 - kS.
-    var kD = vec3(1.0) - kS;
-    // multiply kD by the inverse metalness such that only non-metals 
-    // have diffuse lighting, or a linear blend if partly metal (pure metals
-    // have no diffuse light).
-    kD *= 1.0 - metallic;	  
 
-    // scale light by NdotL
-    let NdotL = max(dot(N, L), 0.0);        
+    var Lo = vec3f(0.0);
+    for (var i = 0; i < 3; i++) {
+        let L = lightDirections[i];
+        let H = normalize(V + L);
+        let NDF = DistributionGGX(N, H, roughness); 
+        let G   = GeometrySmith(N, V, L, roughness); 
+        let F    = fresnelSchlick(max(dot(H, V), 0.0), F0);
+        
+        let numerator    = NDF * G * F; 
+        let denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001; // + 0.0001 to prevent divide by zero
+        let specular = numerator / denominator;
+        
+        // kS is equal to Fresnel
+        let kS = F;
+        // for energy conservation, the diffuse and specular light can't
+        // be above 1.0 (unless the surface emits light); to preserve this
+        // relationship the diffuse component (kD) should equal 1.0 - kS.
+        var kD = vec3(1.0) - kS;
+        // multiply kD by the inverse metalness such that only non-metals 
+        // have diffuse lighting, or a linear blend if partly metal (pure metals
+        // have no diffuse light).
+        kD *= 1.0 - metallic;	  
 
-    // add to outgoing radiance Lo
-    let Lo = (kD * baseColor.rgb / PI + specular) * NdotL; //* radiance
+        // scale light by NdotL
+        let NdotL = max(dot(N, L), 0.0);        
+
+        // add to outgoing radiance Lo
+        Lo += (kD * baseColor.rgb / PI + specular) * NdotL; //* radiance
+      // Lo += G;
 	
-	
+    }
 	// Gamma-correction
 //	let srgb_color = pow(baseColor.rgb * shading, vec3f(2.2));
 	//return vec4f(srgb_color, baseColor.a);
